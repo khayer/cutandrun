@@ -156,6 +156,7 @@ include { DEEPTOOLS_COMPUTEMATRIX as DEEPTOOLS_COMPUTEMATRIX_GENE_ALL  } from ".
 include { DEEPTOOLS_COMPUTEMATRIX as DEEPTOOLS_COMPUTEMATRIX_PEAKS_ALL } from "../modules/nf-core/deeptools/computematrix/main"
 include { DEEPTOOLS_PLOTHEATMAP as DEEPTOOLS_PLOTHEATMAP_GENE_ALL      } from "../modules/nf-core/deeptools/plotheatmap/main"
 include { DEEPTOOLS_PLOTHEATMAP as DEEPTOOLS_PLOTHEATMAP_PEAKS_ALL     } from "../modules/nf-core/deeptools/plotheatmap/main"
+include { DEEPTOOLS_BIGWIGCOMPARE                                      } from "../modules/nf-core/deeptools/bigwigcompare/main"
 include { CUSTOM_DUMPSOFTWAREVERSIONS                                  } from "../modules/local/custom_dumpsoftwareversions"
 
 /*
@@ -457,6 +458,61 @@ workflow CUTANDRUN {
         ch_bedgraph          = PREPARE_PEAKCALLING.out.bedgraph
         ch_bigwig            = PREPARE_PEAKCALLING.out.bigwig
         ch_software_versions = ch_software_versions.mix(PREPARE_PEAKCALLING.out.versions)
+
+        /*
+        * MODULE: Compute log2 ratio of ChIP vs control bigwigs
+        */
+        log.info "Checking bigwig subtract: use_control=${params.use_control}, run_bigwig_subtract=${params.run_bigwig_subtract}"
+        
+        if(params.use_control && params.run_bigwig_subtract) {
+            log.info "ENTERING BIGWIG SUBTRACT BLOCK"
+            // Separate bigwigs into target and control
+            ch_bigwig.filter { it -> it[0].is_control == false }
+            .tap { ch_bigwig_target_count }
+            .set { ch_bigwig_target_compare }
+            
+            ch_bigwig.filter { it -> it[0].is_control == true }
+            .tap { ch_bigwig_control_count }
+            .set { ch_bigwig_control_compare }
+            
+            // DEBUG: Count targets and controls
+            ch_bigwig_target_count.count().view { "TARGET COUNT: $it" }
+            ch_bigwig_control_count.count().view { "CONTROL COUNT: $it" }
+            
+            // Match targets with their controls
+            // Target: key = control_group (already includes replicate, e.g., "igg_ctrl_1")
+            ch_bigwig_target_compare
+            .map { row -> 
+                def key = row[0].control_group
+                log.info "TARGET KEY: $key for ${row[0].id}"
+                [ key, row[0], row[1] ]
+            }
+            .set { ch_bigwig_target_keyed }
+            
+            // Control: key = group + "_" + replicate (e.g., "igg_ctrl_1")
+            ch_bigwig_control_compare
+            .map { row -> 
+                def key = row[0].group + "_" + row[0].replicate
+                log.info "CONTROL KEY: $key for ${row[0].id}"
+                [ key, row[0], row[1] ]
+            }
+            .set { ch_bigwig_control_keyed }
+            
+            // Join target and control on the combined key
+            ch_bigwig_target_keyed
+            .join( ch_bigwig_control_keyed )
+            .map { row -> [ row[1], row[2], row[4] ] }
+            .set { ch_bigwig_pairs }
+            // EXAMPLE CHANNEL STRUCT: [[META_TARGET], BIGWIG_TARGET, BIGWIG_CONTROL]
+            
+            // DEBUG: View pairs
+            ch_bigwig_pairs.view { "BIGWIG PAIR CREATED: target=${it[0].id}, control_group=${it[0].control_group}, replicate=${it[0].replicate}" }
+            
+            DEEPTOOLS_BIGWIGCOMPARE (
+                ch_bigwig_pairs
+            )
+            ch_software_versions = ch_software_versions.mix(DEEPTOOLS_BIGWIGCOMPARE.out.versions)
+        }
 
         /*
          * CHANNEL: Separate bedgraphs into target/control

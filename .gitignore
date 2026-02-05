@@ -1,5 +1,5 @@
 .nextflow*
-work/
+work*/
 data/
 results/
 .DS_Store
@@ -15,3 +15,22 @@ R_sessionInfo.log
 
 .vscode/
 profile.svg
+reads/*
+
+results*
+
+tmp/
+
+HSV.bed
+HSV.bed_BU
+HSV.gtf
+HSV17_from_gff.bed
+HSV17_genome_files/17_No_repeats.fasta
+HSV17_genome_files/17_No_repeats.fasta.fai
+HSV17_genome_files/17_No_repeats.gff
+references/Homo_sapiens/UCSC/hg38/Annotation/Genes/genes.bed
+scale-factors.csv
+samplesheet.csv
+samplesheet_just2026.csv~
+samplesheet_just2026.csv
+nextflow.config_BU
