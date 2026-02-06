@@ -337,6 +337,13 @@
                     "description": "Sets the target read normalisation mode. Options are: [\"Spikein\", \"RPKM\", \"CPM\", \"BPM\", \"None\" ]",
                     "enum": ["Spikein", "RPKM", "CPM", "BPM", "None"]
                 },
+                "normalisation_mode_dual": {
+                    "type": "boolean",
+                    "default": false,
+                    "fa_icon": "fas fa-balance-scale",
+                    "description": "Enable dual normalization combining spike-in and target genome abundance.",
+                    "help_text": "When enabled with normalisation_mode=Spikein, applies both spike-in normalization (technical variation) and target genome abundance normalization (biological variation). Scale factor = (normalisation_c / spike_in_reads) × (mean_target_reads / sample_target_reads). Useful for normalizing both ChIP efficiency and viral load/genome copy number differences."
+                },
                 "normalisation_binsize": {
                     "type": "integer",
                     "default": 50,

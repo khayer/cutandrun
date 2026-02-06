@@ -10,12 +10,14 @@ include { UCSC_BEDGRAPHTOBIGWIG } from "../../modules/nf-core/ucsc/bedgraphtobig
 
 workflow PREPARE_PEAKCALLING {
     take:
-    ch_bam         // channel: [ val(meta), [ bam ] ]
-    ch_bai         // channel: [ val(meta), [ bai ] ]
-    ch_chrom_sizes // channel: [ sizes ]
-    ch_dummy_file  // channel: [ dummy ]
-    norm_mode      // value:   ["Spikein", "RPKM", "CPM", "BPM", "RPGC", "None" ]
-    metadata       // channel  [ csv ]
+    ch_bam           // channel: [ val(meta), [ bam ] ]
+    ch_bai           // channel: [ val(meta), [ bai ] ]
+    ch_chrom_sizes   // channel: [ sizes ]
+    ch_dummy_file    // channel: [ dummy ]
+    norm_mode        // value:   ["Spikein", "RPKM", "CPM", "BPM", "RPGC", "None" ]
+    metadata         // channel  [ csv ] - spike-in metadata
+    target_metadata  // channel  [ csv ] - target genome metadata
+    mean_target_reads // value: mean target aligned reads (for dual normalization)
 
     main:
     ch_versions = Channel.empty()
@@ -23,25 +25,49 @@ workflow PREPARE_PEAKCALLING {
 
     if (norm_mode == "Spikein") {
         /*
-        * CHANNEL: Load up alignment metadata into channel
+        * CHANNEL: Load up spike-in alignment metadata into channel
         */
         metadata.splitCsv ( header:true, sep:"," )
             .map { row -> [ row[0].id, row[1] ]}
-            .set { ch_metadata }
-        //ch_metadata | view
+            .set { ch_spikein_metadata }
+        //ch_spikein_metadata | view
 
         /*
-        * CHANNEL: Calculate scale factor for each sample based on a constant devided by the number
-        *          of reads aligned to the spike-in genome.
+        * CHANNEL: Load up target genome alignment metadata into channel
+        */
+        target_metadata.splitCsv ( header:true, sep:"," )
+            .map { row -> [ row[0].id, row[1] ]}
+            .set { ch_target_metadata }
+        //ch_target_metadata | view
+
+        /*
+        * CHANNEL: Calculate scale factor for each sample.
+        * If dual normalization is enabled, multiply spike-in factor by target genome abundance factor.
+        * Formula: scale_factor = (normalisation_c / spike_in_reads) * (mean_target_reads / sample_target_reads)
         */
         ch_bam.map { row -> [ row[0].id, row[0], row[1] ]}
-            .join ( ch_metadata )
+            .join ( ch_spikein_metadata )
+            .join ( ch_target_metadata )
             .map { row ->
-                def denominator = row[3].find{ it.key == "bt2_total_aligned" }?.value.toInteger()
-                [ row[1], row[2], params.normalisation_c / (denominator != 0 ? denominator : params.normalisation_c) ]
+                def spikein_reads = row[3].find{ it.key == "bt2_total_aligned" }?.value.toInteger()
+                def target_reads = row[4].find{ it.key == "bt2_total_aligned" }?.value.toInteger()
+                
+                // Calculate spike-in normalization factor
+                def spikein_factor = params.normalisation_c / (spikein_reads != 0 ? spikein_reads : params.normalisation_c)
+                
+                // Calculate final scale factor
+                def final_factor = spikein_factor
+                if (params.normalisation_mode_dual && target_reads != null && target_reads > 0) {
+                    // Apply dual normalization: spike-in × target abundance
+                    def target_factor = mean_target_reads / target_reads
+                    final_factor = spikein_factor * target_factor
+                    log.info "Sample ${row[0].id}: spikein_factor=${spikein_factor}, target_factor=${target_factor}, final_factor=${final_factor}"
+                }
+                
+                [ row[1], row[2], final_factor ]
             }
             .set { ch_bam_scale_factor }
-        // EXAMPLE CHANNEL STRUCT: [id, scale_factor]
+        // EXAMPLE CHANNEL STRUCT: [[META], BAM, scale_factor]
         //ch_bam_scale_factor | view
     }
     else if (norm_mode == "None") {

@@ -112,6 +112,7 @@ include { AWK as AWK_EXTRACT_SUMMITS } from "../modules/local/linux/awk"
 include { SAMTOOLS_CUSTOMVIEW        } from "../modules/local/samtools_custom_view"
 include { FRAG_LEN_HIST              } from "../modules/local/python/frag_len_hist"
 include { MULTIQC                    } from "../modules/local/multiqc"
+include { MERGE_PEAKS_TABLE          } from "../modules/local/python/merge_peaks_table"
 
 /*
  * SUBWORKFLOWS
@@ -157,6 +158,7 @@ include { DEEPTOOLS_COMPUTEMATRIX as DEEPTOOLS_COMPUTEMATRIX_PEAKS_ALL } from ".
 include { DEEPTOOLS_PLOTHEATMAP as DEEPTOOLS_PLOTHEATMAP_GENE_ALL      } from "../modules/nf-core/deeptools/plotheatmap/main"
 include { DEEPTOOLS_PLOTHEATMAP as DEEPTOOLS_PLOTHEATMAP_PEAKS_ALL     } from "../modules/nf-core/deeptools/plotheatmap/main"
 include { DEEPTOOLS_BIGWIGCOMPARE                                      } from "../modules/nf-core/deeptools/bigwigcompare/main"
+include { DEEPTOOLS_MULTIBAMSUMMARY_BED                                } from "../modules/nf-core/deeptools/multibamsummary_bed/main"
 include { CUSTOM_DUMPSOFTWAREVERSIONS                                  } from "../modules/local/custom_dumpsoftwareversions"
 
 /*
@@ -446,6 +448,27 @@ workflow CUTANDRUN {
     ch_consensus_peaks_unfilt = Channel.empty()
     if(params.run_peak_calling) {
         /*
+        * CHANNEL: Calculate mean target genome read count across all samples for dual normalization
+        */
+        ch_mean_target_reads = Channel.value(1.0)
+        if (params.normalisation_mode_dual && params.normalisation_mode == "Spikein") {
+            ch_metadata_bt2_target
+                .splitCsv(header:true, sep:",")
+                .map { row -> 
+                    def aligned = row.find{ it.key == "bt2_total_aligned" }?.value
+                    aligned ? aligned.toDouble() : 0.0
+                }
+                .toList()
+                .map { list -> 
+                    def valid_counts = list.findAll { it > 0 }
+                    valid_counts.size() > 0 ? valid_counts.sum() / valid_counts.size() : 1.0
+                }
+                .set { ch_mean_target_reads }
+            
+            ch_mean_target_reads.view { "Mean target genome reads for dual normalization: ${it}" }
+        }
+
+        /*
         * SUBWORKFLOW: Convert BAM files to bedgraph/bigwig and apply configured normalisation strategy
         */
         PREPARE_PEAKCALLING(
@@ -454,7 +477,9 @@ workflow CUTANDRUN {
             PREPARE_GENOME.out.chrom_sizes.collect(),
             ch_dummy_file,
             params.normalisation_mode,
-            ch_metadata_bt2_spikein
+            ch_metadata_bt2_spikein,
+            ch_metadata_bt2_target,
+            ch_mean_target_reads
         )
         ch_bedgraph          = PREPARE_PEAKCALLING.out.bedgraph
         ch_bigwig            = PREPARE_PEAKCALLING.out.bigwig
@@ -658,6 +683,41 @@ workflow CUTANDRUN {
         // EXAMPLE CHANNEL STRUCT: [[META], BED]
         //AWK_NAME_PEAK_BED.out.file | view
 
+        /*
+        * MODULE: Create merged peaks table showing peak presence across samples
+        */
+        MERGE_PEAKS_TABLE (
+            ch_peaks_primary.collect{it[1]}.ifEmpty([])
+        )
+        ch_software_versions = ch_software_versions.mix(MERGE_PEAKS_TABLE.out.versions)
+
+        /*
+        * MODULE: Annotate merged peaks with read counts from all BAMs
+        */
+        // Prepare BAM channel for multiBamSummary
+        ch_samtools_bam
+        .join(ch_samtools_bai, by: 0)
+        .map { meta, bam, bai -> [ meta, bam, bai, meta.id ] }
+        .toSortedList { it[3] }  // Sort by sample ID
+        .map { list ->
+            def bams = []
+            def bais = []
+            def labels = []
+            list.each { item ->
+                bams.add(item[1])
+                bais.add(item[2])
+                labels.add(item[3])
+            }
+            [ [id: 'all_samples'], bams, bais, labels ]
+        }
+        .set { ch_bams_for_summary }
+        
+        DEEPTOOLS_MULTIBAMSUMMARY_BED (
+            ch_bams_for_summary,
+            MERGE_PEAKS_TABLE.out.bed.collect()
+        )
+        ch_software_versions = ch_software_versions.mix(DEEPTOOLS_MULTIBAMSUMMARY_BED.out.versions)
+
         if(params.run_consensus_all) {
             /*
             * CHANNEL: Group all samples, filter where the number in the group is > 1
@@ -732,6 +792,11 @@ workflow CUTANDRUN {
             /*
             * MODULE: Create igv session
             */
+            // Combine regular bigwigs with subtract bigwigs for IGV
+            ch_bigwig_for_igv = ch_bigwig.collect{it[1]}.ifEmpty([])
+                .mix(ch_bigwig_subtract.collect{it[1]}.flatten().ifEmpty([]))
+                .collect()
+            
             IGV_SESSION (
                 PREPARE_GENOME.out.fasta.map {it[1]},
                 PREPARE_GENOME.out.fasta_index.map {it[1]},
@@ -739,8 +804,7 @@ workflow CUTANDRUN {
                 //PREPARE_GENOME.out.gtf.collect(),
                 ch_peaks_primary.collect{it[1]}.filter{ it -> it.size() > 1}.ifEmpty([]),
                 ch_peaks_secondary.collect{it[1]}.filter{ it -> it.size() > 1}.ifEmpty([]),
-                ch_bigwig.collect{it[1]}.ifEmpty([])
-                    .mix(ch_bigwig_subtract.collect{it[1]}.ifEmpty([])),
+                ch_bigwig_for_igv,
                 params.igv_sort_by_groups
             )
             //ch_software_versions = ch_software_versions.mix(IGV_SESSION.out.versions)
