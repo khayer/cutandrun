@@ -436,6 +436,7 @@ workflow CUTANDRUN {
 
     ch_bedgraph               = Channel.empty()
     ch_bigwig                 = Channel.empty()
+    ch_bigwig_subtract        = Channel.empty()
     ch_seacr_peaks            = Channel.empty()
     ch_macs2_peaks            = Channel.empty()
     ch_peaks_primary          = Channel.empty()
@@ -465,52 +466,36 @@ workflow CUTANDRUN {
         log.info "Checking bigwig subtract: use_control=${params.use_control}, run_bigwig_subtract=${params.run_bigwig_subtract}"
         
         if(params.use_control && params.run_bigwig_subtract) {
-            log.info "ENTERING BIGWIG SUBTRACT BLOCK"
             // Separate bigwigs into target and control
             ch_bigwig.filter { it -> it[0].is_control == false }
-            .tap { ch_bigwig_target_count }
             .set { ch_bigwig_target_compare }
             
             ch_bigwig.filter { it -> it[0].is_control == true }
-            .tap { ch_bigwig_control_count }
             .set { ch_bigwig_control_compare }
-            
-            // DEBUG: Count targets and controls
-            ch_bigwig_target_count.count().view { "TARGET COUNT: $it" }
-            ch_bigwig_control_count.count().view { "CONTROL COUNT: $it" }
             
             // Match targets with their controls
             // Target: key = control_group (already includes replicate, e.g., "igg_ctrl_1")
             ch_bigwig_target_compare
-            .map { row -> 
-                def key = row[0].control_group
-                log.info "TARGET KEY: $key for ${row[0].id}"
-                [ key, row[0], row[1] ]
-            }
+            .map { row -> [ row[0].control_group, row[0], row[1] ] }
             .set { ch_bigwig_target_keyed }
             
             // Control: key = group + "_" + replicate (e.g., "igg_ctrl_1")
             ch_bigwig_control_compare
-            .map { row -> 
-                def key = row[0].group + "_" + row[0].replicate
-                log.info "CONTROL KEY: $key for ${row[0].id}"
-                [ key, row[0], row[1] ]
-            }
+            .map { row -> [ row[0].group + "_" + row[0].replicate, row[0], row[1] ] }
             .set { ch_bigwig_control_keyed }
             
-            // Join target and control on the combined key
+            // Combine all targets with all controls, then filter for matching keys
             ch_bigwig_target_keyed
-            .join( ch_bigwig_control_keyed )
-            .map { row -> [ row[1], row[2], row[4] ] }
+            .combine( ch_bigwig_control_keyed )
+            .filter { it[0] == it[3] }  // target_key == control_key
+            .map { row -> [ row[1], row[2], row[5] ] }  // [meta_target, bigwig_target, bigwig_control]
             .set { ch_bigwig_pairs }
             // EXAMPLE CHANNEL STRUCT: [[META_TARGET], BIGWIG_TARGET, BIGWIG_CONTROL]
-            
-            // DEBUG: View pairs
-            ch_bigwig_pairs.view { "BIGWIG PAIR CREATED: target=${it[0].id}, control_group=${it[0].control_group}, replicate=${it[0].replicate}" }
             
             DEEPTOOLS_BIGWIGCOMPARE (
                 ch_bigwig_pairs
             )
+            ch_bigwig_subtract   = DEEPTOOLS_BIGWIGCOMPARE.out.bigwig
             ch_software_versions = ch_software_versions.mix(DEEPTOOLS_BIGWIGCOMPARE.out.versions)
         }
 
@@ -754,7 +739,8 @@ workflow CUTANDRUN {
                 //PREPARE_GENOME.out.gtf.collect(),
                 ch_peaks_primary.collect{it[1]}.filter{ it -> it.size() > 1}.ifEmpty([]),
                 ch_peaks_secondary.collect{it[1]}.filter{ it -> it.size() > 1}.ifEmpty([]),
-                ch_bigwig.collect{it[1]}.ifEmpty([]),
+                ch_bigwig.collect{it[1]}.ifEmpty([])
+                    .mix(ch_bigwig_subtract.collect{it[1]}.ifEmpty([])),
                 params.igv_sort_by_groups
             )
             //ch_software_versions = ch_software_versions.mix(IGV_SESSION.out.versions)

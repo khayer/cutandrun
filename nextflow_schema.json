@@ -228,6 +228,12 @@
                     "type": "boolean",
                     "fa_icon": "fas fa-random",
                     "description": "Skips multiqc"
+                },
+                "run_bigwig_subtract": {
+                    "type": "boolean",
+                    "default": true,
+                    "fa_icon": "fas fa-random",
+                    "description": "Generate bigwig files with IgG control subtracted (log2ratio and subtract)"
                 }
             },
             "fa_icon": "fas fa-exchange-alt"
