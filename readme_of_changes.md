@@ -3,10 +3,192 @@
 This document tracks custom modifications made to the nf-core/cutandrun pipeline for the Weitzman Lab.
 
 ## Table of Contents
+- [Homer Motif Analysis](#homer-motif-analysis)
 - [Dual Normalization Feature](#dual-normalization-feature)
 - [BigWig Subtraction](#bigwig-subtraction)
 - [Merged Peaks Table](#merged-peaks-table)
 - [Read Count Annotation](#read-count-annotation)
+
+---
+
+## Homer Motif Analysis
+
+**Date Added:** February 6, 2026  
+**Purpose:** Perform de novo and known motif discovery in peak regions using Homer
+
+### Background
+
+[Homer](http://homer.ucsd.edu/homer/motif/) (Hypergeometric Optimization of Motif EnRichment) is a comprehensive suite for motif discovery and next-generation sequencing analysis. This integration adds motif finding capabilities to identify:
+- **De novo motifs**: Novel transcription factor binding motifs enriched in peaks
+- **Known motifs**: Enrichment of previously characterized motifs from databases
+- **Motif locations**: Precise positions of motifs within peak regions
+
+Motif analysis is performed on:
+1. **Merged peaks** - Combined peak set across all samples
+2. **Consensus peaks** - Group-specific consensus peaks (per experimental group)
+
+### Usage
+
+Enable Homer motif analysis:
+
+```bash
+nextflow run main.nf \
+  --run_homer_motifs true \
+  --homer_motif_size 200 \
+  ... other parameters ...
+```
+
+**Parameters:**
+- `--run_homer_motifs` (default: false) - Enable/disable Homer motif finding
+- `--homer_motif_size` (default: 200) - Size of region for motif finding (bp)
+  - Use 200 for promoters
+  - Use `given` to use exact peak size
+  - Use 50-200 for sharp histone marks (H3K4me3)
+  - Use 500-1000 for broad marks (H3K27me3)
+
+### Output
+
+Located in: `results/03_peak_calling/09_homer_motifs/`
+
+**Merged peaks:**
+- `merged_peaks/merged_peaks_motifs/` - Complete Homer output directory
+- `merged_peaks/merged_peaks_motifs/homerResults.html` - Main results page
+- `merged_peaks/merged_peaks_motifs/knownResults.txt` - Known motif enrichment table
+- `merged_peaks/merged_peaks_motifs/homerMotifs.all.motifs` - All discovered de novo motifs
+
+**Consensus peaks (per group):**
+- `consensus_peaks/{group}_motifs/` - One directory per experimental group
+- `consensus_peaks/{group}_motifs/homerResults.html` - Group-specific results
+- `consensus_peaks/{group}_motifs/knownResults.txt` - Group-specific known motifs
+
+**Summary Reports:**
+- `Known_Motifs_Summary.txt` - Comprehensive comparison of known motifs across all groups
+- `DeNovo_Motifs_Summary.txt` - Comprehensive comparison of de novo motifs across all groups
+
+### Key Output Files
+
+| File | Description |
+|------|-------------|
+| `homerResults.html` | Interactive HTML with motif logos, statistics, and target sequences |
+| `knownResults.txt` | Table of known motif enrichment (p-values, % targets, % background) |
+| `motifN.motif` | Individual de novo motif files (position weight matrices) |
+| `homerMotifs.all.motifs` | Combined file of all discovered motifs |
+| `motifN.similar.motifs.html` | Similar known motifs for each de novo motif |
+| **`Known_Motifs_Summary.txt`** | **Cross-group comparison of top 10 known motifs** |
+| **`DeNovo_Motifs_Summary.txt`** | **Cross-group comparison of top 10 de novo motifs** |
+
+### Summary Reports Format
+
+The automatically generated summary reports provide:
+
+**Per-Group Analysis:**
+- Top 10 motifs ranked by p-value
+- Motif name, consensus sequence, p-value, and % of peaks containing the motif
+- Separate sections for merged peaks and each consensus peak group
+
+**Cross-Group Comparison:**
+- Shared motifs between groups
+- Unique motifs per group
+- Side-by-side comparison of enrichment statistics
+- Merged peaks vs. consensus peaks comparison
+
+**Example Summary Output:**
+```
+====================================================================================================
+Peak Set: merged_peaks
+====================================================================================================
+
+  Rank   Motif                                    Consensus             P-value          % Target  
+  ------ ---------------------------------------- -------------------- --------------- ----------
+  1      RAD51                                    GCTGGGCG             1e-89            45.3      
+  2      E2F1                                     TTTCGCGC             1e-42            28.7      
+  3      TP53                                     RRRCWWGYYY           1e-23            18.2      
+
+====================================================================================================
+MOTIF COMPARISON ACROSS GROUPS
+====================================================================================================
+
+DRB_RI_26 vs PAA_TI_26:
+  Shared motifs: 8
+    - RAD51
+    - E2F1
+    - TP53
+  Unique to DRB_RI_26: 2
+  Unique to PAA_TI_26: 2
+```
+
+### Interpreting Results
+
+**Known Motifs Table (`knownResults.txt`):**
+- **Motif Name**: Transcription factor or motif ID
+- **Consensus**: Best matching sequence
+- **P-value**: Statistical significance of enrichment
+- **Log P-value**: -log10(p-value) for visualization
+- **% of Target**: Percentage of peaks containing motif
+- **% of Background**: Percentage in background sequences
+
+**De novo Motifs:**
+- Ranked by enrichment p-value
+- Include sequence logos and position weight matrices
+- Can be compared against known motif databases
+
+### Implementation Details
+
+**Files Modified:**
+
+1. **`modules/local/homer/findmotifsgenome/main.nf`**
+   - New module wrapping `findMotifsGenome.pl`
+   - Inputs: BED file, genome FASTA, motif size
+   - Outputs: Complete Homer directory, HTML results, known motifs table
+
+2. **`workflows/cutandrun.nf`**
+   - Added `HOMER_FINDMOTIFSGENOME_MERGED` for merged peaks analysis
+   - Added `HOMER_FINDMOTIFSGENOME_CONSENSUS` for consensus peaks analysis
+   - Integrated after peak merging/consensus steps
+
+3. **`conf/modules.config`**
+   - Added publishDir: `03_peak_calling/09_homer_motifs/`
+   - Configured CPU usage: `-p 4` (4 cores for motif finding)
+   - Separate outputs for merged and consensus peaks
+   - Summary reports published to top-level motifs directory
+
+4. **`nextflow.config`**
+   - Added parameters: `run_homer_motifs` and `homer_motif_size`
+
+5. **`modules/local/python/summarize_homer_motifs.nf`**
+   - New module that parses all Homer results
+   - Generates Known_Motifs_Summary.txt and DeNovo_Motifs_Summary.txt
+   - Compares motifs across groups automatically
+   - Runs after all Homer analyses complete
+
+### Use Cases
+
+1. **Transcription factor discovery:** Identify enriched TF binding sites in ChIP-seq peaks
+2. **Co-factor analysis:** Find motifs co-occurring with primary target
+3. **Condition comparison:** Compare motifs between different experimental groups
+4. **Motif evolution:** Track motif changes across time points or treatments
+5. **Validation:** Confirm expected TF binding in immunoprecipitation experiments
+
+### Notes
+
+- Homer automatically selects background regions matched for GC content
+- Motif finding is computationally intensive; runs with 4 CPUs by default
+- Results are best interpreted in context of known biology/literature
+- Multiple testing correction is applied automatically
+- De novo motifs are compared against JASPAR, TRANSFAC, and other databases
+
+### Example Output Interpretation
+
+For a RAD51 ChIP-seq experiment:
+```
+Known Motifs:
+  1. RAD51(Homeo)/K562-RAD51-ChIP-Seq  P-value: 1e-50  % Targets: 45.2%
+  2. E2F1(E2F)/Hela-E2F1-ChIP-Seq      P-value: 1e-23  % Targets: 28.7%
+```
+
+This suggests:
+- Primary RAD51 binding motif is highly enriched (expected)
+- E2F1 co-factor binding is also enriched (interesting biological insight)
 
 ---
 
@@ -216,7 +398,9 @@ All custom modifications have been tested with:
 - Sample data: 11 target samples + 3 IgG controls
 - Genome: HSV-1 strain 17 (136 kb)
 - Peak caller: MACS2
+- Spike-in: E. coli K12-MG1655
 - Execution: Successfully completed end-to-end pipeline runs
+- Homer: v4.11 (motif analysis)
 
 ---
 

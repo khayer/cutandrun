@@ -48,9 +48,11 @@ workflow PREPARE_PEAKCALLING {
         ch_bam.map { row -> [ row[0].id, row[0], row[1] ]}
             .join ( ch_spikein_metadata )
             .join ( ch_target_metadata )
+            .combine ( mean_target_reads )
             .map { row ->
                 def spikein_reads = row[3].find{ it.key == "bt2_total_aligned" }?.value.toInteger()
                 def target_reads = row[4].find{ it.key == "bt2_total_aligned" }?.value.toInteger()
+                def mean_target = row[5]
                 
                 // Calculate spike-in normalization factor
                 def spikein_factor = params.normalisation_c / (spikein_reads != 0 ? spikein_reads : params.normalisation_c)
@@ -59,9 +61,9 @@ workflow PREPARE_PEAKCALLING {
                 def final_factor = spikein_factor
                 if (params.normalisation_mode_dual && target_reads != null && target_reads > 0) {
                     // Apply dual normalization: spike-in × target abundance
-                    def target_factor = mean_target_reads / target_reads
+                    def target_factor = mean_target / target_reads
                     final_factor = spikein_factor * target_factor
-                    log.info "Sample ${row[0].id}: spikein_factor=${spikein_factor}, target_factor=${target_factor}, final_factor=${final_factor}"
+                    log.info "Sample ${row[0]}: spikein_factor=${spikein_factor}, target_factor=${target_factor}, final_factor=${final_factor}"
                 }
                 
                 [ row[1], row[2], final_factor ]

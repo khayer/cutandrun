@@ -510,6 +510,20 @@
                     "description": "Minimum peak overlap for peak reproducibility plot",
                     "fa_icon": "fas fa-align-justify"
                 },
+                "run_homer_motifs": {
+                    "type": "boolean",
+                    "default": false,
+                    "fa_icon": "fas fa-dna",
+                    "description": "Run Homer motif analysis on merged and consensus peaks",
+                    "help_text": "Performs de novo and known motif discovery using Homer's findMotifsGenome.pl. Analyzes both merged peaks (all samples) and consensus peaks (per group)."
+                },
+                "homer_motif_size": {
+                    "type": "integer",
+                    "default": 200,
+                    "fa_icon": "fas fa-ruler-horizontal",
+                    "description": "Size of region for motif finding in bp",
+                    "help_text": "Use 200 for promoters, 'given' for exact peak size, 50-200 for sharp marks (H3K4me3), 500-1000 for broad marks (H3K27me3)."
+                },
                 "igv_sort_by_groups": {
                     "type": "boolean",
                     "default": true,

@@ -113,6 +113,9 @@ include { SAMTOOLS_CUSTOMVIEW        } from "../modules/local/samtools_custom_vi
 include { FRAG_LEN_HIST              } from "../modules/local/python/frag_len_hist"
 include { MULTIQC                    } from "../modules/local/multiqc"
 include { MERGE_PEAKS_TABLE          } from "../modules/local/python/merge_peaks_table"
+include { HOMER_FINDMOTIFSGENOME as HOMER_FINDMOTIFSGENOME_MERGED     } from "../modules/local/homer/findmotifsgenome/main"
+include { HOMER_FINDMOTIFSGENOME as HOMER_FINDMOTIFSGENOME_CONSENSUS  } from "../modules/local/homer/findmotifsgenome/main"
+include { SUMMARIZE_HOMER_MOTIFS     } from "../modules/local/python/summarize_homer_motifs"
 
 /*
  * SUBWORKFLOWS
@@ -692,6 +695,26 @@ workflow CUTANDRUN {
         ch_software_versions = ch_software_versions.mix(MERGE_PEAKS_TABLE.out.versions)
 
         /*
+        * MODULE: Run Homer motif finding on merged peaks
+        */
+        if(params.run_homer_motifs) {
+            // Create a value channel for the fasta file
+            ch_fasta_for_homer_merged = PREPARE_GENOME.out.fasta.map { it[1] }.first()
+            
+            HOMER_FINDMOTIFSGENOME_MERGED (
+                MERGE_PEAKS_TABLE.out.bed.map { bed -> [ [id: 'merged_peaks'], bed ] },
+                ch_fasta_for_homer_merged,
+                params.homer_motif_size
+            )
+            ch_software_versions = ch_software_versions.mix(HOMER_FINDMOTIFSGENOME_MERGED.out.versions)
+            
+            // Collect all motif directories for summarization
+            HOMER_FINDMOTIFSGENOME_MERGED.out.motifs
+                .map { meta, dir -> dir }
+                .set { ch_motif_dirs_merged }
+        }
+
+        /*
         * MODULE: Annotate merged peaks with read counts from all BAMs
         */
         // Prepare BAM channel for multiBamSummary
@@ -776,6 +799,38 @@ workflow CUTANDRUN {
             ch_software_versions      = ch_software_versions.mix(CONSENSUS_PEAKS.out.versions)
             // EXAMPLE CHANNEL STRUCT: [[META], BED]
             //CONSENSUS_PEAKS.out.bed | view
+
+            /*
+            * MODULE: Run Homer motif finding on consensus peaks per group
+            */
+            if(params.run_homer_motifs) {
+                // Create a value channel for the fasta file
+                ch_fasta_for_homer = PREPARE_GENOME.out.fasta.map { it[1] }.first()
+                
+                HOMER_FINDMOTIFSGENOME_CONSENSUS (
+                    ch_consensus_peaks_unfilt,
+                    ch_fasta_for_homer,
+                    params.homer_motif_size
+                )
+                ch_software_versions = ch_software_versions.mix(HOMER_FINDMOTIFSGENOME_CONSENSUS.out.versions)
+                
+                // Collect all consensus motif directories
+                HOMER_FINDMOTIFSGENOME_CONSENSUS.out.motifs
+                    .map { meta, dir -> dir }
+                    .collect()
+                    .set { ch_motif_dirs_consensus }
+                
+                // Combine with merged peaks motifs and generate summary
+                ch_motif_dirs_merged
+                    .mix(ch_motif_dirs_consensus.flatten())
+                    .collect()
+                    .set { ch_all_motif_dirs }
+                
+                SUMMARIZE_HOMER_MOTIFS (
+                    ch_all_motif_dirs
+                )
+                ch_software_versions = ch_software_versions.mix(SUMMARIZE_HOMER_MOTIFS.out.versions)
+            }
         }
     }
 
