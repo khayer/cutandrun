@@ -122,6 +122,7 @@ include { SAMTOOLS_CUSTOMVIEW        } from "../modules/local/samtools_custom_vi
 include { FRAG_LEN_HIST              } from "../modules/local/python/frag_len_hist"
 include { MULTIQC                    } from "../modules/local/multiqc"
 include { MERGE_PEAKS_TABLE          } from "../modules/local/python/merge_peaks_table"
+include { DOWNSAMPLE_BAM             } from "../modules/local/samtools_downsample"
 include { HOMER_FINDMOTIFSGENOME as HOMER_FINDMOTIFSGENOME_MERGED     } from "../modules/local/homer/findmotifsgenome/main"
 include { HOMER_FINDMOTIFSGENOME as HOMER_FINDMOTIFSGENOME_CONSENSUS  } from "../modules/local/homer/findmotifsgenome/main"
 include { SUMMARIZE_HOMER_MOTIFS     } from "../modules/local/python/summarize_homer_motifs"
@@ -484,6 +485,58 @@ workflow CUTANDRUN {
         /*
         * SUBWORKFLOW: Convert BAM files to bedgraph/bigwig and apply configured normalisation strategy
         */
+        def downsample_enabled = params.downsample_target_coverage && params.downsample_target_coverage > 0
+        def ch_samtools_bam_visual = ch_samtools_bam
+        def ch_samtools_bai_visual = ch_samtools_bai
+        def ch_bigwig_visual = Channel.empty()
+
+        if (downsample_enabled) {
+            ch_samtools_bam
+                .map { row -> [row[0].id, row ].flatten() }
+                .join ( ch_samtools_bai.map { row -> [row[0].id, row ].flatten()} )
+                .map { row -> [row[1], row[2], row[4]] }
+                .set { ch_bam_bai_downsample_all }
+
+            ch_bam_bai_downsample_all.branch { it ->
+                targets:  it[0].is_control == false
+                controls: it[0].is_control == true
+            }
+            .set { ch_bam_bai_downsample_split }
+
+            def downsample_scope = params.downsample_apply ?: 'all'
+            def ch_bam_bai_downsample
+            def ch_bam_bai_passthrough = Channel.empty()
+
+            if (downsample_scope == 'targets') {
+                ch_bam_bai_downsample = ch_bam_bai_downsample_split.targets
+                ch_bam_bai_passthrough = ch_bam_bai_downsample_split.controls
+            } else if (downsample_scope == 'controls') {
+                ch_bam_bai_downsample = ch_bam_bai_downsample_split.controls
+                ch_bam_bai_passthrough = ch_bam_bai_downsample_split.targets
+            } else {
+                ch_bam_bai_downsample = ch_bam_bai_downsample_all
+            }
+
+            DOWNSAMPLE_BAM (
+                ch_bam_bai_downsample,
+                PREPARE_GENOME.out.chrom_sizes.collect(),
+                params.downsample_target_coverage,
+                params.downsample_seed
+            )
+            ch_software_versions = ch_software_versions.mix(DOWNSAMPLE_BAM.out.versions)
+
+            def ch_bam_bai_downsampled = DOWNSAMPLE_BAM.out.bam
+            if (downsample_scope == 'targets' || downsample_scope == 'controls') {
+                ch_bam_bai_downsampled = ch_bam_bai_downsampled.mix(ch_bam_bai_passthrough)
+            }
+
+            def ch_bam_bai_visual = ch_bam_bai_downsampled
+                .map { meta, bam, bai -> [ meta + [ id: "${meta.id}.viz" ], bam, bai ] }
+
+            ch_samtools_bam_visual = ch_bam_bai_visual.map { [it[0], it[1]] }
+            ch_samtools_bai_visual = ch_bam_bai_visual.map { [it[0], it[2]] }
+        }
+
         PREPARE_PEAKCALLING(
             ch_samtools_bam,
             ch_samtools_bai,
@@ -497,6 +550,25 @@ workflow CUTANDRUN {
         ch_bedgraph          = PREPARE_PEAKCALLING.out.bedgraph
         ch_bigwig            = PREPARE_PEAKCALLING.out.bigwig
         ch_software_versions = ch_software_versions.mix(PREPARE_PEAKCALLING.out.versions)
+
+        if (downsample_enabled) {
+            PREPARE_PEAKCALLING(
+                ch_samtools_bam_visual,
+                ch_samtools_bai_visual,
+                PREPARE_GENOME.out.chrom_sizes.collect(),
+                ch_dummy_file,
+                params.normalisation_mode,
+                ch_metadata_bt2_spikein,
+                ch_metadata_bt2_target,
+                ch_mean_target_reads
+            )
+            ch_bigwig_visual      = PREPARE_PEAKCALLING.out.bigwig
+            ch_software_versions  = ch_software_versions.mix(PREPARE_PEAKCALLING.out.versions)
+        }
+
+        if (downsample_enabled) {
+            ch_bigwig = ch_bigwig_visual
+        }
 
         /*
         * MODULE: Compute log2 ratio of ChIP vs control bigwigs

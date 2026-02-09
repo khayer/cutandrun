@@ -516,6 +516,25 @@
                     "description": "Publish per-sample FRiP score TSVs",
                     "fa_icon": "fas fa-align-justify"
                 },
+                "downsample_target_coverage": {
+                    "type": "number",
+                    "default": 0,
+                    "description": "Downsample BAMs to a target coverage depth (0 disables)",
+                    "fa_icon": "fas fa-align-justify"
+                },
+                "downsample_seed": {
+                    "type": "integer",
+                    "default": 42,
+                    "description": "Random seed for BAM downsampling",
+                    "fa_icon": "fas fa-align-justify"
+                },
+                "downsample_apply": {
+                    "type": "string",
+                    "default": "all",
+                    "description": "Which samples to downsample: all, targets, or controls",
+                    "enum": ["all", "targets", "controls"],
+                    "fa_icon": "fas fa-align-justify"
+                },
                 "min_peak_overlap": {
                     "type": "number",
                     "default": 0.2,
