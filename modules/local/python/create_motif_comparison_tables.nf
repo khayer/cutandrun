@@ -45,6 +45,10 @@ process CREATE_MOTIF_COMPARISON_TABLES {
     # Run the comparison table script
     create_motif_comparison_tables.py homer_motifs/
     
+    # Move output files to work directory root where Nextflow expects them
+    mv homer_motifs/Known_Motifs_Comparison_Table.tsv .
+    mv homer_motifs/DeNovo_Motifs_Comparison_Table.tsv .
+    
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         python: \$(python --version | sed 's/Python //g')
