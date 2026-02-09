@@ -9,10 +9,8 @@ process CREATE_MOTIF_COMPARISON_TABLES {
     tag "motif_comparison"
     label 'process_low'
 
-    conda "conda-forge::python=3.9 conda-forge::pandas=1.5.3"
-    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'https://depot.galaxyproject.org/singularity/pandas:1.5.3' :
-        'quay.io/biocontainers/pandas:1.5.3' }"
+    conda "conda-forge::python=3.8.3 conda-forge::pandas=1.2.3"
+    container "quay.io/biocontainers/python:3.8.3"
 
     input:
     path(motif_dirs)
