@@ -18,6 +18,7 @@ This document tracks custom modifications made to the nf-core/cutandrun pipeline
 - [BigWig Subtraction](#bigwig-subtraction)
 - [Merged Peaks Table](#merged-peaks-table)
 - [Read Count Annotation](#read-count-annotation)
+- [Additional Custom Flags](#additional-custom-flags)
 
 ---
 
@@ -422,3 +423,39 @@ All custom modifications have been tested with:
 **Institution:** CHOP
 
 For questions or issues with these modifications, please refer to the commit history or contact the lab directly.
+
+---
+
+## Additional Custom Flags
+
+These flags are custom to this fork and are not described in the base pipeline summary in README.md.
+
+### bigwigCompare visualization
+
+- `--bigwigcompare_binsize` (default: `50`)
+  - Sets `--binSize` for `bigwigCompare` operations (`log2ratio` and `subtract`).
+  - Example: `--bigwigcompare_binsize 5`
+
+### FRiP publishing
+
+- `--publish_frip` (default: `false`)
+  - When enabled, writes per-sample FRiP TSVs to `results/03_peak_calling/07_peak_qc/frip/`.
+  - Example: `--publish_frip true`
+
+### Visualization-only downsampling
+
+Downsampling is applied only to visualization bigWigs and does not affect peak calling.
+
+- `--downsample_target_coverage` (default: `0`, disabled)
+  - Target coverage depth (e.g., `10` means 10X). If `0`, no downsampling is performed.
+- `--downsample_seed` (default: `42`)
+  - Random seed for reproducible downsampling.
+- `--downsample_apply` (default: `all`)
+  - Which samples to downsample: `all`, `targets`, or `controls`.
+
+**Outputs:**
+- Downsampled visualization files are written to `_visual` folders:
+  - `03_peak_calling/01_bam_to_bedgraph_visual/`
+  - `03_peak_calling/02_clip_bed_visual/`
+  - `03_peak_calling/03_bed_to_bigwig_visual/`
+  - `03_peak_calling/07_bigwig_minus_igg_visual/`
