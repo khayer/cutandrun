@@ -463,6 +463,12 @@
                     "default": "pearson",
                     "description": "Deeptools Correlation Plot statistical calculation method"
                 },
+                "bigwigcompare_binsize": {
+                    "type": "integer",
+                    "default": 50,
+                    "description": "Bin size for bigwigCompare operations (log2ratio and subtract)",
+                    "fa_icon": "fas fa-align-justify"
+                },
                 "dt_heatmap_gene_beforelen": {
                     "type": "integer",
                     "default": 3000,
