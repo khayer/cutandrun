@@ -5,6 +5,13 @@
 
 This document tracks custom modifications made to the nf-core/cutandrun pipeline for the Weitzman Lab.
 
+## How I use it:
+
+    ./nextflow run main.nf   --input samplesheet_just2026.csv   --outdir results_dual_norm   --normalisation_mode Spikein   --normalisation_mode_dual true   --normalisation_c 10000   -profile singularity   --fasta HSV17_genome_files/17_No_repeats.fasta   --bowtie2 /home/hayerk/data/index/weitzman_human_hsv/HSV17_genome/   --gene_bed HSV17_from_gff.bed   --gtf HSV17_genome_files/17_No_repeats.gff   --macs_gsize 136000   -work-dir work_dual_norm   --peakcaller macs2 -resume --run_homer_motifs true --skip_multiqc --bigwigcompare_binsize 5
+
+    ./nextflow run main.nf   --input samplesheet.csv   --outdir results_human   --normalisation_mode Spikein   --normalisation_mode_dual true   --normalisation_c 10000   -profile singularity    -work-dir work_human   --peakcaller macs2 --run_homer_motifs true --skip_multiqc --bigwigcompare_binsize 5 --genome hg38
+
+
 ## Table of Contents
 - [Homer Motif Analysis](#homer-motif-analysis)
 - [Dual Normalization Feature](#dual-normalization-feature)

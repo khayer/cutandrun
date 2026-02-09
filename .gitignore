@@ -34,3 +34,6 @@ samplesheet.csv
 samplesheet_just2026.csv~
 samplesheet_just2026.csv
 nextflow.config_BU
+
+
+igv_session_test.xml
