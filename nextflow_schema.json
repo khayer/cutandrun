@@ -510,6 +510,12 @@
                     "description": "Minimum fragment overlap for FriP score",
                     "fa_icon": "fas fa-align-justify"
                 },
+                "publish_frip": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Publish per-sample FRiP score TSVs",
+                    "fa_icon": "fas fa-align-justify"
+                },
                 "min_peak_overlap": {
                     "type": "number",
                     "default": 0.2,
