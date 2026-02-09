@@ -1,3 +1,8 @@
+// Module: HOMER_FINDMOTIFSGENOME
+// Author: Katharina Hayer
+// Co-created with: GitHub Copilot (Claude Sonnet 4.5)
+// Purpose: Homer motif discovery and enrichment analysis
+
 process HOMER_FINDMOTIFSGENOME {
     tag "$meta.id"
     label 'process_medium'

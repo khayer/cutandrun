@@ -1,3 +1,8 @@
+// Module: SUMMARIZE_HOMER_MOTIFS
+// Author: Katharina Hayer
+// Co-created with: GitHub Copilot (Claude Sonnet 4.5)
+// Purpose: Generate comprehensive motif analysis reports and visualizations
+
 process SUMMARIZE_HOMER_MOTIFS {
     tag "summarize_motifs"
     label 'process_single'

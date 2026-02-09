@@ -1,3 +1,8 @@
+// Module: MERGE_PEAKS_TABLE
+// Author: Katharina Hayer
+// Co-created with: GitHub Copilot (Claude Sonnet 4.5)
+// Purpose: Consolidate peak information across samples
+
 process MERGE_PEAKS_TABLE {
     tag "merge_peaks_table"
     label 'process_medium'

@@ -1,5 +1,14 @@
 /*
 ========================================================================================
+    nf-core/cutandrun - Custom modifications for Weitzman Lab
+    Author: Katharina Hayer (khayer)
+    Co-created with: GitHub Copilot (Claude Sonnet 4.5)
+    
+    Key additions:
+    - Dual normalization (spike-in + target abundance)
+    - Homer motif analysis integration
+    - Enhanced peak annotation and reporting
+========================================================================================
     VALIDATE INPUTS
 ========================================================================================
 */

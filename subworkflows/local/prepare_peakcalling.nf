@@ -1,5 +1,10 @@
 /*
+ * Subworkflow: PREPARE_PEAKCALLING
  * Convert bam files to bedgraph and bigwig with apropriate normalisation
+ * 
+ * Author: Katharina Hayer (khayer)
+ * Co-created with: GitHub Copilot (Claude Sonnet 4.5)
+ * Custom feature: Dual normalization mode combining spike-in and target abundance
  */
 
 include { BEDTOOLS_GENOMECOV    } from "../../modules/nf-core/bedtools/genomecov/main"

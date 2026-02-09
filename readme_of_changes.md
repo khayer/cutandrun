@@ -1,5 +1,8 @@
 # Custom Modifications to nf-core/cutandrun Pipeline
 
+**Author:** Katharina Hayer (khayer)  
+**Co-created with:** GitHub Copilot (Claude Sonnet 4.5)  
+
 This document tracks custom modifications made to the nf-core/cutandrun pipeline for the Weitzman Lab.
 
 ## Table of Contents
