@@ -125,6 +125,7 @@ include { MERGE_PEAKS_TABLE          } from "../modules/local/python/merge_peaks
 include { HOMER_FINDMOTIFSGENOME as HOMER_FINDMOTIFSGENOME_MERGED     } from "../modules/local/homer/findmotifsgenome/main"
 include { HOMER_FINDMOTIFSGENOME as HOMER_FINDMOTIFSGENOME_CONSENSUS  } from "../modules/local/homer/findmotifsgenome/main"
 include { SUMMARIZE_HOMER_MOTIFS     } from "../modules/local/python/summarize_homer_motifs"
+include { CREATE_MOTIF_COMPARISON_TABLES } from "../modules/local/python/create_motif_comparison_tables"
 
 /*
  * SUBWORKFLOWS
@@ -839,6 +840,12 @@ workflow CUTANDRUN {
                     ch_all_motif_dirs
                 )
                 ch_software_versions = ch_software_versions.mix(SUMMARIZE_HOMER_MOTIFS.out.versions)
+                
+                // Generate motif comparison tables
+                CREATE_MOTIF_COMPARISON_TABLES (
+                    ch_all_motif_dirs
+                )
+                ch_software_versions = ch_software_versions.mix(CREATE_MOTIF_COMPARISON_TABLES.out.versions)
             }
         }
     }
