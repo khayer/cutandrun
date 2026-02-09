@@ -23,6 +23,13 @@
 # SOFTWARE.
 
 # Author: @chris-cheshire
+# Modified by: Katharina Hayer (khayer)
+# Co-modified with: GitHub Copilot (Claude Sonnet 4.5)
+# 
+# Modifications:
+# - Separate panels for normal bigWigs, log2ratio, and subtract tracks
+# - Consistent colors across panels for same sample groups
+# - Unique autoscaleGroups for each panel type
 
 import os
 import errno
@@ -99,14 +106,27 @@ def igv_files_to_session(XMLOut, ListFile, Genome, GtfBed, PathPrefix=""):
             break
             fout.close()
 
-    ## Construct groups
+    ## Construct groups and categorize files
     groups = {}
     group_num = 1
+    normal_files = []
+    log2ratio_files = []
+    subtract_files = []
+    
     for ifile, colour in fileList:
         group = os.path.basename(ifile).split("_R")[0]
         if group not in groups:
             groups[group] = group_num
             group_num = group_num + 1
+        
+        # Categorize files by type
+        basename = os.path.basename(ifile)
+        if '.log2ratio.' in basename:
+            log2ratio_files.append((ifile, colour))
+        elif '.subtract.' in basename:
+            subtract_files.append((ifile, colour))
+        else:
+            normal_files.append((ifile, colour))
 
     ## ADD RESOURCES SECTION
     XMLStr = '<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n'
@@ -117,7 +137,8 @@ def igv_files_to_session(XMLOut, ListFile, Genome, GtfBed, PathPrefix=""):
     XMLStr += '\t\t<Resource path="./%s"/>\n' % (GtfBed)
     XMLStr += "\t</Resources>\n"
 
-    XMLStr += '\t<Panel height="1160" name="DataPanel" width="1897">\n'
+    ## MAIN PANEL with normal tracks
+    XMLStr += '\t<Panel height="3537" name="DataPanel" width="1901">\n'
 
     # Render gene file first
     XMLStr += (
@@ -130,7 +151,7 @@ def igv_files_to_session(XMLOut, ListFile, Genome, GtfBed, PathPrefix=""):
     )
 
     ## Do a GTF pass first
-    for ifile, colour in fileList:
+    for ifile, colour in normal_files:
         extension = os.path.splitext(ifile)[1].lower()
         if extension in [".gtf"]:
             XMLStr += (
@@ -154,7 +175,7 @@ def igv_files_to_session(XMLOut, ListFile, Genome, GtfBed, PathPrefix=""):
             )
 
     ## Then beds/narrowpeak
-    for ifile, colour in fileList:
+    for ifile, colour in normal_files:
         extension = os.path.splitext(ifile)[1].lower()
         if extension in [".bed", ".broadpeak", ".narrowpeak"]:
             XMLStr += (
@@ -171,22 +192,80 @@ def igv_files_to_session(XMLOut, ListFile, Genome, GtfBed, PathPrefix=""):
                 '\t\t<Track altColor="0,0,178" autoScale="true" autoscaleGroup="%s" clazz="org.broad.igv.track.DataSourceTrack" color="%s" '
                 % (groups[os.path.basename(ifile).split("_R")[0]], colour)
             )
-            XMLStr += 'displayMode="COLLAPSED" featureVisibilityWindow="-1" fontSize="12" height="100" '
+            XMLStr += 'fontSize="12" height="100" '
             XMLStr += (
-                'id="%s" name="%s" normalize="false" renderer="BAR_CHART" sortable="true" visible="true" windowFunction="mean">\n'
+                'id="%s" name="%s" renderer="BAR_CHART" visible="true" windowFunction="mean">\n'
                 % (ifile, os.path.basename(ifile))
             )
             XMLStr += '\t\t\t<DataRange baseline="0.0" drawBaseline="true" flipAxis="false" maximum="10" minimum="0.0" type="LINEAR"/>\n'
             XMLStr += "\t\t</Track>\n"
         elif extension in [".bam"]:
             pass
-        # else:
-        #     XMLStr += '\t\t<Track altColor="0,0,178" autoScale="false" clazz="org.broad.igv.track.FeatureTrack" color="%s" ' % (colour)
-        #     XMLStr += 'displayMode="SQUISHED" featureVisibilityWindow="-1" fontSize="10" height="20" '
-        #     XMLStr += 'id="%s" name="%s" renderer="BASIC_FEATURE" sortable="false" visible="true" windowFunction="count"/>\n' % (ifile,os.path.basename(ifile))
 
     XMLStr += "\t</Panel>\n"
-    # XMLStr += '\t<HiddenAttributes>\n\t\t<Attribute name="DATA FILE"/>\n\t\t<Attribute name="DATA TYPE"/>\n\t\t<Attribute name="NAME"/>\n\t</HiddenAttributes>\n'
+    
+    ## LOG2RATIO PANEL
+    if len(log2ratio_files) > 0:
+        XMLStr += '\t<Panel height="351" name="Log2RatioPanel" width="1901">\n'
+        
+        # Calculate autoscaleGroup offset for log2ratio (add 1000 to avoid conflicts)
+        log2ratio_group_offset = 1000
+        
+        for ifile, colour in log2ratio_files:
+            extension = os.path.splitext(ifile)[1].lower()
+            if extension in [".bw", ".bigwig"]:
+                group = os.path.basename(ifile).split("_R")[0]
+                XMLStr += (
+                    '\t\t<Track altColor="0,0,178" autoScale="true" autoscaleGroup="%s" clazz="org.broad.igv.track.DataSourceTrack" color="%s" '
+                    % (groups[group] + log2ratio_group_offset, colour)
+                )
+                XMLStr += 'fontSize="12" height="100" '
+                XMLStr += (
+                    'id="%s" name="%s" renderer="BAR_CHART" visible="true" windowFunction="mean">\n'
+                    % (ifile, os.path.basename(ifile))
+                )
+                XMLStr += '\t\t\t<DataRange baseline="0.0" drawBaseline="true" flipAxis="false" maximum="10" minimum="0.0" type="LINEAR"/>\n'
+                XMLStr += "\t\t</Track>\n"
+        
+        XMLStr += "\t</Panel>\n"
+    
+    ## SUBTRACT PANEL
+    if len(subtract_files) > 0:
+        XMLStr += '\t<Panel height="351" name="SubtractPanel" width="1901">\n'
+        
+        # Calculate autoscaleGroup offset for subtract (add 2000 to avoid conflicts)
+        subtract_group_offset = 2000
+        
+        for ifile, colour in subtract_files:
+            extension = os.path.splitext(ifile)[1].lower()
+            if extension in [".bw", ".bigwig"]:
+                group = os.path.basename(ifile).split("_R")[0]
+                XMLStr += (
+                    '\t\t<Track altColor="0,0,178" autoScale="false" autoscaleGroup="%s" clazz="org.broad.igv.track.DataSourceTrack" color="%s" '
+                    % (groups[group] + subtract_group_offset, colour)
+                )
+                XMLStr += 'fontSize="12" height="100" '
+                XMLStr += (
+                    'id="%s" name="%s" renderer="BAR_CHART" visible="true" windowFunction="mean">\n'
+                    % (ifile, os.path.basename(ifile))
+                )
+                XMLStr += '\t\t\t<DataRange baseline="0.0" drawBaseline="true" flipAxis="false" maximum="10" minimum="0.0" type="LINEAR"/>\n'
+                XMLStr += "\t\t</Track>\n"
+        
+        XMLStr += "\t</Panel>\n"
+    
+    # Add PanelLayout divider if we have multiple panels
+    num_panels = 1 + (1 if len(log2ratio_files) > 0 else 0) + (1 if len(subtract_files) > 0 else 0)
+    if num_panels == 2:
+        XMLStr += '\t<PanelLayout dividerFractions="0.9"/>\n'
+    elif num_panels == 3:
+        XMLStr += '\t<PanelLayout dividerFractions="0.8,0.9"/>\n'
+    
+    XMLStr += '\t<HiddenAttributes>\n'
+    XMLStr += '\t\t<Attribute name="DATA FILE"/>\n'
+    XMLStr += '\t\t<Attribute name="DATA TYPE"/>\n'
+    XMLStr += '\t\t<Attribute name="NAME"/>\n'
+    XMLStr += '\t</HiddenAttributes>\n'
     XMLStr += "</Session>"
     XMLOut = open(XMLOut, "w")
     XMLOut.write(XMLStr)
