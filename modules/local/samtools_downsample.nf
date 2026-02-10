@@ -31,7 +31,9 @@ process DOWNSAMPLE_BAM {
 
     genome_size=\$(awk '{sum+=\$2} END {print sum+0}' ${chrom_sizes})
     mapped_reads=\$(samtools view -c -F 260 ${bam})
+    set +o pipefail
     avg_read_len=\$(samtools view ${bam} | head -n 10000 | awk '{sum+=length(\$10)} END {print (NR>0)?sum/NR:0}')
+    set -o pipefail
 
     fraction=\$(awk -v cov=${target_coverage} -v genome=\$genome_size -v mapped=\$mapped_reads -v readlen=\$avg_read_len 'BEGIN {
         if (mapped == 0 || readlen == 0) { print 1; exit }
@@ -47,13 +49,15 @@ process DOWNSAMPLE_BAM {
         ln -s ${bam} ${meta.id}.downsampled.bam
         ln -s ${bai} ${meta.id}.downsampled.bam.bai
     else
-        samtools view -@ ${task.cpus} -b -s \${seed}.\${fraction} ${bam} > ${meta.id}.downsampled.bam
+        fraction_str="\${fraction#0.}"
+        sample_arg="${seed}.\${fraction_str}"
+        samtools view -@ ${task.cpus} -b -s \${sample_arg} ${bam} > ${meta.id}.downsampled.bam
         samtools index ${meta.id}.downsampled.bam
     fi
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        samtools: \$(samtools --version | head -n 1 | sed -e 's/samtools //g')
+        samtools: \$(samtools --version | sed -n '1s/samtools //p')
     END_VERSIONS
     """
 }

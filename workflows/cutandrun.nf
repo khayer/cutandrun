@@ -143,6 +143,7 @@ include { CONSENSUS_PEAKS                                  } from "../subworkflo
 include { CONSENSUS_PEAKS as CONSENSUS_PEAKS_ALL           } from "../subworkflows/local/consensus_peaks"
 include { EXTRACT_FRAGMENTS                                } from "../subworkflows/local/extract_fragments"
 include { PREPARE_PEAKCALLING                              } from "../subworkflows/local/prepare_peakcalling"
+include { PREPARE_PEAKCALLING as PREPARE_PEAKCALLING_VIS   } from "../subworkflows/local/prepare_peakcalling"
 include { DEEPTOOLS_QC                                     } from "../subworkflows/local/deeptools_qc"
 include { PEAK_QC                                          } from "../subworkflows/local/peak_qc"
 include { SAMTOOLS_VIEW_SORT_STATS as FILTER_READS         } from "../subworkflows/local/samtools_view_sort_stats"
@@ -552,7 +553,7 @@ workflow CUTANDRUN {
         ch_software_versions = ch_software_versions.mix(PREPARE_PEAKCALLING.out.versions)
 
         if (downsample_enabled) {
-            PREPARE_PEAKCALLING(
+            PREPARE_PEAKCALLING_VIS(
                 ch_samtools_bam_visual,
                 ch_samtools_bai_visual,
                 PREPARE_GENOME.out.chrom_sizes.collect(),
@@ -562,8 +563,8 @@ workflow CUTANDRUN {
                 ch_metadata_bt2_target,
                 ch_mean_target_reads
             )
-            ch_bigwig_visual      = PREPARE_PEAKCALLING.out.bigwig
-            ch_software_versions  = ch_software_versions.mix(PREPARE_PEAKCALLING.out.versions)
+            ch_bigwig_visual      = PREPARE_PEAKCALLING_VIS.out.bigwig
+            ch_software_versions  = ch_software_versions.mix(PREPARE_PEAKCALLING_VIS.out.versions)
         }
 
         if (downsample_enabled) {
@@ -1031,8 +1032,15 @@ workflow CUTANDRUN {
                 /*
                 * MODULE: Run calc gene matrix for all samples
                 */
+                ch_bigwig_no_igg
+                .map { it[1] }
+                .toSortedList()
+                .filter { it && it.size() > 0 }
+                .map { [[id:'all_genes'], it] }
+                .set { ch_all_genes_bigwig_list }
+
                 DEEPTOOLS_COMPUTEMATRIX_GENE_ALL (
-                    ch_bigwig_no_igg.map{it[1]}.toSortedList().map{ [[id:'all_genes'], it]},
+                    ch_all_genes_bigwig_list,
                     PREPARE_GENOME.out.bed.toSortedList()
                 )
 
