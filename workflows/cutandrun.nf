@@ -306,6 +306,9 @@ workflow CUTANDRUN {
     //EXAMPLE CHANNEL STRUCT: [[id:h3k27me3_R1, group:h3k27me3, replicate:1, single_end:false, is_control:false], [BAM]]
     //ch_samtools_bam | view
 
+    // Preserve flagstats for FRiP before optional target deduplication
+    ch_samtools_flagstat_for_frip = ch_samtools_flagstat
+
     /*
      * SUBWORKFLOW: extract aligner metadata
      */
@@ -407,6 +410,10 @@ workflow CUTANDRUN {
         ch_samtools_flagstat = DEDUPLICATE_PICARD.out.flagstat
         ch_samtools_idxstats = DEDUPLICATE_PICARD.out.idxstats
         ch_software_versions = ch_software_versions.mix(DEDUPLICATE_PICARD.out.versions)
+
+        if (params.dedup_target_reads) {
+            ch_samtools_flagstat_for_frip = ch_samtools_flagstat
+        }
     }
     //EXAMPLE CHANNEL STRUCT: [[id:h3k27me3_R1, group:h3k27me3, replicate:1, single_end:false, is_control:false], [BAM]]
     //ch_samtools_bai | view
@@ -1079,7 +1086,7 @@ workflow CUTANDRUN {
             /*
             * CHANNEL: Filter flagstat for target only
             */
-            ch_samtools_flagstat.filter { it -> it[0].is_control == false }
+            ch_samtools_flagstat_for_frip.filter { it -> it[0].is_control == false }
             .set { ch_flagstat_target }
             //ch_flagstat_target | view
 

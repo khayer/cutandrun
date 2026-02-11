@@ -118,6 +118,16 @@ if numfiles != 0:
 
     print("Number of files: " + str(numfiles))
 
+    key_unique = ddf_inter["key"].nunique().compute()
+    if key_unique <= 1:
+        ddf_inter["key"] = (
+            ddf_inter["chrom"].astype(str)
+            + ":"
+            + ddf_inter["start"].astype(str)
+            + "-"
+            + ddf_inter["end"].astype(str)
+        )
+
     # Find total number of peaks
     ddf_inter_grouped = ddf_inter.groupby(by=["key"]).size()
     df_inter_grouped = ddf_inter_grouped.compute()
@@ -145,5 +155,5 @@ else:
 # Create string and write to file
 output_string = str(peak_perc)
 writer = open(os.path.join(args.outpath, args.sample_id + "_peak_repro.tsv"), "w")
-writer.write(args.sample_id + "\t" + output_string + "\n")
+writer.write("Peak reproducibility %\t" + output_string + "\n")
 writer.close()

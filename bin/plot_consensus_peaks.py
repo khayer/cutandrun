@@ -69,7 +69,10 @@ for i in list(range(len(peak_file_list))):
         usecols=[0, 1, 2, 8, 9],
         names=["chrom", "start", "end", "sample_reps", "count"],
     )
+    peaks_i["sample_reps"] = peaks_i["sample_reps"].astype(str)
     peaks_i["sample_reps"] = peaks_i["sample_reps"].replace(".peaks.bed.stringent.bed", "", regex=True)
+    peaks_i["sample_reps"] = peaks_i["sample_reps"].replace(".macs2.peaks.cut.bed", "", regex=True)
+    peaks_i = peaks_i[peaks_i["sample_reps"].str.strip() != ""]
     peak_df_list.append(peaks_i)
     reps2 = peaks_i[peaks_i["count"] > 1]
 
@@ -98,11 +101,30 @@ for i in list(range(len(summary_peak_df_list))):
     categories = df_i.shape[0]
     cat_list = []
     for j in list(range(categories)):
-        summary_sample = df_i.at[j, "sorted_samples"].split(",")
+        summary_sample = [s for s in df_i.at[j, "sorted_samples"].split(",") if s]
         cat_list.append(summary_sample)
 
     # Plot
+    if not cat_list:
+        print(f"WARN: No peak memberships found for {group_name}, skipping plot")
+        continue
     peak_counts = upsetplot.from_memberships(cat_list, data=df_i["count"])
+    if not isinstance(peak_counts.index, pd.MultiIndex):
+        try:
+            peak_counts.index = pd.MultiIndex.from_tuples(peak_counts.index)
+        except TypeError:
+            unique_cats = sorted({item for sublist in cat_list for item in sublist})
+            if not unique_cats:
+                print(f"WARN: No peak memberships found for {group_name}, skipping plot")
+                continue
+            indicator_df = pd.DataFrame(False, index=range(len(cat_list)), columns=unique_cats)
+            for idx, members in enumerate(cat_list):
+                for label in members:
+                    indicator_df.at[idx, label] = True
+            peak_counts = upsetplot.from_indicators(indicator_df, data=df_i["count"])
+    if not isinstance(peak_counts.index, pd.MultiIndex):
+        print(f"WARN: Unable to build upset plot index for {group_name}, skipping plot")
+        continue
     upsetplot.plot(peak_counts)
     plt.show()
     plt.savefig(os.path.join(args.outpath, file_name))
