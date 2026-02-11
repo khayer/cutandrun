@@ -49,7 +49,8 @@ process DOWNSAMPLE_BAM {
         ln -s ${bam} ${meta.id}.downsampled.bam
         ln -s ${bai} ${meta.id}.downsampled.bam.bai
     else
-        fraction_str="\${fraction#0.}"
+        # Extract decimal digits after "0." using awk to avoid bash substitution issues
+        fraction_str=\$(echo "\$fraction" | awk -F'.' '{print \$2}')
         sample_arg="${seed}.\${fraction_str}"
         samtools view -@ ${task.cpus} -b -s \${sample_arg} ${bam} > ${meta.id}.downsampled.bam
         samtools index ${meta.id}.downsampled.bam
