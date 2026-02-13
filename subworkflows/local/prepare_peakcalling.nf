@@ -40,40 +40,64 @@ workflow PREPARE_PEAKCALLING {
         /*
         * CHANNEL: Load up target genome alignment metadata into channel
         */
+        metadata.splitCsv ( header:true, sep:"," )
+            .map { row -> [ row[0].id, row[1] ]}
+            .set { ch_spikein_metadata }
+        ch_spikein_metadata.view { x -> "SPIKEIN_META: " + x[0] }
+
         target_metadata.splitCsv ( header:true, sep:"," )
             .map { row -> [ row[0].id, row[1] ]}
             .set { ch_target_metadata }
-        //ch_target_metadata | view
+        ch_target_metadata.view { y -> "TARGET_META: " + y[0] }
 
-        /*
-        * CHANNEL: Calculate scale factor for each sample.
-        * If dual normalization is enabled, multiply spike-in factor by target genome abundance factor.
-        * Formula: scale_factor = (normalisation_c / spike_in_reads) * (mean_target_reads / sample_target_reads)
-        */
         ch_bam.map { row -> [ row[0].id, row[0], row[1] ]}
+            .set { ch_bam_meta }
+        ch_bam_meta.view { z -> "BAM_META: " + z[0] }
+
+        ch_bam_meta
             .join ( ch_spikein_metadata )
+            .set { ch_joined_spikein }
+        ch_joined_spikein.view { a -> "JOINED_SPIKEIN: " + a[0] }
+
+        ch_joined_spikein
             .join ( ch_target_metadata )
+            .set { ch_joined_target }
+        ch_joined_target.view { b -> "JOINED_TARGET: " + b[0] }
+
+        ch_joined_target
             .combine ( mean_target_reads )
+            .set { ch_combined_mean }
+        ch_combined_mean.view { c -> "COMBINED_MEAN: " + c[0] }
+
+        ch_combined_mean
             .map { row ->
-                def spikein_reads = row[3].find{ it.key == "bt2_total_aligned" }?.value.toInteger()
-                def target_reads = row[4].find{ it.key == "bt2_total_aligned" }?.value.toInteger()
-                def mean_target = row[5]
-                
+                // row structure: [id, meta, bam, spikein_meta, target_meta, mean_target]
+                def spikein_meta = row[3] ?: [:]
+                def target_meta = row[4] ?: [:]
+                def spikein_reads = spikein_meta.find{ it.key == "bt2_total_aligned" }?.value?.toInteger() ?: 0
+                def target_reads = target_meta.find{ it.key == "bt2_total_aligned" }?.value?.toInteger() ?: 0
+                def mean_target = row[5] ?: 0
                 // Calculate spike-in normalization factor
                 def spikein_factor = params.normalisation_c / (spikein_reads != 0 ? spikein_reads : params.normalisation_c)
-                
                 // Calculate final scale factor
                 def final_factor = spikein_factor
-                if (params.normalisation_mode_dual && target_reads != null && target_reads > 0) {
-                    // Apply dual normalization: spike-in × target abundance
+                if (params.normalisation_mode_dual && target_reads > 0) {
                     def target_factor = mean_target / target_reads
                     final_factor = spikein_factor * target_factor
                     log.info "Sample ${row[0]}: spikein_factor=${spikein_factor}, target_factor=${target_factor}, final_factor=${final_factor}"
                 }
-                
                 [ row[1], row[2], final_factor ]
             }
             .set { ch_bam_scale_factor }
+        ch_bam_scale_factor.view { d -> "SCALE_FACTOR: " + d[0].id }
+
+        //EXAMPLE CHANNEL STRUCT: [META], BEDGRAPH]
+        //BEDTOOLS_GENOMECOV.out.genomecov | view
+        ch_bedgraph = null
+        if (this.hasProperty('BEDTOOLS_GENOMECOV')) {
+            ch_bedgraph = BEDTOOLS_GENOMECOV.out.genomecov
+            ch_bedgraph.view { e -> "BEDGRAPH: " + e[0].id }
+        }
         // EXAMPLE CHANNEL STRUCT: [[META], BAM, scale_factor]
         //ch_bam_scale_factor | view
     }
@@ -86,6 +110,7 @@ workflow PREPARE_PEAKCALLING {
             }
             .set { ch_bam_scale_factor }
         //ch_bam_scale_factor | view
+                    .view { row -> "SCALE_FACTOR: " + row[0].id }
     }
 
     if (norm_mode == "Spikein" || norm_mode == "None") {
@@ -112,6 +137,7 @@ workflow PREPARE_PEAKCALLING {
             .map { list ->
                 new File('scale-factors.csv').withWriter('UTF-8') { writer ->
                     list.each { item ->
+                ch_bedgraph.view { row -> "BEDGRAPH: " + row[0].id }
                         str = item[0] + "," + item[1] + "," + item[2]
                         writer.write(str + "\n")
                     }
@@ -154,12 +180,13 @@ workflow PREPARE_PEAKCALLING {
         * CHANNEL: Assign igg scale factor to target files
         */
         ch_bam_bai_split.control
+            .view { row -> "CONTROL: " + row[0].id }
             .map { row ->
                 [ row[0], row[1], row[2], params.igg_scale_factor ]
             }
         .set { ch_bam_bai_split_igg }
         // EXAMPLE CHANNEL STRUCT: [[META], BAM, BAI, SCALE_FACTOR]
-        //ch_bam_bai_split_igg | view
+        ch_bam_bai_split_igg.view { row -> "IGG SCALE: " + row[0].id }
 
         /*
         * CHANNEL: Mix the split channels back up
@@ -168,7 +195,7 @@ workflow PREPARE_PEAKCALLING {
             .mix(ch_bam_bai_split_igg)
         .set { ch_bam_bai_scale_factor }
         // EXAMPLE CHANNEL STRUCT: [[META], BAM, BAI, SCALE_FACTOR]
-        //ch_bam_bai_scale_factor | view
+        ch_bam_bai_scale_factor.view { row -> "SCALE FACTOR: " + row[0].id }
 
         /*
         * MODULE: Convert bam files to bedgraph and normalise
@@ -179,7 +206,7 @@ workflow PREPARE_PEAKCALLING {
         ch_versions = ch_versions.mix(DEEPTOOLS_BAMCOVERAGE.out.versions)
         ch_bedgraph = DEEPTOOLS_BAMCOVERAGE.out.bedgraph
         // EXAMPLE CHANNEL STRUCT: [[META], BAM, BAI]
-        //ch_bedgraph | view
+        ch_bedgraph.view { row -> "BEDGRAPH: " + row[0].id }
 
         /*
         * CHANNEL: Dump scale factor values
