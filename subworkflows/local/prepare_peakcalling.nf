@@ -1,3 +1,5 @@
+// Ensure visualization_mode is always defined globally
+// params.visualization_mode = params.visualization_mode ?: false
 /*
  * Subworkflow: PREPARE_PEAKCALLING
  * Convert bam files to bedgraph and bigwig with apropriate normalisation
@@ -14,6 +16,8 @@ include { UCSC_BEDCLIP          } from "../../modules/nf-core/ucsc/bedclip/main"
 include { UCSC_BEDGRAPHTOBIGWIG } from "../../modules/nf-core/ucsc/bedgraphtobigwig/main"
 
 workflow PREPARE_PEAKCALLING {
+        // Set visualization_mode default ONCE, outside conditional logic
+        // visualization_mode is now always defined globally
     take:
     ch_bam           // channel: [ val(meta), [ bam ] ]
     ch_bai           // channel: [ val(meta), [ bai ] ]
@@ -23,6 +27,7 @@ workflow PREPARE_PEAKCALLING {
     metadata         // channel  [ csv ] - spike-in metadata
     target_metadata  // channel  [ csv ] - target genome metadata
     mean_target_reads // value: mean target aligned reads (for dual normalization)
+    visualization_mode // value: boolean - whether this is for visualization only (no scale factors)
 
     main:
     ch_versions = Channel.empty()
@@ -93,9 +98,9 @@ workflow PREPARE_PEAKCALLING {
 
         //EXAMPLE CHANNEL STRUCT: [META], BEDGRAPH]
         //BEDTOOLS_GENOMECOV.out.genomecov | view
-        ch_bedgraph = null
+        // Only set ch_bedgraph if BEDTOOLS_GENOMECOV is available
         if (this.hasProperty('BEDTOOLS_GENOMECOV')) {
-            ch_bedgraph = BEDTOOLS_GENOMECOV.out.genomecov
+            ch_bedgraph = BEDTOOLS_GENOMECOV.out.genomecov ?: Channel.empty()
             ch_bedgraph.view { e -> "BEDGRAPH: " + e[0].id }
         }
         // EXAMPLE CHANNEL STRUCT: [[META], BAM, scale_factor]
@@ -116,30 +121,42 @@ workflow PREPARE_PEAKCALLING {
     if (norm_mode == "Spikein" || norm_mode == "None") {
         /*
         * MODULE: Convert bam files to bedgraph
+        * For visualization (downsampled), do NOT apply scale factor
         */
-        BEDTOOLS_GENOMECOV (
-            ch_bam_scale_factor,
-            ch_dummy_file,
-            "bedGraph"
-        )
-        ch_versions = ch_versions.mix(BEDTOOLS_GENOMECOV.out.versions)
-        ch_bedgraph = BEDTOOLS_GENOMECOV.out.genomecov
-        //EXAMPLE CHANNEL STRUCT: [META], BEDGRAPH]
-        //BEDTOOLS_GENOMECOV.out.genomecov | view
-
-        /*
-        * CHANNEL: Dump scale factor values
-        */
-        if(params.dump_scale_factors) {
-            ch_scale_factor = ch_bam_scale_factor
-            .map { [it[0].id, it[0].group, it[2]] }
-            .toSortedList( { a, b -> a[0] <=> b[0] } )
-            .map { list ->
-                new File('scale-factors.csv').withWriter('UTF-8') { writer ->
-                    list.each { item ->
-                ch_bedgraph.view { row -> "BEDGRAPH: " + row[0].id }
-                        str = item[0] + "," + item[1] + "," + item[2]
-                        writer.write(str + "\n")
+        if (visualization_mode) {
+            BEDTOOLS_GENOMECOV (
+                ch_bam,
+                ch_dummy_file,
+                "bedGraph"
+            )
+            ch_versions = ch_versions.mix(BEDTOOLS_GENOMECOV.out.versions)
+            ch_bedgraph = BEDTOOLS_GENOMECOV.out.genomecov ?: Channel.empty()
+            // Downsampled visualization path: no scale factor
+            ch_bedgraph.view { row -> "BEDGRAPH_VISUAL: " + row[0].id }
+        } else {
+            BEDTOOLS_GENOMECOV (
+                ch_bam_scale_factor,
+                ch_dummy_file,
+                "bedGraph"
+            )
+            ch_versions = ch_versions.mix(BEDTOOLS_GENOMECOV.out.versions)
+            ch_bedgraph = BEDTOOLS_GENOMECOV.out.genomecov
+            //EXAMPLE CHANNEL STRUCT: [META], BEDGRAPH]
+            //BEDTOOLS_GENOMECOV.out.genomecov | view
+            /*
+            * CHANNEL: Dump scale factor values
+            */
+            if(params.dump_scale_factors) {
+                ch_scale_factor = ch_bam_scale_factor
+                .map { [it[0].id, it[0].group, it[2]] }
+                .toSortedList( { a, b -> a[0] <=> b[0] } )
+                .map { list ->
+                    new File('scale-factors.csv').withWriter('UTF-8') { writer ->
+                        list.each { item ->
+                            ch_bedgraph.view { row -> "BEDGRAPH: " + row[0].id }
+                            str = item[0] + "," + item[1] + "," + item[2]
+                            writer.write(str + "\n")
+                        }
                     }
                 }
             }

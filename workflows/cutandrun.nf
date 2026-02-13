@@ -540,11 +540,10 @@ workflow CUTANDRUN {
                 ch_bam_bai_downsampled = ch_bam_bai_downsampled.mix(ch_bam_bai_passthrough)
             }
 
-            def ch_bam_bai_visual = ch_bam_bai_downsampled
-                .map { meta, bam, bai -> [ meta + [ id: "${meta.id}.viz" ], bam, bai ] }
-
-            ch_samtools_bam_visual = ch_bam_bai_visual.map { [it[0], it[1]] }
-            ch_samtools_bai_visual = ch_bam_bai_visual.map { [it[0], it[2]] }
+            // Keep original meta.id so spike-in metadata joins work in PREPARE_PEAKCALLING_VIS
+            // (adding .viz suffix would break the join on sample ID)
+            ch_samtools_bam_visual = ch_bam_bai_downsampled.map { [it[0], it[1]] }
+            ch_samtools_bai_visual = ch_bam_bai_downsampled.map { [it[0], it[2]] }
         }
 
         PREPARE_PEAKCALLING(
@@ -555,7 +554,8 @@ workflow CUTANDRUN {
             params.normalisation_mode,
             ch_metadata_bt2_spikein,
             ch_metadata_bt2_target,
-            ch_mean_target_reads
+            ch_mean_target_reads,
+            false // visualization_mode: false for normal processing
         )
         ch_bedgraph          = PREPARE_PEAKCALLING.out.bedgraph
         ch_bigwig            = PREPARE_PEAKCALLING.out.bigwig
@@ -563,22 +563,22 @@ workflow CUTANDRUN {
         ch_software_versions = ch_software_versions.mix(PREPARE_PEAKCALLING.out.versions)
 
         if (downsample_enabled) {
+            // Visualization branch: downsampled BAMs, no normalization or reporting
             PREPARE_PEAKCALLING_VIS(
                 ch_samtools_bam_visual,
                 ch_samtools_bai_visual,
                 PREPARE_GENOME.out.chrom_sizes.collect(),
                 ch_dummy_file,
-                params.normalisation_mode,
-                ch_metadata_bt2_spikein,
-                ch_metadata_bt2_target,
-                ch_mean_target_reads
+                "None", // Force no normalization for visualization
+                Channel.empty(), // No metadata
+                Channel.empty(), // No target metadata
+                Channel.value(1.0), // Dummy mean_target_reads
+                true // visualization_mode: true for downsampled visualization
             )
             ch_bigwig_visual      = PREPARE_PEAKCALLING_VIS.out.bigwig
             ch_software_versions  = ch_software_versions.mix(PREPARE_PEAKCALLING_VIS.out.versions)
-        }
-
-        if (downsample_enabled) {
-            ch_bigwig = ch_bigwig_visual
+            // Only use visualization outputs for IGV session and bigwig
+            ch_bigwig_igv         = ch_bigwig_visual
         }
 
         /*
