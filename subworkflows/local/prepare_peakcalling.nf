@@ -115,7 +115,7 @@ workflow PREPARE_PEAKCALLING {
             }
             .set { ch_bam_scale_factor }
         //ch_bam_scale_factor | view
-                    .view { row -> "SCALE_FACTOR: " + row[0].id }
+        ch_bam_scale_factor.view { row -> "SCALE_FACTOR: " + row[0].id }
     }
 
     if (norm_mode == "Spikein" || norm_mode == "None") {
