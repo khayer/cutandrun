@@ -13,7 +13,7 @@ process BEDTOOLS_SORT {
     path  sizes
 
     output:
-    tuple val(meta), path("*.${extension}"), emit: sorted
+    tuple val(meta), path("*.sorted.${extension}"), emit: sorted
     path  "versions.yml"                   , emit: versions
 
     when:
@@ -29,7 +29,7 @@ process BEDTOOLS_SORT {
         -i $intervals \\
         $sizes \\
         $args \\
-        > ${prefix}.${extension}
+        > ${prefix}.sorted.${extension}
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
