@@ -16,6 +16,7 @@ process IGV_SESSION {
     path secondary_beds
     path bigwig
     val sort_by_groups
+    val session_name
 
     output:
     path('*.{txt,xml,bed,bigWig,fa,fai,fna,gtf,gff,narrowPeak,broadPeak,gz,tbi,bedGraph}', includeInputs:true)
@@ -61,7 +62,7 @@ process IGV_SESSION {
     find -L * -iname "*.gtf" -exec echo -e {}"\\t0,48,73" \\; > gtf.igv.txt
     find -L * -iname "*.gff" -exec echo -e {}"\\t0,48,73" \\; > gff.igv.txt
     cat *.txt > igv_files.txt
-    igv_files_to_session.py igv_session.xml igv_files.txt $genome $gtf_bed --path_prefix './'
+    igv_files_to_session.py ${session_name}.xml igv_files.txt $genome $gtf_bed --path_prefix './'
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

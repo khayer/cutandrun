@@ -117,6 +117,7 @@ include { INPUT_CHECK                } from "../subworkflows/local/input_check"
 include { CUT as PEAK_TO_BED         } from '../modules/local/linux/cut'
 include { AWK as AWK_NAME_PEAK_BED   } from "../modules/local/linux/awk"
 include { IGV_SESSION                } from "../modules/local/python/igv_session"
+include { IGV_SESSION as IGV_SESSION_DOWNSAMPLED } from "../modules/local/python/igv_session"
 include { AWK as AWK_EXTRACT_SUMMITS } from "../modules/local/linux/awk"
 include { SAMTOOLS_CUSTOMVIEW        } from "../modules/local/samtools_custom_view"
 include { FRAG_LEN_HIST              } from "../modules/local/python/frag_len_hist"
@@ -460,6 +461,8 @@ workflow CUTANDRUN {
 
     ch_bedgraph               = Channel.empty()
     ch_bigwig                 = Channel.empty()
+    ch_bigwig_original        = Channel.empty()
+    ch_bigwig_visual          = Channel.empty()
     ch_bigwig_subtract        = Channel.empty()
     ch_seacr_peaks            = Channel.empty()
     ch_macs2_peaks            = Channel.empty()
@@ -468,6 +471,7 @@ workflow CUTANDRUN {
     ch_peaks_summits          = Channel.empty()
     ch_consensus_peaks        = Channel.empty()
     ch_consensus_peaks_unfilt = Channel.empty()
+    def downsample_enabled = params.downsample_target_coverage && params.downsample_target_coverage > 0
     if(params.run_peak_calling) {
         /*
         * CHANNEL: Calculate mean target genome read count across all samples for dual normalization
@@ -493,10 +497,8 @@ workflow CUTANDRUN {
         /*
         * SUBWORKFLOW: Convert BAM files to bedgraph/bigwig and apply configured normalisation strategy
         */
-        def downsample_enabled = params.downsample_target_coverage && params.downsample_target_coverage > 0
         def ch_samtools_bam_visual = ch_samtools_bam
         def ch_samtools_bai_visual = ch_samtools_bai
-        def ch_bigwig_visual = Channel.empty()
 
         if (downsample_enabled) {
             ch_samtools_bam
@@ -557,6 +559,7 @@ workflow CUTANDRUN {
         )
         ch_bedgraph          = PREPARE_PEAKCALLING.out.bedgraph
         ch_bigwig            = PREPARE_PEAKCALLING.out.bigwig
+        ch_bigwig_original   = PREPARE_PEAKCALLING.out.bigwig
         ch_software_versions = ch_software_versions.mix(PREPARE_PEAKCALLING.out.versions)
 
         if (downsample_enabled) {
@@ -941,12 +944,18 @@ workflow CUTANDRUN {
     if(params.run_reporting) {
         if(params.run_igv) {
             /*
-            * MODULE: Create igv session
+            * MODULE: Create igv session (using original, non-downsampled bigwigs)
             */
-            // Combine regular bigwigs with subtract bigwigs for IGV
-            ch_bigwig_for_igv = ch_bigwig.collect{it[1]}.ifEmpty([])
-                .mix(ch_bigwig_subtract.collect{it[1]}.flatten().ifEmpty([]))
-                .collect()
+            // When downsampling is enabled, subtract bigwigs come from downsampled data,
+            // so only include them in the main session when NOT downsampling
+            if (downsample_enabled) {
+                ch_bigwig_for_igv = ch_bigwig_original.collect{it[1]}.ifEmpty([])
+                    .collect()
+            } else {
+                ch_bigwig_for_igv = ch_bigwig_original.collect{it[1]}.ifEmpty([])
+                    .mix(ch_bigwig_subtract.collect{it[1]}.flatten().ifEmpty([]))
+                    .collect()
+            }
             
             IGV_SESSION (
                 PREPARE_GENOME.out.fasta.map {it[1]},
@@ -956,9 +965,30 @@ workflow CUTANDRUN {
                 ch_peaks_primary.collect{it[1]}.filter{ it -> it.size() > 1}.ifEmpty([]),
                 ch_peaks_secondary.collect{it[1]}.filter{ it -> it.size() > 1}.ifEmpty([]),
                 ch_bigwig_for_igv,
-                params.igv_sort_by_groups
+                params.igv_sort_by_groups,
+                'igv_session'
             )
             //ch_software_versions = ch_software_versions.mix(IGV_SESSION.out.versions)
+
+            /*
+            * MODULE: Create downsampled igv session (using downsampled bigwigs + subtract)
+            */
+            if (downsample_enabled) {
+                ch_bigwig_downsampled_for_igv = ch_bigwig_visual.collect{it[1]}.ifEmpty([])
+                    .mix(ch_bigwig_subtract.collect{it[1]}.flatten().ifEmpty([]))
+                    .collect()
+
+                IGV_SESSION_DOWNSAMPLED (
+                    PREPARE_GENOME.out.fasta.map {it[1]},
+                    PREPARE_GENOME.out.fasta_index.map {it[1]},
+                    PREPARE_GENOME.out.bed_index,
+                    ch_peaks_primary.collect{it[1]}.filter{ it -> it.size() > 1}.ifEmpty([]),
+                    ch_peaks_secondary.collect{it[1]}.filter{ it -> it.size() > 1}.ifEmpty([]),
+                    ch_bigwig_downsampled_for_igv,
+                    params.igv_sort_by_groups,
+                    'igv_session_downsampled'
+                )
+            }
         }
 
         if (params.run_deeptools_heatmaps && params.run_peak_calling) {
