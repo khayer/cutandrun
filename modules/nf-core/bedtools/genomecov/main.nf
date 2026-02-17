@@ -23,7 +23,14 @@ process BEDTOOLS_GENOMECOV {
     def args = task.ext.args ?: ''
     def args_list = args.tokenize()
     args += (scale > 0 && scale != 1) ? " -scale $scale" : ""
+    // Ensure bedGraph output when the module is expected to produce a bedGraph
+    // (visualization path previously called this module without a scale so
+    // -bg was not added — that produced a histogram rather than a bedGraph)
     if (!args_list.contains('-bg') && (scale > 0 && scale != 1)) {
+        args += " -bg"
+    }
+    // Also force -bg whenever the requested `extension` indicates bedGraph
+    if (!args_list.contains('-bg') && extension?.toString()?.toLowerCase()?.contains('bedgraph')) {
         args += " -bg"
     }
 
