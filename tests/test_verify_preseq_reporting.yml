@@ -1,0 +1,12 @@
+- name: verify_preseq_reporting_in_multiqc
+  command: nextflow run main.nf -profile docker,test --skip_fastqc -c tests/config/nextflow.config
+  tags:
+    - verify_preseq_reporting
+    - verify_preseq_reporting_in_multiqc
+  files:
+    - path: results/04_reporting/preseq/h3k4me3_R1.lc_extrap.txt
+    - path: results/04_reporting/preseq/h3k4me3_R1.command.log
+    - path: results/04_reporting/multiqc/multiqc_data/multiqc_sources.txt
+      contains:
+        - "Library Complexity"
+    - path: results/04_reporting/multiqc/multiqc_report.html
