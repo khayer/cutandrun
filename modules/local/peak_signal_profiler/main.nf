@@ -33,8 +33,8 @@ process PEAKSIGNALPROFILER_RUN {
     # the container. Fail with a clear error if any are missing so the user
     # knows to rebuild the SIF with the missing packages.
     required_pkgs="rtracklayer,GenomicRanges,IRanges,S4Vectors,ggplot2,optparse"
-    Rscript -e "pkgs <- strsplit('${required_pkgs}',',')[[1]]; missing <- pkgs[!sapply(pkgs, function(p) requireNamespace(p, quietly=TRUE))]; if(length(missing)){ cat('MISSING_R_PKGS:' , paste(missing, collapse=','), '\n'); quit(status=2) } else {cat('R_PKGS_OK\n') }" > psp_preflight.log 2>&1 || {
-        echo "ERROR: Required R packages missing inside container. Rebuild SIF to include: ${required_pkgs}" >&2
+    REQUIRED_PKGS="\${required_pkgs}" Rscript -e "pkgs <- strsplit(Sys.getenv('REQUIRED_PKGS'),',')[[1]]; missing <- pkgs[!sapply(pkgs, function(p) requireNamespace(p, quietly=TRUE))]; if(length(missing)){ cat('MISSING_R_PKGS:' , paste(missing, collapse=','), '\n'); quit(status=2) } else {cat('R_PKGS_OK\n') }" > psp_preflight.log 2>&1 || {
+        echo "ERROR: Required R packages missing inside container. Rebuild SIF to include: \${required_pkgs}" >&2
         echo "See psp_preflight.log for details." >&2
         cat psp_preflight.log >&2 || true
         exit 2
