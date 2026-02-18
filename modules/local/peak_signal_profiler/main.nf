@@ -13,6 +13,7 @@ process PEAKSIGNALPROFILER_RUN {
     path samplesheet
     path annotation
     path genome
+    path psp_src
 
     output:
     path "psp_out"                , emit: psp_out
@@ -24,7 +25,8 @@ process PEAKSIGNALPROFILER_RUN {
 
     script:
     // Ensure the R script repository and sif are set via params when running.
-    def psp_dir = params.psp_dir ?: '/path/to/peak-signal-profiler'
+    // `psp_src` (staged by workflow) takes precedence; otherwise fall back to params.psp_dir
+    def psp_dir = (binding.hasVariable('psp_src') && psp_src) ? psp_src.toString() : (params.psp_dir ?: '/path/to/peak-signal-profiler')
     def sif     = params.psp_sif ?: '/path/to/peaksignalprofiler.sif'
 
     """

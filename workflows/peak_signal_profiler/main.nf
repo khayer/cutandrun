@@ -25,5 +25,5 @@ workflow {
         System.exit(1)
     }
 
-    PEAK_SIGNAL_PROFILER( file(params.samplesheet), file(params.annotation), file(params.genome) )
+    PEAK_SIGNAL_PROFILER( file(params.samplesheet), file(params.annotation), file(params.genome), file(params.psp_dir) )
 }

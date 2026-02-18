@@ -9,9 +9,10 @@ workflow PEAK_SIGNAL_PROFILER {
         samplesheet
         annotation
         genome
+        psp_dir
 
     main:
-        PEAKSIGNALPROFILER_RUN( samplesheet, annotation, genome )
+        PEAKSIGNALPROFILER_RUN( samplesheet, annotation, genome, psp_dir )
 
     emit:
         PEAKSIGNALPROFILER_RUN.out.psp_out
