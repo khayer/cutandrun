@@ -1,0 +1,7 @@
+- name: verify PeakSignalProfiler outputs are published to results
+  command: grep -n "04_reporting/peaksignalprofiler" modules/local/peak_signal_profiler/main.nf
+  stdout:
+    contains:
+      - "04_reporting/peaksignalprofiler"
+  tags:
+    - smoke

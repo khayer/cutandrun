@@ -2,6 +2,10 @@ process PEAKSIGNALPROFILER_RUN {
     tag "${samplesheet.baseName}"
     label 'process_single'
 
+    // Publish PeakSignalProfiler outputs into the canonical results reporting folder
+    // (makes `psp_out/` visible under results/<outdir>/04_reporting/peaksignalprofiler)
+    publishDir "${params.outdir}/04_reporting/peaksignalprofiler", mode: 'copy'
+
     // Use the Singularity image supplied by the user (placeholder by default)
     container "${params.psp_sif ?: '/path/to/peaksignalprofiler.sif'}"
 
