@@ -58,11 +58,18 @@ process PEAKSIGNALPROFILER_RUN {
         exit 2
     }
 
+    # Ensure the samplesheet contents are *copied into* the PSP repo in the
+    # work dir (embed file content in a here-doc). This avoids broken
+    # symlink targets inside Singularity containers on some HPC mounts.
+    cat > "\${psp_dir}/${samplesheet.getName()}" <<'PSP_SAMPLESHEET'
+${samplesheet.toFile().getText('UTF-8')}
+PSP_SAMPLESHEET
+
     # Run the multisample R script from the PSP repository root so relative
     # paths inside the package (e.g. R/config.R) resolve correctly.
     ( cd "\${psp_dir}" && \
         Rscript "scripts/02_run_multisample.R" \
-            --samplesheet ../${samplesheet} \
+            --samplesheet ${samplesheet.getName()} \
             --annotation ../${annotation} \
             --genome ../${genome} \
             --outdir ../psp_out \
