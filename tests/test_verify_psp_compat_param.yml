@@ -1,0 +1,7 @@
+- name: verify legacy param mapping for PeakSignalProfiler
+  command: grep -n "run_peak_signal_profile' -> 'run_peak_signal_profiler'" main.nf
+  stdout:
+    contains:
+      - "run_peak_signal_profile' -> 'run_peak_signal_profiler'"
+  tags:
+    - smoke

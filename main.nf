@@ -58,6 +58,12 @@ if (params.validate_params) {
 
 WorkflowMain.initialise(workflow, params, log, args)
 
+// Backwards-compatibility: accept legacy/misspelled CLI flag `--run_peak_signal_profile`
+if (params.run_peak_signal_profile && !params.run_peak_signal_profiler) {
+    params.run_peak_signal_profiler = params.run_peak_signal_profile
+    log.info "Mapped deprecated param 'run_peak_signal_profile' -> 'run_peak_signal_profiler'"
+}
+
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     NAMED WORKFLOW FOR PIPELINE
