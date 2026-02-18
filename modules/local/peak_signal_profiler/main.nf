@@ -10,7 +10,7 @@ process PEAKSIGNALPROFILER_RUN {
     container "${params.psp_sif ?: '/path/to/peaksignalprofiler.sif'}"
 
     input:
-    path samplesheet
+    file samplesheet
     path annotation
     path genome
     path psp_src
