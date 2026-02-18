@@ -25,15 +25,24 @@ process PEAKSIGNALPROFILER_RUN {
 
     script:
     // Ensure the R script repository and sif are set via params when running.
-    // `psp_src` (staged by workflow) takes precedence; otherwise fall back to params.psp_dir
-    def psp_dir = (binding.hasVariable('psp_src') && psp_src) ? psp_src.toString() : (params.psp_dir ?: '/path/to/peak-signal-profiler')
+    // NOTE: prefer `psp_src` if staged by the workflow (handled at shell runtime);
+    // here we keep a params fallback for callers that do not stage the dir.
+    def psp_dir = params.psp_dir ?: '/path/to/peak-signal-profiler'
     def sif     = params.psp_sif ?: '/path/to/peaksignalprofiler.sif'
 
     """
     set -euo pipefail || true
     mkdir -p psp_out
 
-    echo "[PEAKSIGNALPROFILER] samplesheet=${samplesheet} annotation=${annotation} genome=${genome} cores=${task.cpus}" > psp_run.info
+    # Prefer staged `psp_src` directory (workflow stages it as an input); otherwise
+    # fall back to the parameter value expanded from Groovy above.
+    if [ -d psp_src ]; then
+        psp_dir="psp_src"
+    else
+        psp_dir="${psp_dir}"
+    fi
+
+    echo "[PEAKSIGNALPROFILER] samplesheet=${samplesheet} annotation=${annotation} genome=${genome} cores=${task.cpus} psp_dir=${psp_dir}" > psp_run.info
 
     # Preflight: verify required R/Bioconductor packages are available inside
     # the container. Fail with a clear error if any are missing so the user
