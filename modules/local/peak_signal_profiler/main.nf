@@ -29,8 +29,18 @@ process PEAKSIGNALPROFILER_RUN {
 
     echo "[PEAKSIGNALPROFILER] samplesheet=${samplesheet} annotation=${annotation} genome=${genome} cores=${task.cpus}" > psp_run.info
 
-    # Run the multisample R script (Nextflow will run this inside the
-    # configured container - do NOT invoke `singularity` directly here).
+    # Preflight: verify required R/Bioconductor packages are available inside
+    # the container. Fail with a clear error if any are missing so the user
+    # knows to rebuild the SIF with the missing packages.
+    required_pkgs="rtracklayer,GenomicRanges,IRanges,S4Vectors,ggplot2,optparse"
+    Rscript -e "pkgs <- strsplit('${required_pkgs}',',')[[1]]; missing <- pkgs[!sapply(pkgs, function(p) requireNamespace(p, quietly=TRUE))]; if(length(missing)){ cat('MISSING_R_PKGS:' , paste(missing, collapse=','), '\n'); quit(status=2) } else {cat('R_PKGS_OK\n') }" > psp_preflight.log 2>&1 || {
+        echo "ERROR: Required R packages missing inside container. Rebuild SIF to include: ${required_pkgs}" >&2
+        echo "See psp_preflight.log for details." >&2
+        cat psp_preflight.log >&2 || true
+        exit 2
+    }
+
+    # Run the multisample R script (runs inside the process container)
     Rscript ${psp_dir}/scripts/02_run_multisample.R \
         --samplesheet ${samplesheet} \
         --annotation ${annotation} \
