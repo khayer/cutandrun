@@ -28,6 +28,7 @@ This module performs a preflight inside the task/container to verify the followi
 - S4Vectors
 - ggplot2
 - optparse
+- cowplot
 
 If any package is missing the process will fail early with a clear message instructing you to rebuild the Singularity image (SIF). Example error printed to stderr:
 

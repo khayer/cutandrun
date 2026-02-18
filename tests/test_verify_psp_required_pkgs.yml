@@ -1,0 +1,7 @@
+- name: verify peaksignalprofiler required R packages include cowplot
+  command: grep -n "cowplot" modules/local/peak_signal_profiler/main.nf
+  stdout:
+    contains:
+      - "cowplot"
+  tags:
+    - smoke

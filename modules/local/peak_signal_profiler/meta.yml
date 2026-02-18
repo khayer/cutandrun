@@ -33,4 +33,4 @@ requirements:
 
 about:
   description: "Run PeakSignalProfiler multi-sample analysis (02_run_multisample.R) inside a Singularity image. The process maps Nextflow CPUs to R --cores and publishes the produced output directory."
-  r_packages: "rtracklayer, GenomicRanges, IRanges, S4Vectors, ggplot2, optparse"
+  r_packages: "rtracklayer, GenomicRanges, IRanges, S4Vectors, ggplot2, optparse, cowplot"

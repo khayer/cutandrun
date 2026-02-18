@@ -45,12 +45,12 @@ process PEAKSIGNALPROFILER_RUN {
         psp_dir="${psp_dir}"
     fi
 
-    echo "[PEAKSIGNALPROFILER] samplesheet=${samplesheet} annotation=${annotation} genome=${genome} cores=${task.cpus} psp_dir=${psp_dir}" > psp_run.info
+    echo "[PEAKSIGNALPROFILER] samplesheet=${samplesheet} annotation=${annotation} genome=${genome} cores=${task.cpus} psp_dir=\${psp_dir}" > psp_run.info
 
     # Preflight: verify required R/Bioconductor packages are available inside
     # the container. Fail with a clear error if any are missing so the user
     # knows to rebuild the SIF with the missing packages.
-    required_pkgs="rtracklayer,GenomicRanges,IRanges,S4Vectors,ggplot2,optparse"
+    required_pkgs="rtracklayer,GenomicRanges,IRanges,S4Vectors,ggplot2,optparse,cowplot"
     REQUIRED_PKGS="\${required_pkgs}" Rscript -e "pkgs <- strsplit(Sys.getenv('REQUIRED_PKGS'),',')[[1]]; missing <- pkgs[!sapply(pkgs, function(p) requireNamespace(p, quietly=TRUE))]; if(length(missing)){ cat('MISSING_R_PKGS:' , paste(missing, collapse=','), '\n'); quit(status=2) } else {cat('R_PKGS_OK\n') }" > psp_preflight.log 2>&1 || {
         echo "ERROR: Required R packages missing inside container. Rebuild SIF to include: \${required_pkgs}" >&2
         echo "See psp_preflight.log for details." >&2
@@ -58,14 +58,16 @@ process PEAKSIGNALPROFILER_RUN {
         exit 2
     }
 
-    # Run the multisample R script (runs inside the process container)
-    Rscript ${psp_dir}/scripts/02_run_multisample.R \
-        --samplesheet ${samplesheet} \
-        --annotation ${annotation} \
-        --genome ${genome} \
-        --outdir psp_out \
-        --cores ${task.cpus} \
-        > psp_run.log 2>&1 || true
+    # Run the multisample R script from the PSP repository root so relative
+    # paths inside the package (e.g. R/config.R) resolve correctly.
+    ( cd "\${psp_dir}" && \
+        Rscript "scripts/02_run_multisample.R" \
+            --samplesheet ../${samplesheet} \
+            --annotation ../${annotation} \
+            --genome ../${genome} \
+            --outdir ../psp_out \
+            --cores ${task.cpus} \
+    ) > psp_run.log 2>&1
 
     # If R profiling was produced, summarize it (optional)
     if [ -f psp_out/multisample_rprof.out ]; then
