@@ -34,10 +34,13 @@ process PEAKSIGNALPROFILER_RUN {
     set -euo pipefail || true
     mkdir -p psp_out
 
-    # Prefer staged `psp_src` directory (workflow stages it as an input); otherwise
-    # fall back to the parameter value expanded from Groovy above.
-    if [ -d psp_src ]; then
-        psp_dir="psp_src"
+    # Prefer staged `psp_src` (workflow-input) or the preserved directory name
+    # inside the work dir; otherwise fall back to the parameter value expanded
+    # from Groovy above.
+    if [ -n "${psp_src}" ] && [ -d "${psp_src}" ]; then
+        psp_dir="${psp_src}"
+    elif [ -d peak-signal-profiler ]; then
+        psp_dir="peak-signal-profiler"
     else
         psp_dir="${psp_dir}"
     fi
