@@ -149,6 +149,7 @@ include { DEEPTOOLS_QC                                     } from "../subworkflo
 include { PEAK_QC                                          } from "../subworkflows/local/peak_qc"
 include { SAMTOOLS_VIEW_SORT_STATS as FILTER_READS         } from "../subworkflows/local/samtools_view_sort_stats"
 include { DEDUPLICATE_LINEAR                               } from "../subworkflows/local/deduplicate_linear"
+include { PEAK_SIGNAL_PROFILER                             } from "../subworkflows/local/peak_signal_profiler"
 
 /*
 ========================================================================================
@@ -1149,6 +1150,13 @@ workflow CUTANDRUN {
             ch_peakqc_reprod_perc_mqc      = PEAK_QC.out.reprod_perc_mqc
             ch_software_versions           = ch_software_versions.mix(PEAK_QC.out.versions)
         }
+
+        // Run PeakSignalProfiler (optional)
+        if (params.run_peak_signal_profiler && params.run_peak_calling) {
+            PEAK_SIGNAL_PROFILER( file(params.input), file(params.gene_bed), PREPARE_GENOME.out.fasta_index.map{it[1]}.first() )
+            ch_software_versions = ch_software_versions.mix(PEAK_SIGNAL_PROFILER.out.versions)
+        }
+
         //ch_peakqc_reprod_perc_mqc | view
 
         /*

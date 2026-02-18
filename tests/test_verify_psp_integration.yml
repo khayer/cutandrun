@@ -1,0 +1,10 @@
+- name: verify PeakSignalProfiler is integrated into main workflow
+  command: |
+    grep -n "run_peak_signal_profiler" conf/flowswitch.config && \
+    grep -n "PEAK_SIGNAL_PROFILER" workflows/cutandrun.nf
+  stdout:
+    contains:
+      - "run_peak_signal_profiler"
+      - "PEAK_SIGNAL_PROFILER"
+  tags:
+    - smoke
