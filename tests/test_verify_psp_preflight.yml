@@ -1,0 +1,7 @@
+- name: verify peaksignalprofiler preflight block exists
+  command: grep -n "MISSING_R_PKGS" modules/local/peak_signal_profiler/main.nf
+  stdout:
+    contains:
+      - "MISSING_R_PKGS"
+  tags:
+    - smoke
