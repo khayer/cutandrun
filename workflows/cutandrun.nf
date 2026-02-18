@@ -1154,7 +1154,9 @@ workflow CUTANDRUN {
         // Run PeakSignalProfiler (optional)
         if (params.run_peak_signal_profiler && params.run_peak_calling) {
             PEAK_SIGNAL_PROFILER( file(params.input), file(params.gene_bed), PREPARE_GENOME.out.fasta_index.map{it[1]}.first() )
-            ch_software_versions = ch_software_versions.mix(PEAK_SIGNAL_PROFILER.out.versions)
+            // NOTE: intentionally do NOT mix PSP `versions` into ch_software_versions
+            // to avoid compile-time channel evaluation issues; PSP `versions.yml`
+            // will still be published alongside pipeline outputs.
         }
 
         //ch_peakqc_reprod_perc_mqc | view
