@@ -62,7 +62,7 @@ process PEAKSIGNALPROFILER_RUN {
     # work dir (embed file content in a here-doc). This avoids broken
     # symlink targets inside Singularity containers on some HPC mounts.
     cat > "\${psp_dir}/${samplesheet.getName()}" <<'PSP_SAMPLESHEET'
-${samplesheet.toFile().getText('UTF-8')}
+${ new File(params.samplesheet).getText('UTF-8') }
 PSP_SAMPLESHEET
 
     # Run the multisample R script from the PSP repository root so relative
