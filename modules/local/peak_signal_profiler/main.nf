@@ -29,9 +29,9 @@ process PEAKSIGNALPROFILER_RUN {
 
     echo "[PEAKSIGNALPROFILER] samplesheet=${samplesheet} annotation=${annotation} genome=${genome} cores=${task.cpus}" > psp_run.info
 
-    # Run the multisample R script inside the provided Singularity image.
-    singularity exec ${sif} \
-        Rscript ${psp_dir}/scripts/02_run_multisample.R \
+    # Run the multisample R script (Nextflow will run this inside the
+    # configured container - do NOT invoke `singularity` directly here).
+    Rscript ${psp_dir}/scripts/02_run_multisample.R \
         --samplesheet ${samplesheet} \
         --annotation ${annotation} \
         --genome ${genome} \
@@ -41,14 +41,14 @@ process PEAKSIGNALPROFILER_RUN {
 
     # If R profiling was produced, summarize it (optional)
     if [ -f psp_out/multisample_rprof.out ]; then
-        singularity exec ${sif} Rscript -e "summaryRprof('psp_out/multisample_rprof.out')" \
+        Rscript -e "summaryRprof('psp_out/multisample_rprof.out')" \
             > psp_out/multisample_rprof.summary.txt 2>/dev/null || true
     fi
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         peaksignalprofiler_sif: ${sif}
-        r_version: \$(singularity exec ${sif} Rscript --version 2>&1 | sed -n '1p')
+        r_version: \$(Rscript --version 2>&1 | sed -n '1p')
     END_VERSIONS
     """
 
