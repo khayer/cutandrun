@@ -29,6 +29,8 @@ This module performs a preflight inside the task/container to verify the followi
 - ggplot2
 - optparse
 - cowplot
+- png
+- ggnewscale
 
 If any package is missing the process will fail early with a clear message instructing you to rebuild the Singularity image (SIF). Example error printed to stderr:
 

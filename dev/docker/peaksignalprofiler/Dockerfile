@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # install minimal CRAN + Bioconductor packages the module checks for
-RUN Rscript -e "install.packages(c('ggplot2','optparse','cowplot'), repos='https://cloud.r-project.org')"
+RUN Rscript -e "install.packages(c('ggplot2','optparse','cowplot','png','ggnewscale'), repos='https://cloud.r-project.org')"
 RUN Rscript -e "if (!requireNamespace('BiocManager', quietly=TRUE)) install.packages('BiocManager', repos='https://cloud.r-project.org'); BiocManager::install(c('rtracklayer','GenomicRanges','IRanges','S4Vectors'))"
 
 # runtime working dir (pipeline will mount scripts via --psp_dir)

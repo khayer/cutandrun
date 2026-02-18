@@ -15,7 +15,7 @@ Local SIF build (example):
 Verify R packages inside SIF:
 
   singularity exec psp-1.0.0.sif \
-    Rscript -e "pkgs <- c('rtracklayer','GenomicRanges','IRanges','S4Vectors','ggplot2','optparse','cowplot'); missing <- pkgs[!sapply(pkgs, requireNamespace, quietly=TRUE)]; if(length(missing)) { cat('MISSING:', paste(missing, collapse=','), '\n'); quit(status=2) } else { cat('OK\n') }"
+    Rscript -e "pkgs <- c('rtracklayer','GenomicRanges','IRanges','S4Vectors','ggplot2','optparse','cowplot','png','ggnewscale'); missing <- pkgs[!sapply(pkgs, requireNamespace, quietly=TRUE)]; if(length(missing)) { cat('MISSING:', paste(missing, collapse=','), '\n'); quit(status=2) } else { cat('OK\n') }"
 
 
 CI / common failure (building slim SIF)
