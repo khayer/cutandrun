@@ -1,0 +1,35 @@
+name: peak_signal_profiler_run
+home: https://github.com/hayerk/peak-signal-profiler
+repo: hayerk/peak-signal-profiler
+version: 0.0.1
+
+tags:
+  - peak-signal-profiler
+  - R
+  - singularity
+
+inputs:
+  - samplesheet:
+      description: CSV samplesheet (multi-sample)
+      type: File
+  - annotation:
+      description: BED/GFF annotation file
+      type: File
+  - genome:
+      description: genome fai (or fasta index) file
+      type: File
+
+outputs:
+  - psp_out:
+      description: Directory produced by PeakSignalProfiler (plots + TSVs)
+      pattern: "psp_out/**"
+  - log:
+      description: Process log files
+      pattern: "*.log"
+
+requirements:
+  - singularity: ">=3"
+  - R: ">=4.0"
+
+about:
+  description: "Run PeakSignalProfiler multi-sample analysis (02_run_multisample.R) inside a Singularity image. The process maps Nextflow CPUs to R --cores and publishes the produced output directory."
