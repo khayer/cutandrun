@@ -1,0 +1,8 @@
+- name: verify PSP samplesheet converter exists in module
+  command: grep -n "Convert pipeline samplesheet" modules/local/peak_signal_profiler/main.nf && grep -n "03_peak_calling/03_bed_to_bigwig" modules/local/peak_signal_profiler/main.nf
+  stdout:
+    contains:
+      - "Convert pipeline samplesheet"
+      - "03_peak_calling/03_bed_to_bigwig"
+  tags:
+    - smoke

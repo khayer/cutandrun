@@ -11,6 +11,20 @@ This document tracks custom modifications made to the nf-core/cutandrun pipeline
 
     ./nextflow run main.nf   --input samplesheet.csv   --outdir results_human   --normalisation_mode Spikein   --normalisation_mode_dual true   --normalisation_c 10000   -profile singularity    -work-dir work_human   --peakcaller macs2 --run_homer_motifs true --skip_multiqc --bigwigcompare_binsize 5 --genome hg38
 
+  nextflow run main.nf \
+    --input samplesheet_33K.csv \
+    --outdir results_33K \
+    --normalisation_mode Spikein \
+    --genome GRCh38 \
+    --psp_sif ../peak-signal-profiler/psp-1.0.0.sif \
+    --run_peak_signal_profiler true \
+    --peakcaller macs2 \
+    --run_homer_motifs true \
+    --bigwigcompare_binsize 5 \
+    -profile singularity \
+    -work-dir work_33K \
+    -resume
+
 
 ## Table of Contents
 - [Homer Motif Analysis](#homer-motif-analysis)

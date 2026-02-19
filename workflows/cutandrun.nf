@@ -1153,7 +1153,15 @@ workflow CUTANDRUN {
 
         // Run PeakSignalProfiler (optional)
         if (params.run_peak_signal_profiler && params.run_peak_calling) {
-            PEAK_SIGNAL_PROFILER( file(params.input), file(params.gene_bed), PREPARE_GENOME.out.fasta_index.map{it[1]}.first() )
+            // If the user supplied a gene_bed on the CLI use that, otherwise
+            // pass the BED produced by the PREPARE_GENOME subworkflow. This
+            // avoids calling `file(null)` and lets the pipeline use its own
+            // generated `genes.bed` when no external BED is provided.
+            if (params.gene_bed) {
+                PEAK_SIGNAL_PROFILER( file(params.input), file(params.gene_bed), PREPARE_GENOME.out.fasta_index.map{it[1]}.first() )
+            } else {
+                PEAK_SIGNAL_PROFILER( file(params.input), PREPARE_GENOME.out.bed, PREPARE_GENOME.out.fasta_index.map{it[1]}.first() )
+            }
             // NOTE: intentionally do NOT mix PSP `versions` into ch_software_versions
             // to avoid compile-time channel evaluation issues; PSP `versions.yml`
             // will still be published alongside pipeline outputs.
