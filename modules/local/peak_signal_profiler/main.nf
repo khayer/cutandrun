@@ -26,15 +26,19 @@ process PEAKSIGNALPROFILER_RUN {
     when:
     task.ext.when == null || task.ext.when
 
-    // Ensure the SIF is set via params when running. The SIF contains the
-    // PSP repository under /app so a `psp_dir` parameter is not required.
-    def sif     = params.psp_sif ?: '/path/to/peaksignalprofiler.sif'
+    // we don't do any path or param computation here; keep the condition
+    // simple so groovy/nextflow parsing stays happy.
 
     script:
     """
-    bash bin/psp_preflight.sh "${samplesheet.getName()}" "${params.outdir}" "${annotation}" "${genome}" "${task.cpus}" "${params.psp_sif}" "${params.psp_dir:-}"  
+    # copy preflight utility into work dir
+    cp ${workflow.projectDir}/bin/psp_preflight.sh .
+
+    # run preflight which also converts samplesheet and executes PSP
+    bash psp_preflight.sh "${workflow.projectDir}" "${params.outdir}" \
+        "${samplesheet.getName()}" "${annotation}" "${genome}" "${task.cpus}" \
+        "${params.psp_sif}" "${params.psp_dir ?: ''}"
     """
-    
     stub:
     """
     mkdir -p psp_out && touch psp_out/sample_multisample_plot.png psp_out/multisample_table.tsv
