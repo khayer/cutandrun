@@ -7,8 +7,10 @@ process SUMMARIZE_PEAK_ANNOTATIONS {
     tag "summarize_peak_annotations"
     label 'process_single'
 
-    conda "conda-forge::python=3.8.3 conda-forge::pandas=1.2.3 conda-forge::matplotlib=3.3.4"
-    container "quay.io/biocontainers/python:3.8.3"
+    conda "bioconda::multiqc=1.33"
+    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+        'https://depot.galaxyproject.org/singularity/multiqc:1.33--pyhdfd78af_0' :
+        'biocontainers/multiqc:1.33--pyhdfd78af_0' }"
 
     input:
     path annotate_tables
