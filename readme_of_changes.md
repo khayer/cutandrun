@@ -32,6 +32,7 @@ This document tracks custom modifications made to the nf-core/cutandrun pipeline
 - [BigWig Subtraction](#bigwig-subtraction)
 - [Merged Peaks Table](#merged-peaks-table)
 - [Read Count Annotation](#read-count-annotation)
+- [Peak Feature Annotation Plot](#peak-feature-annotation-plot)
 - [Additional Custom Flags](#additional-custom-flags)
 
 ---
@@ -402,6 +403,80 @@ chr1   2000    2300    567             523             601
 - Quantitative comparison of peak intensities
 - Statistical testing between conditions
 - Input for downstream clustering/heatmaps
+
+---
+
+## Peak Feature Annotation Plot
+
+**Date Added:** March 19, 2026  
+**Purpose:** Plot where each replicate's peaks are located across genomic features (Promoter, 5' UTR, 3' UTR, Exon, Intron, Intergenic, etc.) using HOMER `annotatePeaks.pl`
+
+### Background
+
+This feature runs HOMER peak annotation on each replicate peak BED and then builds a stacked bar plot of feature composition per replicate, similar to classic genome-distribution plots in ChIP/CUT&RUN figures.
+
+Each replicate bar includes:
+- **Feature composition** as percent of peaks
+- **N peaks** (total peaks in that replicate)
+- **Mean GC%** across annotated peaks
+
+### Usage
+
+Enable peak annotation plot generation:
+
+```bash
+nextflow run main.nf \
+  --run_homer_peak_annotation true \
+  --homer_peak_annotation_tss_dist 1000,2000,3000 \
+  ... other parameters ...
+```
+
+### Parameters
+
+- `--run_homer_peak_annotation` (default: `false`)
+  - Run HOMER `annotatePeaks.pl` on **replicate-level primary peaks** and generate summary plots/tables.
+- `--homer_peak_annotation_tss_dist` (default: `1000,2000,3000`)
+  - Passed to HOMER `annotatePeaks.pl -d` to control TSS/promoter distance windows.
+
+### Output
+
+Located in: `results/03_peak_calling/10_peak_feature_annotation/`
+
+- `homer_peak_annotation.stacked_bar.png` - Replicate stacked bar figure
+- `homer_peak_annotation.stacked_bar.pdf` - Vector PDF of same figure
+- `homer_peak_annotation.feature_percent_table.tsv` - Wide table used for plotting (% per feature per replicate)
+- `homer_peak_annotation.feature_summary.tsv` - Long-format feature counts/percentages
+- `homer_peak_annotation.sample_stats.tsv` - Per-replicate peak count and mean GC%
+- `homer_peak_annotation.raw_annotation_summary.tsv` - Raw HOMER annotation categories summary
+
+Raw per-replicate HOMER tables are in:
+
+- `results/03_peak_calling/10_peak_feature_annotation/annotatepeaks_raw/*.annotatePeaks.txt`
+
+### Implementation Details
+
+**Files Added/Modified:**
+
+1. **`modules/local/homer/annotatepeaks/main.nf`**
+  - New HOMER module for `annotatePeaks.pl`
+  - Inputs: replicate peak BED, genome FASTA, GTF annotation, TSS distance windows
+  - Output: `{sample}.annotatePeaks.txt`
+
+2. **`modules/local/python/summarize_peak_annotations.nf`**
+  - New summarization/plot process
+  - Combines all replicate annotation outputs into final reports and figures
+
+3. **`bin/summarize_peak_annotations.py`**
+  - Parses HOMER annotation tables
+  - Keeps raw HOMER categories and mapped feature classes
+  - Generates stacked bars with N and GC labels per replicate
+
+4. **`workflows/cutandrun.nf`**
+  - Integrated module execution in the peak-calling section
+  - Runs on replicate primary peaks (`ch_peaks_primary`)
+
+5. **`conf/modules.config`**, **`nextflow.config`**, **`nextflow_schema.json`**
+  - Added process publish rules and user-facing parameters
 
 ---
 

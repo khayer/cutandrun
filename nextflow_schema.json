@@ -555,6 +555,20 @@
                     "description": "Size of region for motif finding in bp",
                     "help_text": "Use 200 for promoters, 'given' for exact peak size, 50-200 for sharp marks (H3K4me3), 500-1000 for broad marks (H3K27me3)."
                 },
+                "run_homer_peak_annotation": {
+                    "type": "boolean",
+                    "default": false,
+                    "fa_icon": "fas fa-map-marked-alt",
+                    "description": "Run HOMER annotatePeaks on replicate peaks and generate genomic feature composition plots",
+                    "help_text": "Annotates each replicate's peaks with HOMER annotatePeaks.pl and generates stacked bar plots across features (promoter, 5' UTR, 3' UTR, exon, intron, intergenic, etc.), including N peaks and mean GC% per replicate."
+                },
+                "homer_peak_annotation_tss_dist": {
+                    "type": "string",
+                    "default": "1000,2000,3000",
+                    "fa_icon": "fas fa-ruler-combined",
+                    "description": "Comma-separated TSS distance cutoffs passed to HOMER annotatePeaks -d",
+                    "help_text": "Controls promoter/TSS distance windows in annotatePeaks. Example: '500,1000,2000'"
+                },
                 "igv_sort_by_groups": {
                     "type": "boolean",
                     "default": true,

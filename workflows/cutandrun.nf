@@ -126,8 +126,10 @@ include { MERGE_PEAKS_TABLE          } from "../modules/local/python/merge_peaks
 include { DOWNSAMPLE_BAM             } from "../modules/local/samtools_downsample"
 include { HOMER_FINDMOTIFSGENOME as HOMER_FINDMOTIFSGENOME_MERGED     } from "../modules/local/homer/findmotifsgenome/main"
 include { HOMER_FINDMOTIFSGENOME as HOMER_FINDMOTIFSGENOME_CONSENSUS  } from "../modules/local/homer/findmotifsgenome/main"
+include { HOMER_ANNOTATEPEAKS                                          } from "../modules/local/homer/annotatepeaks/main"
 include { SUMMARIZE_HOMER_MOTIFS     } from "../modules/local/python/summarize_homer_motifs"
 include { CREATE_MOTIF_COMPARISON_TABLES } from "../modules/local/python/create_motif_comparison_tables"
+include { SUMMARIZE_PEAK_ANNOTATIONS  } from "../modules/local/python/summarize_peak_annotations"
 
 /*
  * SUBWORKFLOWS
@@ -787,6 +789,27 @@ workflow CUTANDRUN {
             ch_peaks_primary.collect{it[1]}.ifEmpty([])
         )
         ch_software_versions = ch_software_versions.mix(MERGE_PEAKS_TABLE.out.versions)
+
+        /*
+        * MODULE: Annotate replicate peaks with HOMER annotatePeaks and plot feature composition
+        */
+        if(params.run_homer_peak_annotation) {
+            ch_fasta_for_peak_annotation = PREPARE_GENOME.out.fasta.map { it[1] }.first()
+            ch_gtf_for_peak_annotation   = PREPARE_GENOME.out.gtf.first()
+
+            HOMER_ANNOTATEPEAKS (
+                ch_peaks_primary,
+                ch_fasta_for_peak_annotation,
+                ch_gtf_for_peak_annotation,
+                params.homer_peak_annotation_tss_dist
+            )
+            ch_software_versions = ch_software_versions.mix(HOMER_ANNOTATEPEAKS.out.versions)
+
+            SUMMARIZE_PEAK_ANNOTATIONS (
+                HOMER_ANNOTATEPEAKS.out.annot.map { meta, table -> table }.collect()
+            )
+            ch_software_versions = ch_software_versions.mix(SUMMARIZE_PEAK_ANNOTATIONS.out.versions)
+        }
 
         /*
         * MODULE: Run Homer motif finding on merged peaks
