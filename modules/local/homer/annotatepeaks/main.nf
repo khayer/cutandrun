@@ -16,7 +16,6 @@ process HOMER_ANNOTATEPEAKS {
     tuple val(meta), path(bed)
     path fasta
     path gtf
-    val tss_dist
 
     output:
     tuple val(meta), path("${prefix}.annotatePeaks.txt"), emit: annot
@@ -33,7 +32,6 @@ process HOMER_ANNOTATEPEAKS {
         $fasta \
         -gtf $gtf \
         -size given \
-        -d $tss_dist \
         > ${prefix}.annotatePeaks.txt
 
     cat <<-END_VERSIONS > versions.yml

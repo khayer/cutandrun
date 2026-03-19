@@ -800,8 +800,7 @@ workflow CUTANDRUN {
             HOMER_ANNOTATEPEAKS (
                 ch_peaks_primary,
                 ch_fasta_for_peak_annotation,
-                ch_gtf_for_peak_annotation,
-                params.homer_peak_annotation_tss_dist
+                ch_gtf_for_peak_annotation
             )
             ch_software_versions = ch_software_versions.mix(HOMER_ANNOTATEPEAKS.out.versions)
 
