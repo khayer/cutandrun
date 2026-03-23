@@ -29,6 +29,10 @@ process SUMMARIZE_PEAK_ANNOTATIONS {
 
     script:
     """
+    python -m venv .plotenv
+    source .plotenv/bin/activate
+    python -m pip install --no-cache-dir pandas matplotlib
+
     python ${workflow.projectDir}/bin/summarize_peak_annotations.py \
         --inputs *.annotatePeaks.txt \
         --out-prefix homer_peak_annotation
