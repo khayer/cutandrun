@@ -31,6 +31,7 @@ process HOMER_ANNOTATEPEAKS {
         $bed \
         $fasta \
         -gtf $gtf \
+        -CpG \
         -size given \
         > ${prefix}.annotatePeaks.txt
 

@@ -7,23 +7,71 @@ This document tracks custom modifications made to the nf-core/cutandrun pipeline
 
 ## How I use it:
 
-    ./nextflow run main.nf   --input samplesheet_just2026.csv   --outdir results_dual_norm   --normalisation_mode Spikein   --normalisation_mode_dual true   --normalisation_c 10000   -profile singularity   --fasta HSV17_genome_files/17_No_repeats.fasta   --bowtie2 /home/hayerk/data/index/weitzman_human_hsv/HSV17_genome/   --gene_bed HSV17_from_gff.bed   --gtf HSV17_genome_files/17_No_repeats.gff   --macs_gsize 136000   -work-dir work_dual_norm   --peakcaller macs2 -resume --run_homer_motifs true --skip_multiqc --bigwigcompare_binsize 5
+```bash
+# Dual normalization + Homer motifs (HSV17 custom genome)
+./nextflow run main.nf \
+  --input samplesheet_just2026.csv \
+  --outdir results_dual_norm \
+  --normalisation_mode Spikein \
+  --normalisation_mode_dual true \
+  --normalisation_c 10000 \
+  -profile singularity \
+  --fasta HSV17_genome_files/17_No_repeats.fasta \
+  --bowtie2 /home/hayerk/data/index/weitzman_human_hsv/HSV17_genome/ \
+  --gene_bed HSV17_from_gff.bed \
+  --gtf HSV17_genome_files/17_No_repeats.gff \
+  --macs_gsize 136000 \
+  -work-dir work_dual_norm \
+  --peakcaller macs2 \
+  --run_homer_motifs true \
+  --skip_multiqc \
+  --bigwigcompare_binsize 5 \
+  -resume
 
-    ./nextflow run main.nf   --input samplesheet.csv   --outdir results_human   --normalisation_mode Spikein   --normalisation_mode_dual true   --normalisation_c 10000   -profile singularity    -work-dir work_human   --peakcaller macs2 --run_homer_motifs true --skip_multiqc --bigwigcompare_binsize 5 --genome hg38
+# Human run
+./nextflow run main.nf \
+  --input samplesheet.csv \
+  --outdir results_human \
+  --normalisation_mode Spikein \
+  --normalisation_mode_dual true \
+  --normalisation_c 10000 \
+  -profile singularity \
+  -work-dir work_human \
+  --peakcaller macs2 \
+  --run_homer_motifs true \
+  --skip_multiqc \
+  --bigwigcompare_binsize 5 \
+  --genome hg38
 
-  nextflow run main.nf \
-    --input samplesheet_33K.csv \
-    --outdir results_33K \
-    --normalisation_mode Spikein \
-    --genome GRCh38 \
-    --psp_sif ../peak-signal-profiler/psp-1.0.0.sif \
-    --run_peak_signal_profiler true \
-    --peakcaller macs2 \
-    --run_homer_motifs true \
-    --bigwigcompare_binsize 5 \
-    -profile singularity \
-    -work-dir work_33K \
-    -resume
+# 33K run with PeakSignalProfiler
+nextflow run main.nf \
+  --input samplesheet_33K.csv \
+  --outdir results_33K \
+  --normalisation_mode Spikein \
+  --genome GRCh38 \
+  --psp_sif ../peak-signal-profiler/psp-1.0.0.sif \
+  --run_peak_signal_profiler true \
+  --peakcaller macs2 \
+  --run_homer_motifs true \
+  --bigwigcompare_binsize 5 \
+  -profile singularity \
+  -work-dir work_33K \
+  -resume
+
+# Re-run only peak annotation summary branch (with cache reuse)
+module load Java/17.0.6 && nextflow run main.nf \
+  --input samplesheet_33K.csv \
+  --outdir results_33K \
+  --normalisation_mode Spikein \
+  --genome GRCh38 \
+  --peakcaller macs2 \
+  --run_homer_peak_annotation true \
+  --run_homer_motifs false \
+  --run_peak_signal_profiler false \
+  -profile singularity \
+  -work-dir work_33K \
+  -resume
+```
 
 
 ## Table of Contents
@@ -447,6 +495,11 @@ Located in: `results/03_peak_calling/10_peak_feature_annotation/`
 - `homer_peak_annotation.feature_percent_table.tsv` - Wide table used for plotting (% per feature per replicate)
 - `homer_peak_annotation.feature_summary.tsv` - Long-format feature counts/percentages
 - `homer_peak_annotation.sample_stats.tsv` - Per-replicate peak count and mean GC%
+- `homer_peak_annotation.gc_per_peak.tsv` - Per-peak GC percentages used for plotting/statistics
+- `homer_peak_annotation.gc_by_sample.tsv` - Per-replicate GC summary (count, mean, median, SD)
+- `homer_peak_annotation.gc_by_sample.png` - GC distribution boxplot across replicates
+- `homer_peak_annotation.gc_by_sample.pdf` - Vector PDF of GC distribution boxplot
+- `homer_peak_annotation.functional_enrichment.tsv` - Top GO BP enrichment terms per sample from annotatePeaks gene assignments
 - `homer_peak_annotation.raw_annotation_summary.tsv` - Raw HOMER annotation categories summary
 
 Raw per-replicate HOMER tables are in:
@@ -460,6 +513,7 @@ Raw per-replicate HOMER tables are in:
 1. **`modules/local/homer/annotatepeaks/main.nf`**
   - New HOMER module for `annotatePeaks.pl`
   - Inputs: replicate peak BED, genome FASTA, GTF annotation, TSS distance windows
+  - Uses `-CpG` to include `CpG%` and `GC%` columns in output tables
   - Output: `{sample}.annotatePeaks.txt`
 
 2. **`modules/local/python/summarize_peak_annotations.nf`**
@@ -470,6 +524,8 @@ Raw per-replicate HOMER tables are in:
   - Parses HOMER annotation tables
   - Keeps raw HOMER categories and mapped feature classes
   - Generates stacked bars with N and GC labels per replicate
+  - Exports per-peak and per-sample GC summaries plus GC distribution plots
+  - Runs sample-wise functional enrichment (GO BP via gseapy/Enrichr) from annotatePeaks gene columns
 
 4. **`workflows/cutandrun.nf`**
   - Integrated module execution in the peak-calling section
