@@ -81,6 +81,7 @@ module load Java/17.0.6 && nextflow run main.nf \
 - [Merged Peaks Table](#merged-peaks-table)
 - [Read Count Annotation](#read-count-annotation)
 - [Peak Feature Annotation Plot](#peak-feature-annotation-plot)
+- [ChIPseeker Enhanced Visualizations](#chipseeker-enhanced-visualizations)
 - [Additional Custom Flags](#additional-custom-flags)
 
 ---
@@ -533,6 +534,85 @@ Raw per-replicate HOMER tables are in:
 
 5. **`conf/modules.config`**, **`nextflow.config`**, **`nextflow_schema.json`**
   - Added process publish rules and user-facing parameters
+
+---
+
+## ChIPseeker Enhanced Visualizations
+
+**Date Added:** March 23, 2026  
+**Purpose:** Generate publication-quality peak annotation plots using Bioconductor's ChIPseeker package, complementing HOMER output
+
+### Background
+
+[ChIPseeker](https://bioconductor.org/packages/release/bioc/html/ChIPseeker.html) is an R/Bioconductor package for annotating ChIP-seq data and generating elegant visualizations. This module produces several high-quality plots from HOMER-annotated peaks:
+
+- **Pie charts** showing genomic annotation distribution
+- **Bar plots** for comparing annotation across samples
+- **Upset plots** for complex overlapping annotations
+- **Distance-to-TSS plots** showing peak position distributions
+- **TSS heatmaps** (optional, per-sample binding profiles)
+
+### Usage
+
+Enable ChIPseeker visualization:
+
+```bash
+nextflow run main.nf \
+  --run_homer_peak_annotation true \
+  --run_chipseeker true \
+  --run_chipseeker_compare true \
+  ... other parameters ...
+```
+
+### Parameters
+
+- `--run_chipseeker` (default: `false`)
+  - When enabled with `run_homer_peak_annotation`, generates per-sample ChIPseeker plots from HOMER outputs.
+- `--run_chipseeker_compare` (default: `true`)
+  - Generates comparative plots across all samples (annotation bar plots, TSS distance comparisons).
+- `--chipseeker_tss_dist` (default: `3000`)
+  - TSS window size for annotation and TSS profiling (bp on each side).
+
+### Output
+
+Located in: `results/03_peak_calling/10_peak_feature_annotation/`
+
+Per-sample outputs (when `run_chipseeker` is enabled):
+- `{sample}_chipseeker_annotation_pie.png/pdf` - Pie chart of annotation categories
+- `{sample}_chipseeker_annotation_bar.png/pdf` - Bar plot of annotation categories
+- `{sample}_chipseeker_annotation_upset.png/pdf` - Upset plot showing annotation overlaps
+- `{sample}_chipseeker_dist_to_tss.png/pdf` - Distribution of peaks relative to TSS
+- `{sample}_chipseeker_annotation.tsv` - Full ChIPseeker annotation table
+
+Comparative plots (when `run_chipseeker_compare` is enabled):
+- `chipseeker_comparison_annotation_bar.png/pdf` - Stacked annotation across all samples
+- `chipseeker_comparison_dist_to_tss.png/pdf` - TSS distribution comparison plot
+
+### Implementation Details
+
+**Files Added:**
+
+1. **`modules/local/r/chipseeker/main.nf`**
+   - `CHIPSEEKER_ANNOTATE` process: Reads HOMER output and generates per-sample plots
+   - `CHIPSEEKER_COMPARE` process: Generates comparative plots across samples
+   - Uses Singularity container: `weishwu/chipseeker:latest`
+   - Dependencies: ChIPseeker, TxDb.Hsapiens.UCSC.hg38.knownGene, org.Hs.eg.db, ggplot2
+
+2. **`bin/install_chipseeker_deps.R`**
+   - Optional: Pre-install ChIPseeker dependencies for container optimization
+
+3. **`workflows/cutandrun.nf`**
+   - Integrated ChIPseeker module execution in peak annotation section
+   - Triggered after HOMER peak annotation when `run_chipseeker` is true
+
+### Container Info
+
+The pipeline uses the pre-built Docker image `weishwu/chipseeker` which includes all R dependencies. The image is automatically converted to Singularity format by Nextflow.
+
+To manually build a Singularity image:
+```bash
+singularity build chipseeker.sif docker://weishwu/chipseeker:latest
+```
 
 ---
 

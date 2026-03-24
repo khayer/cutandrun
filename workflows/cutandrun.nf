@@ -130,6 +130,7 @@ include { HOMER_ANNOTATEPEAKS                                          } from ".
 include { SUMMARIZE_HOMER_MOTIFS     } from "../modules/local/python/summarize_homer_motifs"
 include { CREATE_MOTIF_COMPARISON_TABLES } from "../modules/local/python/create_motif_comparison_tables"
 include { SUMMARIZE_PEAK_ANNOTATIONS  } from "../modules/local/python/summarize_peak_annotations"
+include { CHIPSEEKER_ANNOTATE; CHIPSEEKER_COMPARE } from "../modules/local/r/chipseeker/main"
 
 /*
  * SUBWORKFLOWS
@@ -808,6 +809,26 @@ workflow CUTANDRUN {
                 HOMER_ANNOTATEPEAKS.out.annot.map { meta, table -> table }.collect()
             )
             ch_software_versions = ch_software_versions.mix(SUMMARIZE_PEAK_ANNOTATIONS.out.versions)
+
+            /*
+            * MODULE: Create enhanced ChIPseeker visualizations
+            */
+            if(params.run_chipseeker) {
+                CHIPSEEKER_ANNOTATE (
+                    HOMER_ANNOTATEPEAKS.out.annot,
+                    file("${projectDir}/assets/dummy_file.txt"),  // Placeholder for TxDb
+                    ch_gtf_for_peak_annotation
+                )
+                ch_software_versions = ch_software_versions.mix(CHIPSEEKER_ANNOTATE.out.versions)
+
+                // Optional: Aggregate plots across samples
+                if(params.run_chipseeker_compare) {
+                    CHIPSEEKER_COMPARE (
+                        CHIPSEEKER_ANNOTATE.out.annotation.map { meta, anno -> anno }.collect()
+                    )
+                    ch_software_versions = ch_software_versions.mix(CHIPSEEKER_COMPARE.out.versions)
+                }
+            }
         }
 
         /*
