@@ -153,6 +153,8 @@ process CHIPSEEKER_COMPARE {
     path("chipseeker_comparison_dist_to_tss.png"), emit: dist_png
     path("chipseeker_comparison_coverage.pdf"), emit: cov_pdf
     path("chipseeker_comparison_coverage.png"), emit: cov_png
+    path("chipseeker_comparison_coverage_condition_average.pdf"), emit: cov_avg_pdf
+    path("chipseeker_comparison_coverage_condition_average.png"), emit: cov_avg_png
     path("versions.yml"), emit: versions
 
     script:
@@ -306,9 +308,12 @@ if (length(anno_files) > 0) {
         tryCatch({
             if (length(anno_stat_all) == 0) stop("No getAnnoStat output available")
             pdat <- do.call(rbind, anno_stat_all)
-            pdat\$Feature <- factor(pdat\$Feature, levels = unique(pdat\$Feature))
+            bar_feature_levels <- unique(pdat\$Feature)
+            pdat\$Feature <- factor(pdat\$Feature, levels = bar_feature_levels)
+            bar_feature_colors <- setNames(ChIPseeker:::getCols(length(bar_feature_levels)), bar_feature_levels)
             p <- ggplot2::ggplot(pdat, ggplot2::aes(x = sample, y = Frequency, fill = Feature)) +
                 ggplot2::geom_col(position = "stack") +
+                ggplot2::scale_fill_manual(values = bar_feature_colors, breaks = bar_feature_levels) +
                 ggplot2::ylab("Frequency (%)") +
                 ggplot2::xlab("Sample") +
                 ggplot2::ggtitle("Peak Annotation Comparison (ChIPseeker getAnnoStat)") +
@@ -324,9 +329,12 @@ if (length(anno_files) > 0) {
         tryCatch({
             if (length(anno_stat_all) == 0) stop("No getAnnoStat output available")
             pdat <- do.call(rbind, anno_stat_all)
-            pdat\$Feature <- factor(pdat\$Feature, levels = unique(pdat\$Feature))
+            bar_feature_levels <- unique(pdat\$Feature)
+            pdat\$Feature <- factor(pdat\$Feature, levels = bar_feature_levels)
+            bar_feature_colors <- setNames(ChIPseeker:::getCols(length(bar_feature_levels)), bar_feature_levels)
             p <- ggplot2::ggplot(pdat, ggplot2::aes(x = sample, y = Frequency, fill = Feature)) +
                 ggplot2::geom_col(position = "stack") +
+                ggplot2::scale_fill_manual(values = bar_feature_colors, breaks = bar_feature_levels) +
                 ggplot2::ylab("Frequency (%)") +
                 ggplot2::xlab("Sample") +
                 ggplot2::ggtitle("Peak Annotation Comparison (ChIPseeker getAnnoStat)") +
@@ -452,6 +460,7 @@ if (length(anno_files) > 0) {
         if (!is.null(cov_all) && nrow(cov_all) > 0) {
             cov_all <- cov_all[cov_all\$chr %in% main_chrs, ]
             cov_all\$weight[!is.finite(cov_all\$weight) | cov_all\$weight <= 0] <- 1
+            cov_all\$condition <- sub("_R[0-9]+$", "", cov_all\$sample)
 
             p_cov <- ggplot2::ggplot(cov_all, ggplot2::aes(x = mid, color = sample, weight = weight)) +
                 ggplot2::geom_density(linewidth = 0.4, adjust = 0.25, na.rm = TRUE) +
@@ -462,12 +471,34 @@ if (length(anno_files) > 0) {
                 ggplot2::theme_bw() +
                 ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
 
-            pdf("chipseeker_comparison_coverage.pdf", width=14, height=10)
+            pdf("chipseeker_comparison_coverage.pdf", width=9, height=14)
             print(p_cov)
             dev.off()
 
-            png("chipseeker_comparison_coverage.png", width=1600, height=1200, res=120)
+            png("chipseeker_comparison_coverage.png", width=1000, height=1800, res=130)
             print(p_cov)
+            dev.off()
+
+            # Condition-average coverage using mean per-sample binned signal
+            cov_all\$bin <- floor(cov_all\$mid / 1e6) * 1e6
+            cov_sample_bin <- aggregate(weight ~ sample + condition + chr + bin, data = cov_all, FUN = sum)
+            cov_cond_avg <- aggregate(weight ~ condition + chr + bin, data = cov_sample_bin, FUN = mean)
+
+            p_cov_avg <- ggplot2::ggplot(cov_cond_avg, ggplot2::aes(x = bin, y = weight, color = condition)) +
+                ggplot2::geom_line(alpha = 0.95, linewidth = 0.5) +
+                ggplot2::facet_wrap(~ chr, scales = "free", ncol = 4) +
+                ggplot2::xlab("Genomic position (1 Mb bins)") +
+                ggplot2::ylab("Mean weighted peak coverage") +
+                ggplot2::ggtitle("Condition-Mean Peak Coverage Across Main Chromosomes") +
+                ggplot2::theme_bw() +
+                ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
+
+            pdf("chipseeker_comparison_coverage_condition_average.pdf", width=9, height=14)
+            print(p_cov_avg)
+            dev.off()
+
+            png("chipseeker_comparison_coverage_condition_average.png", width=1000, height=1800, res=130)
+            print(p_cov_avg)
             dev.off()
         }
     }
@@ -491,6 +522,12 @@ if (!file.exists("chipseeker_comparison_coverage.pdf")) {
 }
 if (!file.exists("chipseeker_comparison_coverage.png")) {
     make_placeholder_png("chipseeker_comparison_coverage.png", "Comparison coverage unavailable")
+}
+if (!file.exists("chipseeker_comparison_coverage_condition_average.pdf")) {
+    make_placeholder_pdf("chipseeker_comparison_coverage_condition_average.pdf", "Condition-average comparison coverage unavailable")
+}
+if (!file.exists("chipseeker_comparison_coverage_condition_average.png")) {
+    make_placeholder_png("chipseeker_comparison_coverage_condition_average.png", "Condition-average comparison coverage unavailable")
 }
 
 cat("ChIPseeker comparison completed\\n")
