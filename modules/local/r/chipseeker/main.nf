@@ -227,14 +227,41 @@ if (!is.null(peakAnno)) {
 write.table(anno_result, file="${prefix}_chipseeker_annotation.tsv", 
             sep="\\t", quote=FALSE, row.names=FALSE)
 
+get_annotation_feature <- function(df) {
+    anno_col <- if ("annotation" %in% colnames(df)) {
+        "annotation"
+    } else if ("Annotation" %in% colnames(df)) {
+        "Annotation"
+    } else {
+        NA
+    }
+
+    if (is.na(anno_col)) {
+        return(factor(rep("Unannotated", nrow(df))))
+    }
+
+    feature <- as.character(df[[anno_col]])
+    feature[is.na(feature) | feature == ""] <- "Unannotated"
+    feature <- sub(" \\\\(.*", "", feature)
+    factor(feature)
+}
+
 # Create pie chart of genomic annotation
 safe_dual_plot(
     "${prefix}_chipseeker_annotation_pie.pdf",
     "${prefix}_chipseeker_annotation_pie.png",
     8, 8, 800, 800,
     function() {
-        if (is.null(peakAnno)) stop("peakAnno unavailable")
-        plotAnnoPie(peakAnno)
+        if (is.null(peakAnno)) {
+            pie_counts <- table(get_annotation_feature(anno_result))
+            pie(
+                pie_counts,
+                main = "Peak Annotation",
+                col = ChIPseeker:::getCols(length(pie_counts))
+            )
+        } else {
+            plotAnnoPie(peakAnno)
+        }
     },
     "Annotation pie unavailable"
 )
@@ -245,8 +272,18 @@ safe_dual_plot(
     "${prefix}_chipseeker_annotation_bar.png",
     10, 6, 1000, 600,
     function() {
-        if (is.null(peakAnno)) stop("peakAnno unavailable")
-        plotAnnoBar(peakAnno)
+        if (is.null(peakAnno)) {
+            bar_counts <- sort(table(get_annotation_feature(anno_result)), decreasing = TRUE)
+            barplot(
+                bar_counts,
+                las = 2,
+                ylab = "Count",
+                main = "Peak Annotation",
+                col = ChIPseeker:::getCols(length(bar_counts))
+            )
+        } else {
+            plotAnnoBar(peakAnno)
+        }
     },
     "Annotation bar unavailable"
 )
