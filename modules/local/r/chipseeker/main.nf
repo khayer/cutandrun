@@ -260,7 +260,8 @@ safe_dual_plot(
                 col = ChIPseeker:::getCols(length(pie_counts))
             )
         } else {
-            plotAnnoPie(peakAnno)
+            p <- plotAnnoPie(peakAnno)
+            if (inherits(p, "ggplot")) print(p)
         }
     },
     "Annotation pie unavailable"
@@ -282,7 +283,8 @@ safe_dual_plot(
                 col = ChIPseeker:::getCols(length(bar_counts))
             )
         } else {
-            plotAnnoBar(peakAnno)
+            p <- plotAnnoBar(peakAnno)
+            if (inherits(p, "ggplot")) print(p)
         }
     },
     "Annotation bar unavailable"
@@ -295,7 +297,8 @@ safe_dual_plot(
     12, 8, 1200, 800,
     function() {
         if (is.null(peakAnno)) stop("peakAnno unavailable")
-        upsetplot(peakAnno, vennpie = FALSE)
+        p <- upsetplot(peakAnno, vennpie = FALSE)
+        if (inherits(p, "ggplot")) print(p)
     },
     "Annotation upset unavailable"
 )
@@ -307,7 +310,8 @@ safe_dual_plot(
     10, 6, 1000, 600,
     function() {
         if (is.null(peakAnno)) stop("peakAnno unavailable")
-        plotDistToTSS(peakAnno, title = "Distribution of peaks relative to TSS")
+        p <- plotDistToTSS(peakAnno, title = "Distribution of peaks relative to TSS")
+        if (inherits(p, "ggplot")) print(p)
     },
     "Distance-to-TSS plot unavailable"
 )
@@ -318,10 +322,34 @@ safe_dual_plot(
     "${prefix}_chipseeker_coverage.png",
     12, 6, 1200, 600,
     function() {
-        if (length(gr_cov) == 0 || length(cov_chrs) == 0) {
-            stop("no valid chromosomes after filtering")
+        plotted <- FALSE
+        if (length(gr_cov) > 0 && length(cov_chrs) > 0) {
+            plotted <- tryCatch({
+                covplot(gr_cov, weightCol = "V5", chrs = cov_chrs)
+                TRUE
+            }, error = function(e) {
+                cat("Note: covplot failed for ${prefix} -", conditionMessage(e), "\\n")
+                FALSE
+            })
         }
-        covplot(gr_cov, weightCol = "V5", chrs = cov_chrs)
+
+        # Fallback to a simple weighted position scatter so coverage files are never empty placeholders.
+        if (!plotted) {
+            mids <- floor((as.numeric(IRanges::start(gr)) + as.numeric(IRanges::end(gr))) / 2)
+            ord <- order(as.character(GenomicRanges::seqnames(gr)), mids)
+            mids <- mids[ord]
+            y <- seq_along(mids)
+            plot(
+                mids,
+                y,
+                pch = 16,
+                cex = 0.35,
+                col = grDevices::adjustcolor("steelblue", alpha.f = 0.35),
+                xlab = "Genomic position (bp)",
+                ylab = "Peak index",
+                main = "Peak positions (coverage fallback)"
+            )
+        }
     },
     "Coverage unavailable"
 )
@@ -346,6 +374,8 @@ process CHIPSEEKER_COMPARE {
     output:
     path("chipseeker_comparison_annotation_bar.pdf"), emit: anno_bar_pdf
     path("chipseeker_comparison_annotation_bar.png"), emit: anno_bar_png
+    path("chipseeker_comparison_annotation_bar_condition.pdf"), emit: anno_bar_cond_pdf
+    path("chipseeker_comparison_annotation_bar_condition.png"), emit: anno_bar_cond_png
     path("chipseeker_comparison_dist_to_tss.pdf"), emit: dist_pdf
     path("chipseeker_comparison_dist_to_tss.png"), emit: dist_png
     path("chipseeker_comparison_coverage.pdf"), emit: cov_pdf
@@ -441,8 +471,11 @@ if (length(anno_files) > 0) {
             mcols(gr)\$V5 <- rep(1, nrow(anno_df))
         }
 
-        # Strictly filter to canonical chromosomes for coverage plotting
-        gr <- GenomeInfoDb::keepSeqlevels(gr, intersect(GenomeInfoDb::seqlevels(gr), main_chrs), pruning.mode = "coarse")
+        # Prefer canonical chromosomes, but fall back to all seqlevels when canonical labels are absent.
+        keep_chrs <- intersect(GenomeInfoDb::seqlevels(gr), main_chrs)
+        if (length(keep_chrs) > 0) {
+            gr <- GenomeInfoDb::keepSeqlevels(gr, keep_chrs, pruning.mode = "coarse")
+        }
 
         # Keep flattened annotation table for robust custom comparison plots
         anno_df\$sample <- sub("_chipseeker_annotation\\\\.tsv", "", basename(f))
@@ -521,6 +554,129 @@ if (length(anno_files) > 0) {
             print(p)
         }, error = function(e) {
             cat("Note: Comparison bar plot generation skipped -", conditionMessage(e), "\\n")
+        })
+        dev.off()
+
+        # Condition-level annotation bar plot (replicates aggregated per condition)
+        pdf("chipseeker_comparison_annotation_bar_condition.pdf", width=11, height=6)
+        tryCatch({
+            anno_col_all <- if ("annotation" %in% colnames(all_df)) {
+                "annotation"
+            } else if ("Annotation" %in% colnames(all_df)) {
+                "Annotation"
+            } else {
+                NA
+            }
+            if (is.na(anno_col_all)) stop("No annotation column found")
+
+            cond_df <- data.frame(
+                condition = sub("_R[0-9]+\$", "", as.character(all_df\$sample)),
+                Feature = normalize_feature(all_df[[anno_col_all]]),
+                stringsAsFactors = FALSE
+            )
+            cond_stat <- as.data.frame(table(cond_df\$condition, cond_df\$Feature), stringsAsFactors = FALSE)
+            colnames(cond_stat) <- c("condition", "Feature", "Count")
+            cond_stat <- cond_stat[cond_stat\$Count > 0, ]
+            cond_totals <- aggregate(Count ~ condition, data = cond_stat, FUN = sum)
+            cond_stat <- merge(cond_stat, cond_totals, by = "condition", suffixes = c("", "_total"))
+            cond_stat\$Frequency <- ifelse(cond_stat\$Count_total > 0, 100 * cond_stat\$Count / cond_stat\$Count_total, 0)
+            cond_levels <- unique(cond_stat\$condition)
+            cond_stat\$condition <- factor(cond_stat\$condition, levels = cond_levels)
+            cond_totals\$condition <- factor(cond_totals\$condition, levels = cond_levels)
+            cond_totals\$label <- paste0("N=", cond_totals\$Count)
+
+            cond_feature_levels <- unique(cond_stat\$Feature)
+            cond_stat\$Feature <- factor(cond_stat\$Feature, levels = cond_feature_levels)
+            cond_feature_colors <- setNames(ChIPseeker:::getCols(length(cond_feature_levels)), cond_feature_levels)
+
+            p_cond <- ggplot2::ggplot(cond_stat, ggplot2::aes(x = condition, y = Frequency, fill = Feature)) +
+                ggplot2::geom_col(position = "stack") +
+                ggplot2::geom_text(
+                    data = cond_totals,
+                    ggplot2::aes(x = condition, y = -3, label = label),
+                    inherit.aes = FALSE,
+                    vjust = 1,
+                    size = 3.5
+                ) +
+                ggplot2::scale_fill_manual(values = cond_feature_colors, breaks = cond_feature_levels) +
+                ggplot2::scale_y_continuous(
+                    limits = c(-8, 100),
+                    breaks = seq(0, 100, 10),
+                    expand = ggplot2::expansion(mult = c(0, 0.02))
+                ) +
+                ggplot2::ylab("Frequency (%)") +
+                ggplot2::xlab("Condition") +
+                ggplot2::ggtitle("Peak Annotation Comparison (Condition)") +
+                ggplot2::coord_cartesian(clip = "off") +
+                ggplot2::theme_bw() +
+                ggplot2::theme(
+                    axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+                    plot.margin = ggplot2::margin(t = 8, r = 10, b = 26, l = 10)
+                )
+            print(p_cond)
+        }, error = function(e) {
+            cat("Note: Condition comparison bar plot generation skipped -", conditionMessage(e), "\\n")
+        })
+        dev.off()
+
+        png("chipseeker_comparison_annotation_bar_condition.png", width=1100, height=600, res=100)
+        tryCatch({
+            anno_col_all <- if ("annotation" %in% colnames(all_df)) {
+                "annotation"
+            } else if ("Annotation" %in% colnames(all_df)) {
+                "Annotation"
+            } else {
+                NA
+            }
+            if (is.na(anno_col_all)) stop("No annotation column found")
+
+            cond_df <- data.frame(
+                condition = sub("_R[0-9]+\$", "", as.character(all_df\$sample)),
+                Feature = normalize_feature(all_df[[anno_col_all]]),
+                stringsAsFactors = FALSE
+            )
+            cond_stat <- as.data.frame(table(cond_df\$condition, cond_df\$Feature), stringsAsFactors = FALSE)
+            colnames(cond_stat) <- c("condition", "Feature", "Count")
+            cond_stat <- cond_stat[cond_stat\$Count > 0, ]
+            cond_totals <- aggregate(Count ~ condition, data = cond_stat, FUN = sum)
+            cond_stat <- merge(cond_stat, cond_totals, by = "condition", suffixes = c("", "_total"))
+            cond_stat\$Frequency <- ifelse(cond_stat\$Count_total > 0, 100 * cond_stat\$Count / cond_stat\$Count_total, 0)
+            cond_levels <- unique(cond_stat\$condition)
+            cond_stat\$condition <- factor(cond_stat\$condition, levels = cond_levels)
+            cond_totals\$condition <- factor(cond_totals\$condition, levels = cond_levels)
+            cond_totals\$label <- paste0("N=", cond_totals\$Count)
+
+            cond_feature_levels <- unique(cond_stat\$Feature)
+            cond_stat\$Feature <- factor(cond_stat\$Feature, levels = cond_feature_levels)
+            cond_feature_colors <- setNames(ChIPseeker:::getCols(length(cond_feature_levels)), cond_feature_levels)
+
+            p_cond <- ggplot2::ggplot(cond_stat, ggplot2::aes(x = condition, y = Frequency, fill = Feature)) +
+                ggplot2::geom_col(position = "stack") +
+                ggplot2::geom_text(
+                    data = cond_totals,
+                    ggplot2::aes(x = condition, y = -3, label = label),
+                    inherit.aes = FALSE,
+                    vjust = 1,
+                    size = 3.5
+                ) +
+                ggplot2::scale_fill_manual(values = cond_feature_colors, breaks = cond_feature_levels) +
+                ggplot2::scale_y_continuous(
+                    limits = c(-8, 100),
+                    breaks = seq(0, 100, 10),
+                    expand = ggplot2::expansion(mult = c(0, 0.02))
+                ) +
+                ggplot2::ylab("Frequency (%)") +
+                ggplot2::xlab("Condition") +
+                ggplot2::ggtitle("Peak Annotation Comparison (Condition)") +
+                ggplot2::coord_cartesian(clip = "off") +
+                ggplot2::theme_bw() +
+                ggplot2::theme(
+                    axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+                    plot.margin = ggplot2::margin(t = 8, r = 10, b = 26, l = 10)
+                )
+            print(p_cond)
+        }, error = function(e) {
+            cat("Note: Condition comparison bar plot generation skipped -", conditionMessage(e), "\\n")
         })
         dev.off()
         
@@ -797,6 +953,12 @@ if (!file.exists("chipseeker_comparison_annotation_bar.pdf")) {
 }
 if (!file.exists("chipseeker_comparison_annotation_bar.png")) {
     make_placeholder_png("chipseeker_comparison_annotation_bar.png", "Comparison annotation bar unavailable")
+}
+if (!file.exists("chipseeker_comparison_annotation_bar_condition.pdf")) {
+    make_placeholder_pdf("chipseeker_comparison_annotation_bar_condition.pdf", "Condition comparison annotation bar unavailable")
+}
+if (!file.exists("chipseeker_comparison_annotation_bar_condition.png")) {
+    make_placeholder_png("chipseeker_comparison_annotation_bar_condition.png", "Condition comparison annotation bar unavailable")
 }
 if (!file.exists("chipseeker_comparison_dist_to_tss.pdf")) {
     make_placeholder_pdf("chipseeker_comparison_dist_to_tss.pdf", "Comparison distance-to-TSS unavailable")
