@@ -267,6 +267,24 @@ safe_dual_plot(
     "Annotation pie unavailable"
 )
 
+# Create vennpie plot of genomic annotation
+safe_dual_plot(
+    "${prefix}_chipseeker_vennpie.pdf",
+    "${prefix}_chipseeker_vennpie.png",
+    8, 8, 800, 800,
+    function() {
+        if (is.null(peakAnno)) {
+            anno_factor <- get_annotation_feature(anno_result)
+            p <- vennpie(anno_factor)
+            if (inherits(p, "ggplot")) print(p)
+        } else {
+            p <- vennpie(peakAnno)
+            if (inherits(p, "ggplot")) print(p)
+        }
+    },
+    "Annotation vennpie unavailable"
+)
+
 # Create bar plot of genomic annotation
 safe_dual_plot(
     "${prefix}_chipseeker_annotation_bar.pdf",
@@ -325,7 +343,8 @@ safe_dual_plot(
         plotted <- FALSE
         if (length(gr_cov) > 0 && length(cov_chrs) > 0) {
             plotted <- tryCatch({
-                covplot(gr_cov, weightCol = "V5", chrs = cov_chrs)
+                p_cov <- covplot(gr_cov, weightCol = "V5", chrs = cov_chrs)
+                if (inherits(p_cov, "ggplot")) print(p_cov)
                 TRUE
             }, error = function(e) {
                 cat("Note: covplot failed for ${prefix} -", conditionMessage(e), "\\n")
