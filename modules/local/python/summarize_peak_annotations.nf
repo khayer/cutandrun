@@ -24,6 +24,8 @@ process SUMMARIZE_PEAK_ANNOTATIONS {
     path "homer_peak_annotation.gc_by_sample.tsv", emit: gc_by_sample
     path "homer_peak_annotation.gc_by_sample.png", emit: gc_plot_png
     path "homer_peak_annotation.gc_by_sample.pdf", emit: gc_plot_pdf
+    path "homer_peak_annotation.gc_by_sample_violin.png", emit: gc_violin_png
+    path "homer_peak_annotation.gc_by_sample_violin.pdf", emit: gc_violin_pdf
     path "homer_peak_annotation.functional_enrichment.tsv", emit: functional_enrichment
     path "homer_peak_annotation.stacked_bar.png", emit: plot_png
     path "homer_peak_annotation.stacked_bar.pdf", emit: plot_pdf

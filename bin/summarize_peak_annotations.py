@@ -436,6 +436,8 @@ def main() -> None:
     if not gc_peak_df.empty:
         gc_plot_png = f"{args.out_prefix}.gc_by_sample.png"
         gc_plot_pdf = f"{args.out_prefix}.gc_by_sample.pdf"
+        gc_violin_png = f"{args.out_prefix}.gc_by_sample_violin.png"
+        gc_violin_pdf = f"{args.out_prefix}.gc_by_sample_violin.pdf"
 
         sample_order = sorted(gc_peak_df["sample"].dropna().unique().tolist())
         gc_vectors = [gc_peak_df.loc[gc_peak_df["sample"] == s, "gc_percent"].dropna().tolist() for s in sample_order]
@@ -456,6 +458,28 @@ def main() -> None:
         plt.savefig(gc_plot_png, dpi=200)
         plt.savefig(gc_plot_pdf)
         plt.close(fig)
+
+        # Violin version of GC-by-sample distribution.
+        fig, ax = plt.subplots(figsize=(fig_w, 6), dpi=150)
+        vp = ax.violinplot(gc_vectors, showmeans=False, showmedians=True, showextrema=False)
+        for body in vp["bodies"]:
+            body.set_facecolor("#4E79A7")
+            body.set_edgecolor("#2F2F2F")
+            body.set_alpha(0.5)
+        if "cmedians" in vp:
+            vp["cmedians"].set_color("#1F1F1F")
+            vp["cmedians"].set_linewidth(1.2)
+
+        ax.set_xticks(range(1, len(sample_order) + 1))
+        ax.set_xticklabels(sample_order, rotation=45, ha="right")
+        ax.set_ylabel("GC content (%)")
+        ax.set_xlabel("Sample")
+        ax.set_title("GC Content Distribution by Sample (Violin)")
+        ax.grid(axis="y", linestyle=":", alpha=0.35)
+        plt.tight_layout()
+        plt.savefig(gc_violin_png, dpi=200)
+        plt.savefig(gc_violin_pdf)
+        plt.close(fig)
     else:
         # Emit placeholder plots so outputs are always present.
         fig, ax = plt.subplots(figsize=(8, 4), dpi=150)
@@ -464,6 +488,14 @@ def main() -> None:
         plt.tight_layout()
         plt.savefig(f"{args.out_prefix}.gc_by_sample.png", dpi=200)
         plt.savefig(f"{args.out_prefix}.gc_by_sample.pdf")
+        plt.close(fig)
+
+        fig, ax = plt.subplots(figsize=(8, 4), dpi=150)
+        ax.text(0.5, 0.5, "No GC column detected in annotatePeaks inputs", ha="center", va="center")
+        ax.set_axis_off()
+        plt.tight_layout()
+        plt.savefig(f"{args.out_prefix}.gc_by_sample_violin.png", dpi=200)
+        plt.savefig(f"{args.out_prefix}.gc_by_sample_violin.pdf")
         plt.close(fig)
 
 

@@ -42,3 +42,9 @@ KAT_PIP_sample_sheet.csv
 .nfs0000000ad7d251230000038e
 psp_preflight_files.log
 todo.txt
+Ad5_genome/*
+your_table.condition_means_collapsed.tsv
+your_table.condition_means.tsv
+your_table.stacked_by_condition.pdf
+your_table.stacked_by_condition.png
+your_table.tsv

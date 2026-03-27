@@ -220,7 +220,7 @@ if (!is.null(peakAnno)) {
         strand = as.character(GenomicRanges::strand(gr)),
         V5 = as.numeric(S4Vectors::mcols(gr)\$V5),
         annotation = fallback_annotation,
-        distanceToTSS = NA_real_,
+        distanceToTSS = rep(NA_real_, length(gr)),
         stringsAsFactors = FALSE
     )
 }
@@ -467,6 +467,7 @@ if (length(anno_files) > 0) {
     for (f in anno_files) {
         # Read annotation TSV from CHIPSEEKER_ANNOTATE
         anno_df <- read.delim(f, stringsAsFactors = FALSE)
+        sample_name <- sub("_chipseeker_annotation\\\\.tsv", "", basename(f))
         
         # Convert back to numeric types
         seqnames <- anno_df\$seqnames
@@ -497,7 +498,7 @@ if (length(anno_files) > 0) {
         }
 
         # Keep flattened annotation table for robust custom comparison plots
-        anno_df\$sample <- sub("_chipseeker_annotation\\\\.tsv", "", basename(f))
+        anno_df\$sample <- rep(sample_name, nrow(anno_df))
         anno_all[[basename(f)]] <- anno_df
 
         anno_col <- if ("annotation" %in% colnames(anno_df)) {
@@ -514,13 +515,17 @@ if (length(anno_files) > 0) {
             rep("Unannotated", nrow(anno_df))
         }
 
-        stat_df <- as.data.frame(table(feature), stringsAsFactors = FALSE)
-        colnames(stat_df) <- c("Feature", "Count")
+        if (length(feature) == 0) {
+            stat_df <- data.frame(Feature = character(0), Count = integer(0), stringsAsFactors = FALSE)
+        } else {
+            stat_df <- as.data.frame(table(feature), stringsAsFactors = FALSE)
+            colnames(stat_df) <- c("Feature", "Count")
+        }
         stat_df <- stat_df[stat_df\$Count > 0, ]
         total_count <- sum(stat_df\$Count)
-        stat_df\$Frequency <- if (total_count > 0) (100 * stat_df\$Count / total_count) else 0
-        stat_df\$sample <- anno_df\$sample[1]
-        anno_stat_all[[anno_df\$sample[1]]] <- stat_df[, c("sample", "Feature", "Frequency")]
+        stat_df\$Frequency <- if (total_count > 0) (100 * stat_df\$Count / total_count) else numeric(0)
+        stat_df\$sample <- rep(sample_name, nrow(stat_df))
+        anno_stat_all[[sample_name]] <- stat_df[, c("sample", "Feature", "Frequency")]
         
         peakAnnoList[[basename(f)]] <- gr
     }
@@ -598,7 +603,11 @@ if (length(anno_files) > 0) {
             cond_stat <- cond_stat[cond_stat\$Count > 0, ]
             cond_totals <- aggregate(Count ~ condition, data = cond_stat, FUN = sum)
             cond_stat <- merge(cond_stat, cond_totals, by = "condition", suffixes = c("", "_total"))
-            cond_stat\$Frequency <- ifelse(cond_stat\$Count_total > 0, 100 * cond_stat\$Count / cond_stat\$Count_total, 0)
+            cond_stat\$Frequency <- if (nrow(cond_stat) > 0) {
+                ifelse(cond_stat\$Count_total > 0, 100 * cond_stat\$Count / cond_stat\$Count_total, 0)
+            } else {
+                numeric(0)
+            }
             cond_levels <- unique(cond_stat\$condition)
             cond_stat\$condition <- factor(cond_stat\$condition, levels = cond_levels)
             cond_totals\$condition <- factor(cond_totals\$condition, levels = cond_levels)
@@ -659,7 +668,11 @@ if (length(anno_files) > 0) {
             cond_stat <- cond_stat[cond_stat\$Count > 0, ]
             cond_totals <- aggregate(Count ~ condition, data = cond_stat, FUN = sum)
             cond_stat <- merge(cond_stat, cond_totals, by = "condition", suffixes = c("", "_total"))
-            cond_stat\$Frequency <- ifelse(cond_stat\$Count_total > 0, 100 * cond_stat\$Count / cond_stat\$Count_total, 0)
+            cond_stat\$Frequency <- if (nrow(cond_stat) > 0) {
+                ifelse(cond_stat\$Count_total > 0, 100 * cond_stat\$Count / cond_stat\$Count_total, 0)
+            } else {
+                numeric(0)
+            }
             cond_levels <- unique(cond_stat\$condition)
             cond_stat\$condition <- factor(cond_stat\$condition, levels = cond_levels)
             cond_totals\$condition <- factor(cond_totals\$condition, levels = cond_levels)
@@ -822,44 +835,56 @@ if (length(anno_files) > 0) {
             cov_all\$weight[!is.finite(cov_all\$weight) | cov_all\$weight <= 0] <- 1
             cov_all\$condition <- sub("_R[0-9]+\$", "", cov_all\$sample)
 
-            p_cov <- ggplot2::ggplot(cov_all, ggplot2::aes(x = mid, color = sample, weight = weight)) +
-                ggplot2::geom_density(linewidth = 0.4, adjust = 0.25, na.rm = TRUE) +
-                ggplot2::facet_wrap(~ chr, scales = "free", ncol = 4) +
-                ggplot2::xlab("Genomic position (bp)") +
-                ggplot2::ylab("Weighted density") +
-                ggplot2::ggtitle("Peak Density Comparison Across Main Chromosomes") +
-                ggplot2::theme_bw() +
-                ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
+            tryCatch({
+                p_cov <- ggplot2::ggplot(cov_all, ggplot2::aes(x = mid, color = sample, weight = weight)) +
+                    ggplot2::geom_density(linewidth = 0.4, adjust = 0.25, na.rm = TRUE) +
+                    ggplot2::facet_wrap(~ chr, scales = "free", ncol = 4) +
+                    ggplot2::xlab("Genomic position (bp)") +
+                    ggplot2::ylab("Weighted density") +
+                    ggplot2::ggtitle("Peak Density Comparison Across Main Chromosomes") +
+                    ggplot2::theme_bw() +
+                    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
 
-            pdf("chipseeker_comparison_coverage.pdf", width=9, height=14)
-            print(p_cov)
-            dev.off()
+                pdf("chipseeker_comparison_coverage.pdf", width=9, height=14)
+                print(p_cov)
+                dev.off()
 
-            png("chipseeker_comparison_coverage.png", width=1000, height=1800, res=130)
-            print(p_cov)
-            dev.off()
+                png("chipseeker_comparison_coverage.png", width=1000, height=1800, res=130)
+                print(p_cov)
+                dev.off()
+            }, error = function(e) {
+                cat("Note: Comparison coverage density plot generation skipped -", conditionMessage(e), "\\n")
+                make_placeholder_pdf("chipseeker_comparison_coverage.pdf", "Coverage comparison unavailable")
+                make_placeholder_png("chipseeker_comparison_coverage.png", "Coverage comparison unavailable")
+            })
 
             # Condition-average coverage using mean per-sample binned signal
             cov_all\$bin <- floor(cov_all\$mid / 1e6) * 1e6
             cov_sample_bin <- aggregate(weight ~ sample + condition + chr + bin, data = cov_all, FUN = sum)
             cov_cond_avg <- aggregate(weight ~ condition + chr + bin, data = cov_sample_bin, FUN = mean)
 
-            p_cov_avg <- ggplot2::ggplot(cov_cond_avg, ggplot2::aes(x = bin, y = weight, color = condition)) +
-                ggplot2::geom_line(alpha = 0.95, linewidth = 0.5) +
-                ggplot2::facet_wrap(~ chr, scales = "free", ncol = 4) +
-                ggplot2::xlab("Genomic position (1 Mb bins)") +
-                ggplot2::ylab("Mean weighted peak coverage") +
-                ggplot2::ggtitle("Condition-Mean Peak Coverage Across Main Chromosomes") +
-                ggplot2::theme_bw() +
-                ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
+            tryCatch({
+                p_cov_avg <- ggplot2::ggplot(cov_cond_avg, ggplot2::aes(x = bin, y = weight, color = condition)) +
+                    ggplot2::geom_line(alpha = 0.95, linewidth = 0.5) +
+                    ggplot2::facet_wrap(~ chr, scales = "free", ncol = 4) +
+                    ggplot2::xlab("Genomic position (1 Mb bins)") +
+                    ggplot2::ylab("Mean weighted peak coverage") +
+                    ggplot2::ggtitle("Condition-Mean Peak Coverage Across Main Chromosomes") +
+                    ggplot2::theme_bw() +
+                    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
 
-            pdf("chipseeker_comparison_coverage_condition_average.pdf", width=9, height=14)
-            print(p_cov_avg)
-            dev.off()
+                pdf("chipseeker_comparison_coverage_condition_average.pdf", width=9, height=14)
+                print(p_cov_avg)
+                dev.off()
 
-            png("chipseeker_comparison_coverage_condition_average.png", width=1000, height=1800, res=130)
-            print(p_cov_avg)
-            dev.off()
+                png("chipseeker_comparison_coverage_condition_average.png", width=1000, height=1800, res=130)
+                print(p_cov_avg)
+                dev.off()
+            }, error = function(e) {
+                cat("Note: Condition-average coverage plot generation skipped -", conditionMessage(e), "\\n")
+                make_placeholder_pdf("chipseeker_comparison_coverage_condition_average.pdf", "Condition-average coverage unavailable")
+                make_placeholder_png("chipseeker_comparison_coverage_condition_average.png", "Condition-average coverage unavailable")
+            })
         }
     }
     
