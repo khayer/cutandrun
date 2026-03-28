@@ -34,6 +34,7 @@
      - 8.1. [Heatmaps](#Heatmaps)
      - 8.2. [Upset Plots](#UpsetPlots)
      - 8.3. [IGV](#IGV)
+    - 8.4. [pyGenomeTracks Top Peaks](#pyGenomeTracksTopPeaks)
 - 9. [Workflow reporting and genomes](#Workflowreportingandgenomes)
      - 9.1. [Reference genome files](#Referencegenomefiles)
      - 9.2. [Pipeline information](#Pipelineinformation)
@@ -408,6 +409,36 @@ Upset plots provide a different view on which sets of peaks are overlapping acro
 An IGV session file will be created at the end of the pipeline containing the normalised bigWig tracks, per-sample peaks, target genome fasta and annotation GTF. Once installed, open IGV, go to File > Open Session and select the `igv_session.xml` file for loading.
 
 > **NB:** If you are not using an in-built genome provided by IGV you will need to load the annotation yourself e.g. in .gtf and/or .bed format.
+
+### 8.4. <a name='pyGenomeTracksTopPeaks'></a>pyGenomeTracks Top Peaks
+
+If `--run_pygenometracks_top10` is enabled, the pipeline generates pyGenomeTracks snapshots for the top consensus peaks in each non-control group.
+
+Top peak selection is performed per group from consensus peaks after replicate filtering, using consensus support as the ranking score. For each selected region, the nearest gene is inferred from the provided GTF and included in the rendered plot title.
+
+Track composition per output panel includes:
+
+- all available non-control replicates for the focal group,
+- one representative control track (rendered in grey),
+- one representative non-control replicate from each other group.
+
+<details markdown="1">
+<summary>Output files</summary>
+
+- `04_reporting/pygenometracks_top10/`
+  - `<GROUP>/top_regions.tsv`: Selected top regions with nearest-gene annotation and plotting windows.
+  - `<GROUP>/top_peaks.bed`: BED file for selected top peaks.
+  - `<GROUP>/tracks.ini`: pyGenomeTracks track configuration used for rendering.
+  - `<GROUP>/<GROUP>_top##_*.png` and/or `.pdf`: Rendered locus snapshots for each selected peak.
+
+</details>
+
+Relevant parameters:
+
+- `--run_pygenometracks_top10`: Enable pyGenomeTracks top-peak reporting.
+- `--pygt_top_n`: Number of peaks to render per group (default: 10).
+- `--pygt_peak_flank`: Flank in bp added around peak midpoint for each rendered region (default: 1000).
+- `--pygt_output_format`: Output format (`png`, `pdf`, or `both`).
 
 ## 9. <a name='Workflowreportingandgenomes'></a>Workflow reporting and genomes
 

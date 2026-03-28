@@ -569,6 +569,34 @@
                     "description": "Comma-separated TSS distance cutoffs passed to HOMER annotatePeaks -d",
                     "help_text": "Controls promoter/TSS distance windows in annotatePeaks. Example: '500,1000,2000'"
                 },
+                "run_pygenometracks_top10": {
+                    "type": "boolean",
+                    "default": false,
+                    "fa_icon": "fas fa-chart-line",
+                    "description": "Render pyGenomeTracks snapshots for top consensus peaks per group",
+                    "help_text": "Generates top-N peak snapshots per target group from consensus peaks and labels each panel with nearest gene from the supplied GTF. Outputs are written under 04_reporting/pygenometracks_top10."
+                },
+                "pygt_top_n": {
+                    "type": "integer",
+                    "default": 10,
+                    "minimum": 1,
+                    "fa_icon": "fas fa-list-ol",
+                    "description": "Number of top consensus peaks to plot per group"
+                },
+                "pygt_peak_flank": {
+                    "type": "integer",
+                    "default": 1000,
+                    "minimum": 0,
+                    "fa_icon": "fas fa-ruler-horizontal",
+                    "description": "Flank in bp added around each peak midpoint for pyGenomeTracks region rendering"
+                },
+                "pygt_output_format": {
+                    "type": "string",
+                    "default": "png",
+                    "enum": ["png", "pdf", "both"],
+                    "fa_icon": "fas fa-file-image",
+                    "description": "Output format for pyGenomeTracks snapshots"
+                },
                 "igv_sort_by_groups": {
                     "type": "boolean",
                     "default": true,

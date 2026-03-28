@@ -130,6 +130,7 @@ include { HOMER_ANNOTATEPEAKS                                          } from ".
 include { SUMMARIZE_HOMER_MOTIFS     } from "../modules/local/python/summarize_homer_motifs"
 include { CREATE_MOTIF_COMPARISON_TABLES } from "../modules/local/python/create_motif_comparison_tables"
 include { SUMMARIZE_PEAK_ANNOTATIONS  } from "../modules/local/python/summarize_peak_annotations"
+include { PYGENOMETRACKS_TOP10        } from "../modules/local/python/pygenometracks_top10"
 include { CHIPSEEKER_ANNOTATE; CHIPSEEKER_COMPARE } from "../modules/local/r/chipseeker/main"
 
 /*
@@ -1033,6 +1034,54 @@ workflow CUTANDRUN {
                     'igv_session_downsampled'
                 )
             }
+        }
+
+        if (params.run_pygenometracks_top10 && params.run_peak_calling) {
+            ch_bigwig
+                .collect()
+                .map { rows -> [bigwig_rows: rows] }
+                .set { ch_bigwig_all_for_pygt }
+
+            ch_consensus_peaks
+                .combine(ch_bigwig_all_for_pygt)
+                .map { row ->
+                    def meta = row[0]
+                    def bed = row[1]
+                    def bigwig_rows = row[2].bigwig_rows ?: []
+                    def valid_rows = bigwig_rows.findAll { it instanceof List && it.size() >= 2 && it[0] != null && it[1] != null }
+
+                    def own_rows = valid_rows.findAll { !it[0].is_control && it[0].group == meta.id }
+                    def own_bigwigs = own_rows.collect { it[1] }.sort { it.getName() }
+
+                    def control_rows = valid_rows.findAll { it[0].is_control }
+                    def control_rep = control_rows ? control_rows.sort { a, b -> a[0].id <=> b[0].id }[0][1] : null
+
+                    def other_rep_rows = valid_rows
+                        .findAll { !it[0].is_control && it[0].group != meta.id }
+                        .groupBy { it[0].group }
+                        .collect { grp, rows -> rows.sort { it[0].id }[0] }
+                    def other_bigwigs = other_rep_rows.collect { it[1] }.sort { it.getName() }
+
+                    def tracks = []
+                    tracks.addAll(own_bigwigs)
+                    if (control_rep) {
+                        tracks << control_rep
+                    }
+                    tracks.addAll(other_bigwigs)
+
+                    [meta, bed, tracks, own_bigwigs.size(), control_rep ? 1 : 0]
+                }
+                .filter { row -> row[2] && row[2].size() > 0 }
+                .set { ch_pygenometracks_top10_input }
+
+            PYGENOMETRACKS_TOP10(
+                ch_pygenometracks_top10_input,
+                PREPARE_GENOME.out.gtf.first(),
+                params.pygt_top_n,
+                params.pygt_peak_flank,
+                params.pygt_output_format
+            )
+            ch_software_versions = ch_software_versions.mix(PYGENOMETRACKS_TOP10.out.versions)
         }
 
         if (params.run_deeptools_heatmaps && params.run_peak_calling) {
