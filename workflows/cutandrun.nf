@@ -563,8 +563,12 @@ workflow CUTANDRUN {
             false // visualization_mode: false for normal processing
         )
         ch_bedgraph          = PREPARE_PEAKCALLING.out.bedgraph
-        ch_bigwig            = PREPARE_PEAKCALLING.out.bigwig
-        ch_bigwig_original   = PREPARE_PEAKCALLING.out.bigwig
+        PREPARE_PEAKCALLING.out.bigwig
+            .toList()
+            .set { ch_bigwig_rows }
+
+        ch_bigwig          = ch_bigwig_rows.flatMap { rows -> rows }
+        ch_bigwig_original = ch_bigwig_rows.flatMap { rows -> rows }
         ch_software_versions = ch_software_versions.mix(PREPARE_PEAKCALLING.out.versions)
 
         if (downsample_enabled) {
@@ -988,6 +992,14 @@ workflow CUTANDRUN {
     ch_frag_len_hist_mqc          = Channel.empty()
     if(params.run_reporting) {
         if(params.run_igv) {
+            ch_igv_fasta = PREPARE_GENOME.out.fasta
+                .map { row -> row instanceof List ? row[1] : row }
+                .filter { it != null }
+
+            ch_igv_fasta_index = PREPARE_GENOME.out.fasta_index
+                .map { row -> row instanceof List ? row[1] : row }
+                .filter { it != null }
+
             /*
             * MODULE: Create igv session (using original, non-downsampled bigwigs)
             */
@@ -1003,8 +1015,8 @@ workflow CUTANDRUN {
             }
             
             IGV_SESSION (
-                PREPARE_GENOME.out.fasta.map {it[1]},
-                PREPARE_GENOME.out.fasta_index.map {it[1]},
+                ch_igv_fasta,
+                ch_igv_fasta_index,
                 PREPARE_GENOME.out.bed_index,
                 //PREPARE_GENOME.out.gtf.collect(),
                 ch_peaks_primary.collect{it[1]}.filter{ it -> it.size() > 1}.ifEmpty([]),
@@ -1024,8 +1036,8 @@ workflow CUTANDRUN {
                     .collect()
 
                 IGV_SESSION_DOWNSAMPLED (
-                    PREPARE_GENOME.out.fasta.map {it[1]},
-                    PREPARE_GENOME.out.fasta_index.map {it[1]},
+                    ch_igv_fasta,
+                    ch_igv_fasta_index,
                     PREPARE_GENOME.out.bed_index,
                     ch_peaks_primary.collect{it[1]}.filter{ it -> it.size() > 1}.ifEmpty([]),
                     ch_peaks_secondary.collect{it[1]}.filter{ it -> it.size() > 1}.ifEmpty([]),
@@ -1037,8 +1049,7 @@ workflow CUTANDRUN {
         }
 
         if (params.run_pygenometracks_top10 && params.run_peak_calling) {
-            ch_bigwig
-                .collect()
+            ch_bigwig_rows
                 .map { rows -> [bigwig_rows: rows] }
                 .set { ch_bigwig_all_for_pygt }
 
@@ -1064,10 +1075,10 @@ workflow CUTANDRUN {
 
                     def tracks = []
                     tracks.addAll(own_bigwigs)
+                    tracks.addAll(other_bigwigs)
                     if (control_rep) {
                         tracks << control_rep
                     }
-                    tracks.addAll(other_bigwigs)
 
                     [meta, bed, tracks, own_bigwigs.size(), control_rep ? 1 : 0]
                 }

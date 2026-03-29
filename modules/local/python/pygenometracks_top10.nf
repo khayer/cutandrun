@@ -61,15 +61,16 @@ EOF
     i=1
     own_count=${own_count}
     has_control=${has_control}
+    total_count=\$(echo ${bigwig_list} | wc -w)
     for bw in ${bigwig_list}; do
         name=\$(basename "\$bw")
         name=\${name%.bigWig}
         name=\${name%.bw}
         color="#1f78b4"
-        if (( has_control == 1 && i == own_count + 1 )); then
+        if (( has_control == 1 && i == total_count )); then
             color="#808080"
             name="\${name} (control rep)"
-        elif (( i > own_count + has_control )); then
+        elif (( i > own_count )); then
             color="#33a02c"
             name="\${name} (other rep)"
         fi
