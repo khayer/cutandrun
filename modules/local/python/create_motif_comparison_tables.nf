@@ -20,6 +20,7 @@ process CREATE_MOTIF_COMPARISON_TABLES {
     output:
     path("Known_Motifs_Comparison_Table.tsv") , emit: known_table
     path("DeNovo_Motifs_Comparison_Table.tsv"), emit: denovo_table
+    path("*_Motifs_Table.pdf")               , emit: motif_pdfs, optional: true
     path("versions.yml")                      , emit: versions
 
     when:
@@ -43,16 +44,18 @@ process CREATE_MOTIF_COMPARISON_TABLES {
     done
     
     # Run the comparison table script
-    create_motif_comparison_tables.py homer_motifs/
+    create_motif_comparison_tables.py homer_motifs/ 5
     
     # Move output files to work directory root where Nextflow expects them
     mv homer_motifs/Known_Motifs_Comparison_Table.tsv .
     mv homer_motifs/DeNovo_Motifs_Comparison_Table.tsv .
+    cp homer_motifs/*_Motifs_Table.pdf . 2>/dev/null || true
     
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         python: \$(python --version | sed 's/Python //g')
         pandas: \$(python -c "import pandas; print(pandas.__version__)")
+        matplotlib: \$(python -c "import matplotlib; print(matplotlib.__version__)")
     END_VERSIONS
     """
 }

@@ -12,9 +12,13 @@ showing which motifs are found in which conditions with their % Target values.
 import os
 import sys
 import re
+import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 from collections import defaultdict
 import pandas as pd
+import matplotlib.pyplot as plt
 
 
 def parse_known_motifs(filepath):
@@ -395,14 +399,275 @@ def create_denovo_motif_table(motif_dir, output_file):
     return df
 
 
+def _safe_int(value, default=0):
+    try:
+        return int(value)
+    except Exception:
+        return default
+
+
+def _svg_to_png(svg_file, out_png):
+    """Convert SVG to PNG using rsvg-convert, if available."""
+    if not svg_file or not Path(svg_file).exists():
+        return False
+    if not shutil.which('rsvg-convert'):
+        return False
+    try:
+        subprocess.run(
+            ['rsvg-convert', '-h', '700', '-o', str(out_png), str(svg_file)],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return Path(out_png).exists()
+    except Exception:
+        return False
+
+
+def _render_logo_table_pdf(rows, title, output_pdf):
+    """Render a table-like PDF with a sequence-logo column using matplotlib axes."""
+    n_rows = len(rows)
+    n_cols = 7
+    col_labels = ['Rank', 'Motif', 'Consensus', 'P-value', '% Targets', '% Background', 'SVG Logo']
+    max_motif_len = max([max(1, int(r.get('motif_len', 1))) for r in rows]) if rows else 1
+
+    fig_w = 16.5
+    fig_h = max(3.0, 1.15 * (n_rows + 1) + 1.2)
+    fig, axes = plt.subplots(
+        nrows=n_rows + 1,
+        ncols=n_cols,
+        figsize=(fig_w, fig_h),
+        gridspec_kw={'width_ratios': [0.6, 3.1, 1.5, 1.2, 1.2, 1.4, 4.0]},
+    )
+
+    if n_rows == 0:
+        axes = [axes]
+
+    # Header
+    for c in range(n_cols):
+        ax = axes[0][c]
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_facecolor('#d9d9d9')
+        for spine in ax.spines.values():
+            spine.set_visible(True)
+            spine.set_linewidth(0.8)
+            spine.set_color('black')
+        ax.text(0.5, 0.5, col_labels[c], ha='center', va='center', fontsize=8, fontweight='bold')
+
+    # Body rows
+    for r, row in enumerate(rows, start=1):
+        text_vals = [
+            str(row['rank']),
+            row['motif'],
+            row['consensus'],
+            row['pval'],
+            row['pct_targets'],
+            row['pct_bg'],
+        ]
+
+        for c in range(n_cols):
+            ax = axes[r][c]
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.set_facecolor('#f7f7f7' if r % 2 == 1 else 'white')
+            for spine in ax.spines.values():
+                spine.set_visible(True)
+                spine.set_linewidth(0.6)
+                spine.set_color('black')
+
+            if c < 6:
+                ax.text(0.5, 0.5, text_vals[c], ha='center', va='center', fontsize=7, wrap=True)
+            else:
+                logo_png = row.get('logo_png')
+                if logo_png and Path(logo_png).exists():
+                    try:
+                        img = plt.imread(logo_png)
+                        motif_len = max(1, int(row.get('motif_len', 1)))
+                        width_frac = min(1.0, motif_len / max_motif_len)
+                        ax.set_xlim(0, 1)
+                        ax.set_ylim(0, 1)
+                        # Keep logos left-aligned and width-scaled by motif length
+                        # so base positions align across rows.
+                        ax.imshow(
+                            img,
+                            interpolation='lanczos',
+                            extent=(0, width_frac, 0, 1),
+                            aspect='auto',
+                        )
+                    except Exception:
+                        ax.text(0.5, 0.5, 'SVG render failed', ha='center', va='center', fontsize=7)
+                else:
+                    ax.text(0.5, 0.5, 'No logo', ha='center', va='center', fontsize=7)
+
+    fig.suptitle(title, fontsize=12, fontweight='bold', y=0.995)
+    fig.tight_layout(rect=[0, 0, 1, 0.975])
+    fig.savefig(output_pdf, format='pdf', dpi=300)
+    plt.close(fig)
+
+
+def create_known_motif_pdf(homer_dir, output_pdf, top_n=5):
+    """Create a per-condition PDF table from Homer knownResults.txt output."""
+    homer_dir = Path(homer_dir)
+    known_file = homer_dir / 'knownResults.txt'
+
+    if not known_file.exists():
+        print(f"Skipping PDF (missing knownResults.txt): {homer_dir}")
+        return False
+
+    motifs = []
+    with open(known_file, 'r') as fh:
+        lines = fh.readlines()
+        for i, line in enumerate(lines[1:top_n + 1], start=1):
+            parts = line.strip().split('\t')
+            if len(parts) < 9:
+                continue
+            svg_file = homer_dir / 'knownResults' / f"known{i}.logo.svg"
+            motifs.append({
+                'rank': len(motifs) + 1,
+                'motif': parts[0],
+                'consensus': parts[1],
+                'pval': parts[2],
+                'pct_targets': parts[6],
+                'pct_bg': parts[8],
+                'svg_file': str(svg_file) if svg_file.exists() else None,
+                'motif_len': len(parts[1]),
+            })
+
+    if not motifs:
+        print(f"Skipping PDF (no parsed motifs): {known_file}")
+        return False
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        for idx, m in enumerate(motifs, start=1):
+            out_png = Path(tmp_dir) / f"known_{idx}.png"
+            if _svg_to_png(m.get('svg_file'), out_png):
+                m['logo_png'] = str(out_png)
+            else:
+                m['logo_png'] = None
+
+        _render_logo_table_pdf(
+            motifs,
+            f"HOMER Known Motifs: {homer_dir.name} (Top {len(motifs)})",
+            output_pdf,
+        )
+
+    print(f"Created motif table PDF: {output_pdf}")
+    return True
+
+
+def create_denovo_motif_pdf(homer_dir, output_pdf, top_n=5):
+    """Create a per-condition PDF table from Homer de novo motif outputs."""
+    homer_dir = Path(homer_dir)
+    denovo_file = homer_dir / 'homerMotifs.all.motifs'
+    homer_results_dir = homer_dir / 'homerResults'
+
+    if not denovo_file.exists():
+        print(f"Skipping de novo PDF (missing homerMotifs.all.motifs): {homer_dir}")
+        return False
+
+    motifs = []
+    with open(denovo_file, 'r') as fh:
+        for line in fh:
+            if not line.startswith('>'):
+                continue
+            parts = line.strip().lstrip('>').split('\t')
+            if len(parts) < 2:
+                continue
+
+            consensus = parts[0]
+            motif_id = parts[1]
+            pval = '-'
+            pct_targets = '-'
+            pct_bg = '-'
+
+            stats_blob = ' '.join(parts[2:])
+            p_match = re.search(r'P:([0-9eE\-.]+)', stats_blob)
+            t_match = re.search(r'T:[0-9.]+\(([0-9.]+%?)\)', stats_blob)
+            b_match = re.search(r'B:[0-9.]+\(([0-9.]+%?)\)', stats_blob)
+            if p_match:
+                pval = p_match.group(1)
+            if t_match:
+                pct_targets = t_match.group(1)
+            if b_match:
+                pct_bg = b_match.group(1)
+
+            motif_num = motif_id.split('-')[0]
+            svg_candidate = homer_results_dir / f"motif{motif_num}.logo.svg"
+            svg_file = str(svg_candidate) if svg_candidate.exists() else None
+
+            motifs.append({
+                'rank': len(motifs) + 1,
+                'motif': motif_id,
+                'consensus': consensus,
+                'pval': pval,
+                'pct_targets': pct_targets,
+                'pct_bg': pct_bg,
+                'svg_file': svg_file,
+                'motif_len': len(consensus),
+            })
+
+            if len(motifs) >= top_n:
+                break
+
+    if not motifs:
+        print(f"Skipping de novo PDF (no parsed motifs): {denovo_file}")
+        return False
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        for idx, m in enumerate(motifs, start=1):
+            out_png = Path(tmp_dir) / f"denovo_{idx}.png"
+            if _svg_to_png(m.get('svg_file'), out_png):
+                m['logo_png'] = str(out_png)
+            else:
+                m['logo_png'] = None
+
+        _render_logo_table_pdf(
+            motifs,
+            f"HOMER De Novo Motifs: {homer_dir.name} (Top {len(motifs)})",
+            output_pdf,
+        )
+
+    print(f"Created motif table PDF: {output_pdf}")
+    return True
+
+
+def create_condition_motif_pdfs(motif_dir, top_n=5):
+    """Generate known and de novo motif PDF tables per condition directory."""
+    motif_root = Path(motif_dir)
+    created = []
+
+    consensus_dir = motif_root / 'consensus_peaks'
+    merged_dir = motif_root / 'merged_peaks' / 'merged_peaks_motifs'
+
+    condition_dirs = []
+    if consensus_dir.exists():
+        condition_dirs.extend(sorted([d for d in consensus_dir.iterdir() if d.is_dir() and d.name.endswith('_motifs')]))
+    if merged_dir.exists():
+        condition_dirs.append(merged_dir)
+
+    for cond_dir in condition_dirs:
+        condition = cond_dir.name.replace('_motifs', '')
+        known_pdf = motif_root / f"{condition}_Known_Motifs_Table.pdf"
+        denovo_pdf = motif_root / f"{condition}_DeNovo_Motifs_Table.pdf"
+        if create_known_motif_pdf(cond_dir, known_pdf, top_n=top_n):
+            created.append(known_pdf)
+        if create_denovo_motif_pdf(cond_dir, denovo_pdf, top_n=top_n):
+            created.append(denovo_pdf)
+
+    print(f"Created {len(created)} per-condition motif PDFs")
+    return created
+
+
 def main():
     if len(sys.argv) < 2:
-        print("Usage: create_motif_comparison_tables.py <motif_directory>")
+        print("Usage: create_motif_comparison_tables.py <motif_directory> [top_n]")
         print("\nExample:")
         print("  create_motif_comparison_tables.py results_dual_norm/03_peak_calling/09_homer_motifs")
         sys.exit(1)
     
     motif_dir = sys.argv[1]
+    top_n = _safe_int(sys.argv[2], default=5) if len(sys.argv) > 2 else 5
     
     if not os.path.exists(motif_dir):
         print(f"Error: Directory not found: {motif_dir}")
@@ -431,6 +696,10 @@ def main():
         motif_dir,
         output_dir / 'DeNovo_Motifs_Comparison_Table.tsv'
     )
+
+    print()
+    print("Creating per-condition motif PDFs...")
+    create_condition_motif_pdfs(motif_dir, top_n=top_n)
     
     print()
     print("=" * 80)
