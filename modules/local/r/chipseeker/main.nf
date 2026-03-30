@@ -393,8 +393,12 @@ process CHIPSEEKER_COMPARE {
     output:
     path("chipseeker_comparison_annotation_bar.pdf"), emit: anno_bar_pdf
     path("chipseeker_comparison_annotation_bar.png"), emit: anno_bar_png
+    path("chipseeker_comparison_annotation_bar_slim_version.pdf"), optional: true, emit: anno_bar_slim_pdf
+    path("chipseeker_comparison_annotation_bar_slim_version.png"), optional: true, emit: anno_bar_slim_png
     path("chipseeker_comparison_annotation_bar_condition.pdf"), emit: anno_bar_cond_pdf
     path("chipseeker_comparison_annotation_bar_condition.png"), emit: anno_bar_cond_png
+    path("chipseeker_comparison_annotation_bar_condition_slim_version.pdf"), optional: true, emit: anno_bar_cond_slim_pdf
+    path("chipseeker_comparison_annotation_bar_condition_slim_version.png"), optional: true, emit: anno_bar_cond_slim_png
     path("chipseeker_comparison_dist_to_tss.pdf"), emit: dist_pdf
     path("chipseeker_comparison_dist_to_tss.png"), emit: dist_png
     path("chipseeker_comparison_coverage.pdf"), emit: cov_pdf
@@ -437,6 +441,15 @@ collapse_annotation <- function(x) {
     x[x %in% c("Distal Intergenic", "Intergenic")] <- "Intergenic"
     x[grepl("^5' UTR|^5UTR|^fiveUTR", x)] <- "5' UTR"
     x[grepl("^3' UTR|^3UTR|^threeUTR", x)] <- "3' UTR"
+    x[is.na(x) | x == ""] <- "Unannotated"
+    x
+}
+
+collapse_annotation_slim <- function(x) {
+    x <- collapse_annotation(x)
+    x[x %in% c("Exon", "Intron")] <- "Gene Body"
+    x[x %in% c("5' UTR", "3' UTR")] <- "UTR"
+    x[x %in% c("Downstream", "Distal Intergenic", "Intergenic")] <- "Intergenic"
     x[is.na(x) | x == ""] <- "Unannotated"
     x
 }
@@ -581,6 +594,53 @@ if (length(anno_files) > 0) {
         })
         dev.off()
 
+        # Slim version (collapsed feature classes, half-width image)
+        pdf("chipseeker_comparison_annotation_bar_slim_version.pdf", width=6, height=6)
+        tryCatch({
+            if (length(anno_stat_all) == 0) stop("No getAnnoStat output available")
+            pdat <- do.call(rbind, anno_stat_all)
+            pdat\$Feature <- collapse_annotation_slim(pdat\$Feature)
+            pdat <- stats::aggregate(Frequency ~ sample + Feature, data = pdat, FUN = sum)
+            bar_feature_levels <- unique(pdat\$Feature)
+            pdat\$Feature <- factor(pdat\$Feature, levels = bar_feature_levels)
+            bar_feature_colors <- setNames(ChIPseeker:::getCols(length(bar_feature_levels)), bar_feature_levels)
+            p <- ggplot2::ggplot(pdat, ggplot2::aes(x = sample, y = Frequency, fill = Feature)) +
+                ggplot2::geom_col(position = "stack") +
+                ggplot2::scale_fill_manual(values = bar_feature_colors, breaks = bar_feature_levels) +
+                ggplot2::ylab("Frequency (%)") +
+                ggplot2::xlab("Sample") +
+                ggplot2::ggtitle("Peak Annotation Comparison (Slim Version)") +
+                ggplot2::theme_bw() +
+                ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
+            print(p)
+        }, error = function(e) {
+            cat("Note: Slim comparison bar plot generation skipped -", conditionMessage(e), "\\n")
+        })
+        dev.off()
+
+        png("chipseeker_comparison_annotation_bar_slim_version.png", width=600, height=600, res=100)
+        tryCatch({
+            if (length(anno_stat_all) == 0) stop("No getAnnoStat output available")
+            pdat <- do.call(rbind, anno_stat_all)
+            pdat\$Feature <- collapse_annotation_slim(pdat\$Feature)
+            pdat <- stats::aggregate(Frequency ~ sample + Feature, data = pdat, FUN = sum)
+            bar_feature_levels <- unique(pdat\$Feature)
+            pdat\$Feature <- factor(pdat\$Feature, levels = bar_feature_levels)
+            bar_feature_colors <- setNames(ChIPseeker:::getCols(length(bar_feature_levels)), bar_feature_levels)
+            p <- ggplot2::ggplot(pdat, ggplot2::aes(x = sample, y = Frequency, fill = Feature)) +
+                ggplot2::geom_col(position = "stack") +
+                ggplot2::scale_fill_manual(values = bar_feature_colors, breaks = bar_feature_levels) +
+                ggplot2::ylab("Frequency (%)") +
+                ggplot2::xlab("Sample") +
+                ggplot2::ggtitle("Peak Annotation Comparison (Slim Version)") +
+                ggplot2::theme_bw() +
+                ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
+            print(p)
+        }, error = function(e) {
+            cat("Note: Slim comparison bar plot generation skipped -", conditionMessage(e), "\\n")
+        })
+        dev.off()
+
         # Condition-level annotation bar plot (replicates aggregated per condition)
         pdf("chipseeker_comparison_annotation_bar_condition.pdf", width=11, height=6)
         tryCatch({
@@ -709,6 +769,137 @@ if (length(anno_files) > 0) {
             print(p_cond)
         }, error = function(e) {
             cat("Note: Condition comparison bar plot generation skipped -", conditionMessage(e), "\\n")
+        })
+        dev.off()
+
+        # Condition-level slim version (collapsed feature classes, half-width image)
+        pdf("chipseeker_comparison_annotation_bar_condition_slim_version.pdf", width=5.5, height=6)
+        tryCatch({
+            anno_col_all <- if ("annotation" %in% colnames(all_df)) {
+                "annotation"
+            } else if ("Annotation" %in% colnames(all_df)) {
+                "Annotation"
+            } else {
+                NA
+            }
+            if (is.na(anno_col_all)) stop("No annotation column found")
+
+            cond_df <- data.frame(
+                condition = sub("_R[0-9]+\$", "", as.character(all_df\$sample)),
+                Feature = collapse_annotation_slim(all_df[[anno_col_all]]),
+                stringsAsFactors = FALSE
+            )
+            cond_stat <- as.data.frame(table(cond_df\$condition, cond_df\$Feature), stringsAsFactors = FALSE)
+            colnames(cond_stat) <- c("condition", "Feature", "Count")
+            cond_stat <- cond_stat[cond_stat\$Count > 0, ]
+            cond_totals <- aggregate(Count ~ condition, data = cond_stat, FUN = sum)
+            cond_stat <- merge(cond_stat, cond_totals, by = "condition", suffixes = c("", "_total"))
+            cond_stat\$Frequency <- if (nrow(cond_stat) > 0) {
+                ifelse(cond_stat\$Count_total > 0, 100 * cond_stat\$Count / cond_stat\$Count_total, 0)
+            } else {
+                numeric(0)
+            }
+            cond_levels <- unique(cond_stat\$condition)
+            cond_stat\$condition <- factor(cond_stat\$condition, levels = cond_levels)
+            cond_totals\$condition <- factor(cond_totals\$condition, levels = cond_levels)
+            cond_totals\$label <- paste0("N=", cond_totals\$Count)
+
+            cond_feature_levels <- unique(cond_stat\$Feature)
+            cond_stat\$Feature <- factor(cond_stat\$Feature, levels = cond_feature_levels)
+            cond_feature_colors <- setNames(ChIPseeker:::getCols(length(cond_feature_levels)), cond_feature_levels)
+
+            p_cond <- ggplot2::ggplot(cond_stat, ggplot2::aes(x = condition, y = Frequency, fill = Feature)) +
+                ggplot2::geom_col(position = "stack") +
+                ggplot2::geom_text(
+                    data = cond_totals,
+                    ggplot2::aes(x = condition, y = -3, label = label),
+                    inherit.aes = FALSE,
+                    vjust = 1,
+                    size = 3.5
+                ) +
+                ggplot2::scale_fill_manual(values = cond_feature_colors, breaks = cond_feature_levels) +
+                ggplot2::scale_y_continuous(
+                    limits = c(-8, 100),
+                    breaks = seq(0, 100, 10),
+                    expand = ggplot2::expansion(mult = c(0, 0.02))
+                ) +
+                ggplot2::ylab("Frequency (%)") +
+                ggplot2::xlab("Condition") +
+                ggplot2::ggtitle("Peak Annotation Comparison (Condition, Slim Version)") +
+                ggplot2::coord_cartesian(clip = "off") +
+                ggplot2::theme_bw() +
+                ggplot2::theme(
+                    axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+                    plot.margin = ggplot2::margin(t = 8, r = 10, b = 26, l = 10)
+                )
+            print(p_cond)
+        }, error = function(e) {
+            cat("Note: Condition slim comparison bar plot generation skipped -", conditionMessage(e), "\\n")
+        })
+        dev.off()
+
+        png("chipseeker_comparison_annotation_bar_condition_slim_version.png", width=550, height=600, res=100)
+        tryCatch({
+            anno_col_all <- if ("annotation" %in% colnames(all_df)) {
+                "annotation"
+            } else if ("Annotation" %in% colnames(all_df)) {
+                "Annotation"
+            } else {
+                NA
+            }
+            if (is.na(anno_col_all)) stop("No annotation column found")
+
+            cond_df <- data.frame(
+                condition = sub("_R[0-9]+\$", "", as.character(all_df\$sample)),
+                Feature = collapse_annotation_slim(all_df[[anno_col_all]]),
+                stringsAsFactors = FALSE
+            )
+            cond_stat <- as.data.frame(table(cond_df\$condition, cond_df\$Feature), stringsAsFactors = FALSE)
+            colnames(cond_stat) <- c("condition", "Feature", "Count")
+            cond_stat <- cond_stat[cond_stat\$Count > 0, ]
+            cond_totals <- aggregate(Count ~ condition, data = cond_stat, FUN = sum)
+            cond_stat <- merge(cond_stat, cond_totals, by = "condition", suffixes = c("", "_total"))
+            cond_stat\$Frequency <- if (nrow(cond_stat) > 0) {
+                ifelse(cond_stat\$Count_total > 0, 100 * cond_stat\$Count / cond_stat\$Count_total, 0)
+            } else {
+                numeric(0)
+            }
+            cond_levels <- unique(cond_stat\$condition)
+            cond_stat\$condition <- factor(cond_stat\$condition, levels = cond_levels)
+            cond_totals\$condition <- factor(cond_totals\$condition, levels = cond_levels)
+            cond_totals\$label <- paste0("N=", cond_totals\$Count)
+
+            cond_feature_levels <- unique(cond_stat\$Feature)
+            cond_stat\$Feature <- factor(cond_stat\$Feature, levels = cond_feature_levels)
+            cond_feature_colors <- setNames(ChIPseeker:::getCols(length(cond_feature_levels)), cond_feature_levels)
+
+            p_cond <- ggplot2::ggplot(cond_stat, ggplot2::aes(x = condition, y = Frequency, fill = Feature)) +
+                ggplot2::geom_col(position = "stack") +
+                ggplot2::geom_text(
+                    data = cond_totals,
+                    ggplot2::aes(x = condition, y = -3, label = label),
+                    inherit.aes = FALSE,
+                    vjust = 1,
+                    size = 3.5
+                ) +
+                ggplot2::scale_fill_manual(values = cond_feature_colors, breaks = cond_feature_levels) +
+                ggplot2::scale_y_continuous(
+                    limits = c(-8, 100),
+                    breaks = seq(0, 100, 10),
+                    expand = ggplot2::expansion(mult = c(0, 0.02))
+                ) +
+                ggplot2::ylab("Frequency (%)") +
+                ggplot2::xlab("Condition") +
+                ggplot2::ggtitle("Peak Annotation Comparison (Condition, Slim Version)") +
+                ggplot2::coord_cartesian(clip = "off") +
+                ggplot2::theme_bw() +
+                ggplot2::theme(
+                    axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+                    plot.margin = ggplot2::margin(t = 8, r = 10, b = 26, l = 10)
+                )
+            print(p_cond)
+        }, error = function(e) {
+            cat("Note: Condition slim comparison bar plot generation skipped -", conditionMessage(e), "\\n")
         })
         dev.off()
         
@@ -998,11 +1189,23 @@ if (!file.exists("chipseeker_comparison_annotation_bar.pdf")) {
 if (!file.exists("chipseeker_comparison_annotation_bar.png")) {
     make_placeholder_png("chipseeker_comparison_annotation_bar.png", "Comparison annotation bar unavailable")
 }
+if (!file.exists("chipseeker_comparison_annotation_bar_slim_version.pdf")) {
+    make_placeholder_pdf("chipseeker_comparison_annotation_bar_slim_version.pdf", "Comparison annotation bar slim version unavailable")
+}
+if (!file.exists("chipseeker_comparison_annotation_bar_slim_version.png")) {
+    make_placeholder_png("chipseeker_comparison_annotation_bar_slim_version.png", "Comparison annotation bar slim version unavailable")
+}
 if (!file.exists("chipseeker_comparison_annotation_bar_condition.pdf")) {
     make_placeholder_pdf("chipseeker_comparison_annotation_bar_condition.pdf", "Condition comparison annotation bar unavailable")
 }
 if (!file.exists("chipseeker_comparison_annotation_bar_condition.png")) {
     make_placeholder_png("chipseeker_comparison_annotation_bar_condition.png", "Condition comparison annotation bar unavailable")
+}
+if (!file.exists("chipseeker_comparison_annotation_bar_condition_slim_version.pdf")) {
+    make_placeholder_pdf("chipseeker_comparison_annotation_bar_condition_slim_version.pdf", "Condition comparison annotation bar slim version unavailable")
+}
+if (!file.exists("chipseeker_comparison_annotation_bar_condition_slim_version.png")) {
+    make_placeholder_png("chipseeker_comparison_annotation_bar_condition_slim_version.png", "Condition comparison annotation bar slim version unavailable")
 }
 if (!file.exists("chipseeker_comparison_dist_to_tss.pdf")) {
     make_placeholder_pdf("chipseeker_comparison_dist_to_tss.pdf", "Comparison distance-to-TSS unavailable")

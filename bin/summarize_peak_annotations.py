@@ -65,6 +65,23 @@ def canonical_feature(annotation: str) -> str:
     return ann
 
 
+def slim_feature(feature: str) -> str:
+    if pd.isna(feature):
+        return "Unknown"
+
+    value = str(feature).strip()
+    value_lower = value.lower()
+
+    if value in {"5' UTR", "3' UTR"}:
+        return "UTR"
+    if value in {"Exon", "Intron"}:
+        return "Gene Body"
+    if value == "Intergenic" or value == "Distal Intergenic" or value_lower.startswith("downstream"):
+        return "Intergenic"
+
+    return value
+
+
 def sample_id_from_file(path: str) -> str:
     base = os.path.basename(path)
     # output from HOMER_ANNOTATEPEAKS: <sample>.annotatePeaks.txt
@@ -431,6 +448,72 @@ def main() -> None:
 
     plt.savefig(png_out, dpi=200)
     plt.savefig(pdf_out)
+    plt.close(fig)
+
+    # Slim version: collapse related features and use half-width figure.
+    slim_pivot = pivot.copy()
+    slim_pivot.columns = [slim_feature(col) for col in slim_pivot.columns]
+    slim_pivot = slim_pivot.T.groupby(level=0).sum().T
+
+    slim_preferred_order = [
+        "Promoter",
+        "UTR",
+        "Gene Body",
+        "TTS",
+        "Non-coding",
+        "Intergenic",
+        "Unknown",
+    ]
+    slim_observed = slim_pivot.columns.tolist()
+    slim_ordered_features = [f for f in slim_preferred_order if f in slim_observed]
+    slim_ordered_features.extend(sorted([f for f in slim_observed if f not in slim_ordered_features]))
+    slim_pivot = slim_pivot.reindex(columns=slim_ordered_features, fill_value=0.0)
+
+    slim_percent_table_out = f"{args.out_prefix}.feature_percent_table.slim_version.tsv"
+    slim_pivot.reset_index().to_csv(slim_percent_table_out, sep="\t", index=False)
+
+    slim_default_colors = {
+        "Promoter": "#F28E2B",
+        "UTR": "#4E79A7",
+        "Gene Body": "#59A14F",
+        "TTS": "#E15759",
+        "Non-coding": "#76B7B2",
+        "Intergenic": "#BAB0AC",
+        "Unknown": "#9D9D9D",
+    }
+    slim_colors = [slim_default_colors.get(feature, "#808080") for feature in slim_pivot.columns]
+
+    slim_fig_w = max(4, fig_w / 2)
+    fig, ax = plt.subplots(figsize=(slim_fig_w, 6), dpi=150)
+
+    slim_pivot.plot(kind="bar", stacked=True, ax=ax, color=slim_colors, edgecolor="white", linewidth=0.4)
+
+    ax.set_ylabel("Binding (% peaks)")
+    ax.set_xlabel("Replicate")
+    ax.set_ylim(0, 116)
+    ax.set_title("Peak Genomic Feature Composition (Slim Version)")
+    ax.legend(title="Feature", bbox_to_anchor=(1.02, 1), loc="upper left", frameon=False)
+
+    for i, sample in enumerate(slim_pivot.index):
+        n_peaks = int(stats_lookup.loc[sample, "n_peaks"]) if sample in stats_lookup.index else 0
+        mean_gc = stats_lookup.loc[sample, "mean_gc_percent"] if sample in stats_lookup.index else float("nan")
+
+        if pd.notna(mean_gc):
+            label = f"N={n_peaks}\nGC={mean_gc:.1f}%"
+        else:
+            label = f"N={n_peaks}"
+
+        ax.text(i, 102.0, label, ha="center", va="bottom", fontsize=8, fontweight="bold")
+
+    plt.xticks(rotation=45, ha="right")
+    plt.tight_layout()
+
+    slim_png_out = f"{args.out_prefix}.stacked_bar.slim_version.png"
+    slim_pdf_out = f"{args.out_prefix}.stacked_bar.slim_version.pdf"
+
+    plt.savefig(slim_png_out, dpi=200)
+    plt.savefig(slim_pdf_out)
+    plt.close(fig)
 
     # GC content visualization by sample.
     if not gc_peak_df.empty:
