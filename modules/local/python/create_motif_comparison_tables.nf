@@ -9,13 +9,11 @@ process CREATE_MOTIF_COMPARISON_TABLES {
     tag "motif_comparison"
     label 'process_low'
 
-    conda "conda-forge::python=3.8.3 conda-forge::pandas=1.3.3"
-    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'https://depot.galaxyproject.org/singularity/mulled-v2-f42a44964bca5225c7860882e231a7b5488b5485:47ef981087c59f79fdbcab4d9d7316e9ac2e688d-0' :
-        'biocontainers/mulled-v2-f42a44964bca5225c7860882e231a7b5488b5485:47ef981087c59f79fdbcab4d9d7316e9ac2e688d-0' }"
+    // Run this step with conda so SVG logos can be rendered via Python cairosvg.
+    conda "conda-forge::python=3.9 conda-forge::pandas=1.5.3 conda-forge::matplotlib=3.8.4 conda-forge::cairosvg=2.7.1"
 
     input:
-    path(motif_dirs)
+    path(motif_dirs, stageAs: 'motif_dirs/*')
 
     output:
     path("Known_Motifs_Comparison_Table.tsv") , emit: known_table
@@ -29,29 +27,31 @@ process CREATE_MOTIF_COMPARISON_TABLES {
     script:
     """
     # Create directory structure expected by the script
+    task_workdir="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+
     mkdir -p homer_motifs/consensus_peaks
     mkdir -p homer_motifs/merged_peaks
     
     # Link all motif directories to appropriate locations
-    for dir in ${motif_dirs}; do
+    for dir in motif_dirs/*; do
         if [[ \$dir == *"merged_peaks_motifs"* ]]; then
-            ln -s "\$(readlink -f \$dir)" homer_motifs/merged_peaks/merged_peaks_motifs
+            ln -sfn "\$(readlink -f \$dir)" homer_motifs/merged_peaks/merged_peaks_motifs
         else
             # Extract condition name from directory (e.g., DRB_RI_26_motifs)
             condition=\$(basename \$dir)
-            ln -s "\$(readlink -f \$dir)" homer_motifs/consensus_peaks/\${condition}
+            ln -sfn "\$(readlink -f \$dir)" homer_motifs/consensus_peaks/\${condition}
         fi
     done
     
     # Run the comparison table script
     create_motif_comparison_tables.py homer_motifs/ 5
     
-    # Move output files to work directory root where Nextflow expects them
-    mv homer_motifs/Known_Motifs_Comparison_Table.tsv .
-    mv homer_motifs/DeNovo_Motifs_Comparison_Table.tsv .
-    cp homer_motifs/*_Motifs_Table.pdf . 2>/dev/null || true
+    # Copy output files to the true task workdir where Nextflow validates outputs
+    cp homer_motifs/Known_Motifs_Comparison_Table.tsv "\${task_workdir}/"
+    cp homer_motifs/DeNovo_Motifs_Comparison_Table.tsv "\${task_workdir}/"
+    cp homer_motifs/*_Motifs_Table.pdf "\${task_workdir}/" 2>/dev/null || true
     
-    cat <<-END_VERSIONS > versions.yml
+    cat <<-END_VERSIONS > "\${task_workdir}/versions.yml"
     "${task.process}":
         python: \$(python --version | sed 's/Python //g')
         pandas: \$(python -c "import pandas; print(pandas.__version__)")

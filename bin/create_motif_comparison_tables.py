@@ -20,6 +20,11 @@ from collections import defaultdict
 import pandas as pd
 import matplotlib.pyplot as plt
 
+try:
+    import cairosvg
+except Exception:
+    cairosvg = None
+
 
 def parse_known_motifs(filepath):
     """Parse Homer knownResults.txt file."""
@@ -407,14 +412,26 @@ def _safe_int(value, default=0):
 
 
 def _svg_to_png(svg_file, out_png):
-    """Convert SVG to PNG using rsvg-convert, if available."""
+    """Convert SVG to PNG using cairosvg or rsvg-convert fallback."""
     if not svg_file or not Path(svg_file).exists():
         return False
-    if not shutil.which('rsvg-convert'):
+
+    if cairosvg is not None:
+        try:
+            cairosvg.svg2png(url=str(svg_file), write_to=str(out_png), output_height=700)
+            return Path(out_png).exists()
+        except Exception:
+            pass
+
+    rsvg_convert = shutil.which('rsvg-convert')
+    if not rsvg_convert and Path('/usr/bin/rsvg-convert').exists():
+        rsvg_convert = '/usr/bin/rsvg-convert'
+
+    if not rsvg_convert:
         return False
     try:
         subprocess.run(
-            ['rsvg-convert', '-h', '700', '-o', str(out_png), str(svg_file)],
+            [rsvg_convert, '-h', '700', '-o', str(out_png), str(svg_file)],
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
