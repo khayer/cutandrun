@@ -48,3 +48,4 @@ your_table.condition_means.tsv
 your_table.stacked_by_condition.pdf
 your_table.stacked_by_condition.png
 your_table.tsv
+multiqc_samtools_idxstats.txt
