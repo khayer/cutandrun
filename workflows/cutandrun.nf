@@ -1373,6 +1373,28 @@ workflow.onComplete {
     if (params.hook_url) {
         NfcoreTemplate.IM_notification(workflow, params, summary_params, projectDir, log)
     }
+
+    // Copy per-directory README files to the results tree so that each
+    // deliverable folder contains a plain-language description of its contents
+    // and how the files were produced.
+    def readme_map = [
+        ""               : "overview.md",
+        "00_genome"      : "00_genome.md",
+        "01_prealign"    : "01_prealign.md",
+        "02_alignment"   : "02_alignment.md",
+        "03_peak_calling": "03_peak_calling.md",
+        "04_reporting"   : "04_reporting.md",
+        "pipeline_info"  : "pipeline_info.md"
+    ]
+    readme_map.each { subdir, readme_name ->
+        def src  = file("${projectDir}/assets/readmes/${readme_name}")
+        def dest = subdir ? file("${params.outdir}/${subdir}/README.md")
+                          : file("${params.outdir}/README.md")
+        if (src.exists()) {
+            dest.parent.mkdirs()
+            src.copyTo(dest)
+        }
+    }
 }
 
 workflow.onError {
