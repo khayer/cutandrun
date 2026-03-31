@@ -53,18 +53,36 @@ An [IGV](https://igv.org/) XML session file is generated that pre-loads:
 To use: open IGV, go to **File → Open Session** and select `igv_session.xml`.
 
 ### pyGenomeTracks Top Peaks (`pygenometracks_top10/`)
-Enabled with `--run_pygenometracks_top10 true`. For each non-control group, the top `--pygt_top_n` consensus peaks (ranked by consensus support score) are rendered as high-resolution track plots using [pyGenomeTracks](https://pygenometracks.readthedocs.io/). Each panel shows:
-- All non-control replicates for the focal group
-- One IgG/control track (grey)
-- One representative replicate from each other group (for comparison)
+Enabled with `--run_pygenometracks_top10 true`. For each non-control experimental group, the pipeline selects the top N consensus peaks (ranked by consensus support score — the number of replicates in which the peak was called) and renders them as high-resolution genomic track images using [pyGenomeTracks](https://pygenometracks.readthedocs.io/).
 
-Output per group (`<GROUP>/`):
+**How top peaks are selected:**
+1. Consensus peaks for the group are loaded from the `05_consensus_peaks/` BED files.
+2. Peaks are ranked by their score column (consensus support from the BED file, column 10 if present, otherwise column 5).
+3. The top `--pygt_top_n` peaks (default: 10) are selected.
+4. For each peak, the midpoint is identified and a window of ± `--pygt_peak_flank` bp (default: 1,000 bp) is defined as the plot region.
+5. The nearest gene to each peak midpoint is identified from the GTF and included in the plot title.
+
+**Track composition per output image:**
+- All non-control replicates for the focal group (one bigWig track each)
+- One representative IgG/control track (rendered in grey)
+- One representative replicate from each other non-control group (for cross-group comparison)
+- A gene annotation track from the GTF
+- A consensus peaks BED track
+
+**Output per group** (one subdirectory `<GROUP>/` per non-control group):
+
 | File | Description |
 |------|-------------|
-| `top_regions.tsv` | Selected top regions with nearest-gene annotation and plot windows |
-| `top_peaks.bed` | BED file of selected top peaks |
-| `tracks.ini` | pyGenomeTracks configuration used for rendering |
-| `<GROUP>_top##_*.png` / `.pdf` | Rendered locus snapshots |
+| `top_regions.tsv` | Tab-delimited table of selected regions: rank, coordinates, plot window, nearest gene name, and distance to gene |
+| `top_peaks.bed` | BED file of the selected top peaks |
+| `tracks.ini` | pyGenomeTracks configuration file used for rendering |
+| `<GROUP>_top##_<chrom>_<start>_<end>.png` / `.pdf` | Rendered locus snapshot for each selected peak |
+
+**Relevant parameters:**
+- `--run_pygenometracks_top10` (default: false) — enable top-peak snapshots
+- `--pygt_top_n` (default: 10) — number of peaks to render per group
+- `--pygt_peak_flank` (default: 1000) — flanking region in bp around each peak midpoint
+- `--pygt_output_format` (default: `png`) — output format: `png`, `pdf`, or `both`
 
 ### Library Complexity (`preseq/`)
 [Preseq](http://smithlabresearch.org/software/preseq/) estimates how many additional unique reads would be gained with more sequencing. The output curves are included in MultiQC. A rapidly saturating curve means the library is near saturation and further sequencing will yield diminishing returns.
@@ -85,3 +103,4 @@ Enabled with `--run_peak_signal_profiler true`. PeakSignalProfiler (PSP) calcula
 - [ ] Check FRiP scores ≥ 0.3
 - [ ] Open `igv/igv_session.xml` in IGV and visually inspect peaks at known loci
 - [ ] Review heatmaps for expected enrichment patterns
+- [ ] Inspect `pygenometracks_top10/<GROUP>/` snapshots to visually confirm top peaks look biologically credible at individual loci (requires `--run_pygenometracks_top10 true`)

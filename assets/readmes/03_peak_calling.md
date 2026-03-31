@@ -17,7 +17,7 @@ This directory contains all outputs related to generating coverage tracks, calli
 | `07_peak_qc/frip/` | Fraction of Reads in Peaks (FRiP) score tables |
 | `08_merged_peaks_table/` | Merged peak table with read counts across all samples |
 | `09_homer_motifs/` | De-novo and known motif discovery results (only when `--run_homer_motifs true`) |
-| `10_peak_feature_annotation/` | Genomic feature annotation of peaks (only when `--run_homer_peak_annotation true`) |
+| `10_peak_feature_annotation/` | Genomic feature annotation of peaks (HOMER summary + ChIPseeker visualisations; requires `--run_homer_peak_annotation true`) |
 
 ## How These Files Are Derived
 
@@ -79,8 +79,61 @@ The motif search window size is set by `--homer_motif_size` (default: 200 bp). U
 
 ### Peak Feature Annotation (`10_peak_feature_annotation/`)
 Enabled with `--run_homer_peak_annotation true`. Each peak is annotated with its nearest genomic feature (promoter, exon, intron, intergenic, etc.) using Homer `annotatePeaks.pl`. Outputs include:
-- Raw annotation tables (`annotatepeaks_raw/`)
-- Summary bar charts and tables of feature distribution across groups
+
+**Raw Homer annotation** (`annotatepeaks_raw/`)
+- `*.annotatePeaks.txt` — per-sample annotation tables from Homer, one row per peak, with columns for chromosome, start, end, peak name, score, strand, and genomic feature annotation (including distance to TSS and GC content via the `-CpG` flag).
+
+**Aggregated summary** (`10_peak_feature_annotation/`)
+Produced by the `SUMMARIZE_PEAK_ANNOTATIONS` step, which collects all per-sample Homer tables and generates:
+
+| File | Description |
+|------|-------------|
+| `homer_peak_annotation.raw_annotation_summary.tsv` | Raw Homer annotation categories across all samples |
+| `homer_peak_annotation.feature_summary.tsv` | Canonicalised feature categories (Promoter, Exon, Intron, Intergenic, etc.) |
+| `homer_peak_annotation.sample_stats.tsv` | Per-sample peak counts and mean GC% |
+| `homer_peak_annotation.feature_percent_table.tsv` | Percentage of peaks in each feature per sample |
+| `homer_peak_annotation.gc_per_peak.tsv` | GC% for every individual peak |
+| `homer_peak_annotation.gc_by_sample.tsv` | Sample-level GC% summary |
+| `homer_peak_annotation.gc_by_sample.{png,pdf}` | GC distribution plot per sample |
+| `homer_peak_annotation.functional_enrichment.tsv` | Gene Ontology Biological Process enrichment |
+| `homer_peak_annotation.stacked_bar.{png,pdf}` | Stacked bar chart of feature composition across samples |
+
+### ChIPseeker Enhanced Visualisations (`10_peak_feature_annotation/`)
+Enabled with `--run_homer_peak_annotation true` **and** `--run_chipseeker true`. [ChIPseeker](https://bioconductor.org/packages/release/bioc/html/ChIPseeker.html) is an R/Bioconductor package that reads the Homer annotation tables and produces a richer set of visualisations.
+
+**Per-sample plots** (produced by `CHIPSEEKER_ANNOTATE`; one set per replicate):
+
+| File | Description |
+|------|-------------|
+| `{sample}_chipseeker_annotation.tsv` | Full ChIPseeker annotation table for the sample |
+| `{sample}_chipseeker_annotation_pie.{png,pdf}` | Pie chart of genomic feature distribution |
+| `{sample}_chipseeker_annotation_bar.{png,pdf}` | Bar plot of genomic feature counts |
+| `{sample}_chipseeker_annotation_upset.{png,pdf}` | Upset plot showing overlapping annotation categories |
+| `{sample}_chipseeker_dist_to_tss.{png,pdf}` | Distribution of peak distances relative to the TSS |
+| `{sample}_chipseeker_vennpie.{png,pdf}` | Venn-pie representation of annotation overlap |
+| `{sample}_chipseeker_coverage.{png,pdf}` | Chromosome coverage plot |
+
+**Cross-sample comparative plots** (produced by `CHIPSEEKER_COMPARE`; requires `--run_chipseeker_compare true`):
+
+| File | Description |
+|------|-------------|
+| `chipseeker_comparison_annotation_bar.{png,pdf}` | Stacked annotation bar chart across all samples |
+| `chipseeker_comparison_annotation_bar_slim_version.{png,pdf}` | Simplified annotation bar chart |
+| `chipseeker_comparison_annotation_bar_condition.{png,pdf}` | Annotation bar chart grouped by experimental condition |
+| `chipseeker_comparison_dist_to_tss.{png,pdf}` | TSS distance distribution comparison across all samples |
+| `chipseeker_comparison_coverage.{png,pdf}` | Genome-wide coverage comparison |
+| `chipseeker_comparison_coverage_condition_average.{png,pdf}` | Per-condition average coverage |
+| `chipseeker_condition_{group}_pie.{png,pdf}` | Per-condition annotation pie charts |
+
+**How ChIPseeker derives annotations:**
+1. Homer's `annotatePeaks.pl` output is read and converted to GRanges objects.
+2. `annotatePeak()` from ChIPseeker maps each peak to its nearest genomic feature using the TxDb annotation derived from the pipeline GTF.
+3. Features are collapsed into canonical categories: Promoter (TSS ± 3 kb), Exon, Intron, Downstream, 5' UTR, 3' UTR, and Intergenic.
+4. Comparative plots aggregate per-sample annotations to enable cross-group comparisons.
+
+**Key parameters:**
+- `--run_chipseeker` (default: false) — enable per-sample ChIPseeker annotation and plots
+- `--run_chipseeker_compare` (default: true) — enable cross-sample comparative plots (only active when `run_chipseeker` is also true)
 
 ## Quality Thresholds (Recommended)
 
