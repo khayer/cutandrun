@@ -20,13 +20,6 @@ process SUMMARIZE_PEAK_ANNOTATIONS {
     path "homer_peak_annotation.feature_summary.tsv", emit: feature_summary
     path "homer_peak_annotation.sample_stats.tsv", emit: sample_stats
     path "homer_peak_annotation.feature_percent_table.tsv", emit: percent_table
-    path "homer_peak_annotation.gc_per_peak.tsv", emit: gc_per_peak
-    path "homer_peak_annotation.gc_by_sample.tsv", emit: gc_by_sample
-    path "homer_peak_annotation.gc_by_sample.png", emit: gc_plot_png
-    path "homer_peak_annotation.gc_by_sample.pdf", emit: gc_plot_pdf
-    path "homer_peak_annotation.gc_by_sample_violin.png", emit: gc_violin_png
-    path "homer_peak_annotation.gc_by_sample_violin.pdf", emit: gc_violin_pdf
-    path "homer_peak_annotation.functional_enrichment.tsv", emit: functional_enrichment
     path "homer_peak_annotation.stacked_bar.png", emit: plot_png
     path "homer_peak_annotation.stacked_bar.pdf", emit: plot_pdf
     path "versions.yml", emit: versions
@@ -38,7 +31,7 @@ process SUMMARIZE_PEAK_ANNOTATIONS {
     """
     python -m venv .plotenv
     source .plotenv/bin/activate
-    python -m pip install --no-cache-dir pandas matplotlib gseapy
+    python -m pip install --no-cache-dir pandas matplotlib
 
     python ${workflow.projectDir}/bin/summarize_peak_annotations.py \
         --inputs *.annotatePeaks.txt \
@@ -49,7 +42,6 @@ process SUMMARIZE_PEAK_ANNOTATIONS {
         python: \$(python --version | grep -E -o "([0-9]{1,}\\.)+[0-9]{1,}")
         pandas: \$(python -c 'import pandas; print(pandas.__version__)')
         matplotlib: \$(python -c 'import matplotlib; print(matplotlib.__version__)')
-        gseapy: \$(python -c 'import gseapy; print(gseapy.__version__)')
     END_VERSIONS
     """
 }
