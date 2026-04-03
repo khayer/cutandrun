@@ -28,45 +28,6 @@ process SUMMARIZE_PEAK_ANNOTATIONS {
     when:
     task.ext.when == null || task.ext.when
 
-    def defaultParams = [
-        normalisation_mode      : 'Spikein',
-        normalisation_mode_dual : false,
-        normalisation_c         : 10000,
-        peakcaller              : 'macs2',
-        bigwigcompare_binsize   : 50,
-        skip_preseq             : false,
-        publish_frip            : false,
-        run_pygenometracks_top10: false
-    ]
-
-    def observedParams = [
-        normalisation_mode      : params.normalisation_mode,
-        normalisation_mode_dual : params.normalisation_mode_dual,
-        normalisation_c         : params.normalisation_c,
-        peakcaller              : params.peakcaller,
-        bigwigcompare_binsize   : params.bigwigcompare_binsize,
-        skip_preseq             : params.skip_preseq,
-        publish_frip            : params.publish_frip,
-        run_pygenometracks_top10: params.run_pygenometracks_top10
-    ]
-
-    def nonDefaultLines = observedParams
-        .collect { key, value ->
-            defaultParams.containsKey(key) && value != defaultParams[key] ? "- ${key}: ${value} (default: ${defaultParams[key]})" : null
-        }
-        .findAll { it != null }
-
-    def nonDefaultText = nonDefaultLines ? nonDefaultLines.join('\n') : '- none'
-
-    def preSteps = []
-    preSteps << (!params.skip_fastqc ? 'FastQC was run before alignment.' : 'FastQC was skipped (--skip_fastqc).')
-    preSteps << (!params.skip_trimming ? 'Read trimming was performed before alignment.' : 'Read trimming was skipped (--skip_trimming).')
-    preSteps << (!params.skip_removeduplicates ? 'Duplicate removal / marking was performed.' : 'Duplicate removal was skipped (--skip_removeduplicates).')
-    preSteps << (params.remove_linear_duplicates ? 'Linear duplicate removal was enabled (--remove_linear_duplicates).' : 'Linear duplicate removal was not enabled.')
-    preSteps << "Peak calling used: ${params.peakcaller}."
-
-    def preStepsText = preSteps.collect { "- ${it}" }.join('\n')
-
     script:
     """
     python -m venv .plotenv
@@ -77,7 +38,7 @@ process SUMMARIZE_PEAK_ANNOTATIONS {
         --inputs *.annotatePeaks.txt \
         --out-prefix homer_peak_annotation
 
-        cat <<-END_PLOT_DESCRIPTIONS > homer_peak_annotation.plot_descriptions.txt
+    cat > homer_peak_annotation.plot_descriptions.txt << EOF
         HOMER Peak Annotation Plot Guide
         =================================
 
@@ -116,16 +77,27 @@ process SUMMARIZE_PEAK_ANNOTATIONS {
         - normalisation_c: ${params.normalisation_c}
 
         Upstream processing status before this plot stage:
-        ${preStepsText}
+        - ${!params.skip_fastqc ? 'FastQC was run before alignment.' : 'FastQC was skipped (--skip_fastqc).'}
+        - ${!params.skip_trimming ? 'Read trimming was performed before alignment.' : 'Read trimming was skipped (--skip_trimming).'}
+        - ${!params.skip_removeduplicates ? 'Duplicate removal / marking was performed.' : 'Duplicate removal was skipped (--skip_removeduplicates).'}
+        - ${params.remove_linear_duplicates ? 'Linear duplicate removal was enabled (--remove_linear_duplicates).' : 'Linear duplicate removal was not enabled.'}
+        - Peak calling used: ${params.peakcaller}.
 
         Non-default parameters detected in this run (tracked subset):
-        ${nonDefaultText}
+        - normalisation_mode: ${params.normalisation_mode} (default: Spikein)
+        - normalisation_mode_dual: ${params.normalisation_mode_dual} (default: false)
+        - normalisation_c: ${params.normalisation_c} (default: 10000)
+        - peakcaller: ${params.peakcaller} (default: macs2)
+        - bigwigcompare_binsize: ${params.bigwigcompare_binsize} (default: 50)
+        - skip_preseq: ${params.skip_preseq} (default: false)
+        - publish_frip: ${params.publish_frip} (default: false)
+        - run_pygenometracks_top10: ${params.run_pygenometracks_top10} (default: false)
 
         Notes
         -----
         - This description file is generated during SUMMARIZE_PEAK_ANNOTATIONS.
         - "Condition" is inferred from sample IDs by removing trailing replicate suffixes matching _R<integer>.
-        END_PLOT_DESCRIPTIONS
+    EOF
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
