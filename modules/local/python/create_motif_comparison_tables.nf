@@ -9,7 +9,7 @@ process CREATE_MOTIF_COMPARISON_TABLES {
     tag "motif_comparison"
     label 'process_low'
 
-    // Run this step with conda so SVG logos can be rendered via Python cairosvg.
+    // Use conda specification to support local/conda runs and conda-to-container resolution.
     conda "conda-forge::python=3.9 conda-forge::pandas=1.5.3 conda-forge::matplotlib=3.8.4 conda-forge::cairosvg=2.7.1"
 
     input:
@@ -31,7 +31,7 @@ process CREATE_MOTIF_COMPARISON_TABLES {
 
     mkdir -p homer_motifs/consensus_peaks
     mkdir -p homer_motifs/merged_peaks
-    
+
     # Link all motif directories to appropriate locations
     for dir in motif_dirs/*; do
         if [[ \$dir == *"merged_peaks_motifs"* ]]; then
@@ -56,6 +56,7 @@ process CREATE_MOTIF_COMPARISON_TABLES {
         python: \$(python --version | sed 's/Python //g')
         pandas: \$(python -c "import pandas; print(pandas.__version__)")
         matplotlib: \$(python -c "import matplotlib; print(matplotlib.__version__)")
+        cairosvg: \$(python -c "import importlib.util as u; m=u.find_spec('cairosvg'); print(__import__('cairosvg').__version__ if m else 'not_available')" 2>/dev/null || echo 'not_available')
     END_VERSIONS
     """
 }

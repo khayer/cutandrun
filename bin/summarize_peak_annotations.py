@@ -88,6 +88,13 @@ def sample_id_from_file(path: str) -> str:
     return re.sub(r"\.annotatePeaks\.txt$", "", base)
 
 
+def condition_id_from_sample(sample: str) -> str:
+    """Collapse replicate sample IDs to condition IDs (e.g. X_R1 -> X)."""
+    if pd.isna(sample):
+        return "Unknown"
+    return re.sub(r"_R\d+$", "", str(sample))
+
+
 def pick_column(columns: List[str], candidates: List[str]) -> str:
     lower_to_original = {c.lower(): c for c in columns}
     for candidate in candidates:
@@ -348,6 +355,7 @@ def main() -> None:
     stats_out = f"{args.out_prefix}.sample_stats.tsv"
     gc_peak_out = f"{args.out_prefix}.gc_per_peak.tsv"
     gc_sample_out = f"{args.out_prefix}.gc_by_sample.tsv"
+    gc_condition_out = f"{args.out_prefix}.gc_by_condition.tsv"
     enrichment_out = f"{args.out_prefix}.functional_enrichment.tsv"
 
     raw_df.to_csv(raw_out, sep="\t", index=False)
@@ -369,6 +377,25 @@ def main() -> None:
             .sort_values("sample")
         )
     gc_summary_df.to_csv(gc_sample_out, sep="\t", index=False)
+
+    if gc_peak_df.empty:
+        gc_condition_df = pd.DataFrame(
+            columns=["condition", "n_peaks_with_gc", "mean_gc_percent", "median_gc_percent", "sd_gc_percent"]
+        )
+    else:
+        gc_condition_df = gc_peak_df.copy()
+        gc_condition_df["condition"] = gc_condition_df["sample"].map(condition_id_from_sample)
+        gc_condition_df = (
+            gc_condition_df.groupby("condition", as_index=False)
+            .agg(
+                n_peaks_with_gc=("gc_percent", "count"),
+                mean_gc_percent=("gc_percent", "mean"),
+                median_gc_percent=("gc_percent", "median"),
+                sd_gc_percent=("gc_percent", "std"),
+            )
+            .sort_values("condition")
+        )
+    gc_condition_df.to_csv(gc_condition_out, sep="\t", index=False)
 
     enrichment_df = run_functional_enrichment(gene_sets)
     enrichment_df.to_csv(enrichment_out, sep="\t", index=False)
@@ -563,6 +590,53 @@ def main() -> None:
         plt.savefig(gc_violin_png, dpi=200)
         plt.savefig(gc_violin_pdf)
         plt.close(fig)
+
+        # GC content visualization by condition.
+        gc_by_condition = gc_peak_df.copy()
+        gc_by_condition["condition"] = gc_by_condition["sample"].map(condition_id_from_sample)
+        condition_order = sorted(gc_by_condition["condition"].dropna().unique().tolist())
+        condition_vectors = [
+            gc_by_condition.loc[gc_by_condition["condition"] == c, "gc_percent"].dropna().tolist()
+            for c in condition_order
+        ]
+
+        cond_fig_w = max(8, 0.8 * len(condition_order) + 4)
+        fig, ax = plt.subplots(figsize=(cond_fig_w, 6), dpi=150)
+        bp = ax.boxplot(condition_vectors, patch_artist=True, showfliers=False)
+        for box in bp["boxes"]:
+            box.set(facecolor="#59A14F", alpha=0.65, edgecolor="#2F2F2F")
+
+        ax.set_xticks(range(1, len(condition_order) + 1))
+        ax.set_xticklabels(condition_order, rotation=45, ha="right")
+        ax.set_ylabel("GC content (%)")
+        ax.set_xlabel("Condition")
+        ax.set_title("GC Content Distribution by Condition")
+        ax.grid(axis="y", linestyle=":", alpha=0.35)
+        plt.tight_layout()
+        plt.savefig(f"{args.out_prefix}.gc_by_condition.png", dpi=200)
+        plt.savefig(f"{args.out_prefix}.gc_by_condition.pdf")
+        plt.close(fig)
+
+        fig, ax = plt.subplots(figsize=(cond_fig_w, 6), dpi=150)
+        vp = ax.violinplot(condition_vectors, showmeans=False, showmedians=True, showextrema=False)
+        for body in vp["bodies"]:
+            body.set_facecolor("#59A14F")
+            body.set_edgecolor("#2F2F2F")
+            body.set_alpha(0.5)
+        if "cmedians" in vp:
+            vp["cmedians"].set_color("#1F1F1F")
+            vp["cmedians"].set_linewidth(1.2)
+
+        ax.set_xticks(range(1, len(condition_order) + 1))
+        ax.set_xticklabels(condition_order, rotation=45, ha="right")
+        ax.set_ylabel("GC content (%)")
+        ax.set_xlabel("Condition")
+        ax.set_title("GC Content Distribution by Condition (Violin)")
+        ax.grid(axis="y", linestyle=":", alpha=0.35)
+        plt.tight_layout()
+        plt.savefig(f"{args.out_prefix}.gc_by_condition_violin.png", dpi=200)
+        plt.savefig(f"{args.out_prefix}.gc_by_condition_violin.pdf")
+        plt.close(fig)
     else:
         # Emit placeholder plots so outputs are always present.
         fig, ax = plt.subplots(figsize=(8, 4), dpi=150)
@@ -579,6 +653,22 @@ def main() -> None:
         plt.tight_layout()
         plt.savefig(f"{args.out_prefix}.gc_by_sample_violin.png", dpi=200)
         plt.savefig(f"{args.out_prefix}.gc_by_sample_violin.pdf")
+        plt.close(fig)
+
+        fig, ax = plt.subplots(figsize=(8, 4), dpi=150)
+        ax.text(0.5, 0.5, "No GC column detected in annotatePeaks inputs", ha="center", va="center")
+        ax.set_axis_off()
+        plt.tight_layout()
+        plt.savefig(f"{args.out_prefix}.gc_by_condition.png", dpi=200)
+        plt.savefig(f"{args.out_prefix}.gc_by_condition.pdf")
+        plt.close(fig)
+
+        fig, ax = plt.subplots(figsize=(8, 4), dpi=150)
+        ax.text(0.5, 0.5, "No GC column detected in annotatePeaks inputs", ha="center", va="center")
+        ax.set_axis_off()
+        plt.tight_layout()
+        plt.savefig(f"{args.out_prefix}.gc_by_condition_violin.png", dpi=200)
+        plt.savefig(f"{args.out_prefix}.gc_by_condition_violin.pdf")
         plt.close(fig)
 
 
