@@ -569,6 +569,26 @@
                     "description": "Comma-separated TSS distance cutoffs passed to HOMER annotatePeaks -d",
                     "help_text": "Controls promoter/TSS distance windows in annotatePeaks. Example: '500,1000,2000'"
                 },
+                "run_chipseeker": {
+                    "type": "boolean",
+                    "default": false,
+                    "fa_icon": "fas fa-map-marker-alt",
+                    "description": "Run ChIPseeker-based peak annotation plots for replicate peaks",
+                    "help_text": "Requires run_homer_peak_annotation=true because ChIPseeker consumes replicate-level HOMER annotation tables."
+                },
+                "run_chipseeker_compare": {
+                    "type": "boolean",
+                    "default": true,
+                    "fa_icon": "fas fa-chart-bar",
+                    "description": "Generate aggregated ChIPseeker comparison plots across samples/conditions"
+                },
+                "chipseeker_tss_dist": {
+                    "type": "integer",
+                    "default": 3000,
+                    "minimum": 0,
+                    "fa_icon": "fas fa-ruler-horizontal",
+                    "description": "TSS distance window used by ChIPseeker for annotation"
+                },
                 "run_pygenometracks_top10": {
                     "type": "boolean",
                     "default": false,
@@ -596,6 +616,18 @@
                     "enum": ["png", "pdf", "both"],
                     "fa_icon": "fas fa-file-image",
                     "description": "Output format for pyGenomeTracks snapshots"
+                },
+                "run_peak_signal_profiler": {
+                    "type": "boolean",
+                    "default": false,
+                    "fa_icon": "fas fa-wave-square",
+                    "description": "Run peak signal profiler on called peaks"
+                },
+                "run_peak_signal_profile": {
+                    "type": "boolean",
+                    "default": false,
+                    "hidden": true,
+                    "description": "Deprecated alias for run_peak_signal_profiler"
                 },
                 "igv_sort_by_groups": {
                     "type": "boolean",
