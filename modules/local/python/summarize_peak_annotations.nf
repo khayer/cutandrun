@@ -19,9 +19,22 @@ process SUMMARIZE_PEAK_ANNOTATIONS {
     path "homer_peak_annotation.raw_annotation_summary.tsv", emit: raw_summary
     path "homer_peak_annotation.feature_summary.tsv", emit: feature_summary
     path "homer_peak_annotation.sample_stats.tsv", emit: sample_stats
+    path "homer_peak_annotation.gc_per_peak.tsv", emit: gc_per_peak
+    path "homer_peak_annotation.gc_by_sample.tsv", emit: gc_by_sample
+    path "homer_peak_annotation.gc_by_condition.tsv", emit: gc_by_condition
     path "homer_peak_annotation.feature_percent_table.tsv", emit: percent_table
     path "homer_peak_annotation.stacked_bar.png", emit: plot_png
     path "homer_peak_annotation.stacked_bar.pdf", emit: plot_pdf
+    path "homer_peak_annotation.stacked_bar.slim_version.png", emit: plot_slim_png
+    path "homer_peak_annotation.stacked_bar.slim_version.pdf", emit: plot_slim_pdf
+    path "homer_peak_annotation.gc_by_sample.png", emit: gc_plot_png
+    path "homer_peak_annotation.gc_by_sample.pdf", emit: gc_plot_pdf
+    path "homer_peak_annotation.gc_by_sample_violin.png", emit: gc_violin_png
+    path "homer_peak_annotation.gc_by_sample_violin.pdf", emit: gc_violin_pdf
+    path "homer_peak_annotation.gc_by_condition.png", emit: gc_condition_png
+    path "homer_peak_annotation.gc_by_condition.pdf", emit: gc_condition_pdf
+    path "homer_peak_annotation.gc_by_condition_violin.png", emit: gc_condition_violin_png
+    path "homer_peak_annotation.gc_by_condition_violin.pdf", emit: gc_condition_violin_pdf
     path "homer_peak_annotation.plot_descriptions.txt", emit: plot_descriptions
     path "versions.yml", emit: versions
 
