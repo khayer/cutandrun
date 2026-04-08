@@ -132,6 +132,7 @@ include { CREATE_MOTIF_COMPARISON_TABLES } from "../modules/local/python/create_
 include { SUMMARIZE_PEAK_ANNOTATIONS  } from "../modules/local/python/summarize_peak_annotations"
 include { PYGENOMETRACKS_TOP10        } from "../modules/local/python/pygenometracks_top10"
 include { CHIPSEEKER_ANNOTATE; CHIPSEEKER_COMPARE } from "../modules/local/r/chipseeker/main"
+include { PROMOTER_GC_DIFFBIND        } from "../modules/local/r/promoter_gc_diffbind/main"
 
 /*
  * SUBWORKFLOWS
@@ -882,6 +883,24 @@ workflow CUTANDRUN {
             MERGE_PEAKS_TABLE.out.bed.collect()
         )
         ch_software_versions = ch_software_versions.mix(DEEPTOOLS_MULTIBAMSUMMARY_BED.out.versions)
+
+        if (params.run_promoter_gc_diffbind) {
+            ch_fasta_for_peak_annotation = PREPARE_GENOME.out.fasta.map { it[1] }.first()
+            ch_gtf_for_peak_annotation   = PREPARE_GENOME.out.gtf.first()
+
+            HOMER_ANNOTATEPEAKS (
+                MERGE_PEAKS_TABLE.out.bed.map { bed -> [ [id: 'merged_peaks'], bed ] },
+                ch_fasta_for_peak_annotation,
+                ch_gtf_for_peak_annotation
+            )
+            ch_software_versions = ch_software_versions.mix(HOMER_ANNOTATEPEAKS.out.versions)
+
+            PROMOTER_GC_DIFFBIND (
+                HOMER_ANNOTATEPEAKS.out.annot.map { meta, table -> table }.first(),
+                DEEPTOOLS_MULTIBAMSUMMARY_BED.out.table.map { meta, table -> table }.first()
+            )
+            ch_software_versions = ch_software_versions.mix(PROMOTER_GC_DIFFBIND.out.versions)
+        }
 
         if(params.run_consensus_all) {
             /*

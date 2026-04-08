@@ -589,6 +589,51 @@
                     "fa_icon": "fas fa-ruler-horizontal",
                     "description": "TSS distance window used by ChIPseeker for annotation"
                 },
+                "run_promoter_gc_diffbind": {
+                    "type": "boolean",
+                    "default": false,
+                    "fa_icon": "fas fa-chart-area",
+                    "description": "Run promoter GC differential binding analysis on merged peaks",
+                    "help_text": "Runs a DESeq2-style differential binding test on the merged peak universe, then compares GC content for promoter peaks that lose binding versus those that are not affected."
+                },
+                "promoter_gc_group_a": {
+                    "type": "string",
+                    "default": "ADNP_B02_25",
+                    "fa_icon": "fas fa-vial",
+                    "description": "Condition A for promoter GC differential binding",
+                    "help_text": "Sample group prefix used as the numerator condition in the differential analysis (for example, the ADNP B02 condition)."
+                },
+                "promoter_gc_group_b": {
+                    "type": "string",
+                    "default": "ADNP_DMSO_25",
+                    "fa_icon": "fas fa-vial",
+                    "description": "Condition B for promoter GC differential binding",
+                    "help_text": "Sample group prefix used as the denominator condition in the differential analysis (for example, the matched DMSO condition)."
+                },
+                "promoter_gc_tss_dist": {
+                    "type": "integer",
+                    "default": 3000,
+                    "minimum": 0,
+                    "fa_icon": "fas fa-ruler-horizontal",
+                    "description": "Promoter window in bp around TSS for the GC comparison",
+                    "help_text": "Peaks with an absolute distance to TSS within this window are treated as promoter peaks for the GC comparison."
+                },
+                "promoter_gc_fdr": {
+                    "type": "number",
+                    "default": 0.05,
+                    "minimum": 0,
+                    "maximum": 1,
+                    "fa_icon": "fas fa-percentage",
+                    "description": "Adjusted p-value cutoff for differential binding",
+                    "help_text": "Promoter peaks with padj at or below this threshold are considered significantly differential."
+                },
+                "promoter_gc_log2fc_cutoff": {
+                    "type": "number",
+                    "default": 1.0,
+                    "fa_icon": "fas fa-sliders-h",
+                    "description": "Absolute log2 fold-change cutoff for promoter classification",
+                    "help_text": "Promoter peaks with log2 fold change at or below negative this value are called lost binding; peaks at or above this value are called gained binding."
+                },
                 "run_pygenometracks_top10": {
                     "type": "boolean",
                     "default": false,
