@@ -34,15 +34,22 @@ fdr_cutoff <- if (!is.null(opts[["fdr"]])) as.numeric(opts[["fdr"]]) else 0.05
 log2fc_cutoff <- if (!is.null(opts[["log2fc-cutoff"]])) as.numeric(opts[["log2fc-cutoff"]]) else 1.0
 promoter_window <- if (!is.null(opts[["promoter-window"]])) as.integer(opts[["promoter-window"]]) else 3000
 
+# Set up writable temp library for package installation in containers
+temp_lib <- file.path(tempdir(), "R_packages")
+if (!dir.exists(temp_lib)) {
+    dir.create(temp_lib, recursive = TRUE)
+}
+.libPaths(c(temp_lib, .libPaths()))
+
 ensure_package <- function(pkg, bioc = FALSE) {
     if (!requireNamespace(pkg, quietly = TRUE)) {
         if (!requireNamespace("BiocManager", quietly = TRUE)) {
-            install.packages("BiocManager", repos = "https://cloud.r-project.org")
+            install.packages("BiocManager", repos = "https://cloud.r-project.org", lib = temp_lib, quiet = TRUE)
         }
         if (bioc) {
-            BiocManager::install(pkg, ask = FALSE, update = FALSE)
+            BiocManager::install(pkg, ask = FALSE, update = FALSE, lib = temp_lib)
         } else {
-            install.packages(pkg, repos = "https://cloud.r-project.org")
+            install.packages(pkg, repos = "https://cloud.r-project.org", lib = temp_lib, quiet = TRUE)
         }
     }
     suppressPackageStartupMessages(library(pkg, character.only = TRUE))
@@ -52,8 +59,6 @@ ensure_package("ggplot2")
 ensure_package("DESeq2", bioc = TRUE)
 
 prefix <- out_prefix
-annotation_copy <- paste0(prefix, ".merged_peaks.annotatePeaks.txt")
-file.copy(annotation_file, annotation_copy, overwrite = TRUE)
 
 counts <- read.delim(counts_file, header = TRUE, sep = "\t", check.names = FALSE, quote = "", comment.char = "", stringsAsFactors = FALSE)
 if (ncol(counts) < 4) {
@@ -64,7 +69,10 @@ names(counts)[1:3] <- c("Chr", "Start", "End")
 counts$Start <- as.integer(counts$Start)
 counts$End <- as.integer(counts$End)
 
-annotation <- read.delim(annotation_copy, header = FALSE, skip = 1, sep = "\t", check.names = FALSE, quote = "", comment.char = "", stringsAsFactors = FALSE)
+# Strip quotes and # from column names (from deeptools multiBamSummary output)
+colnames(counts) <- gsub("^#?'|'$", "", colnames(counts))
+
+annotation <- read.delim(annotation_file, header = FALSE, skip = 1, sep = "\t", check.names = FALSE, quote = "", comment.char = "", stringsAsFactors = FALSE)
 expected_names <- c(
     "PeakID", "Chr", "Start", "End", "Strand", "PeakScore", "FocusRatio", "Annotation",
     "DetailedAnnotation", "DistanceToTSS", "NearestPromoterID", "EntrezID", "NearestUnigene",
@@ -72,13 +80,17 @@ expected_names <- c(
     "CpG_percent", "GC_percent"
 )
 if (ncol(annotation) < 21) {
-    stop(sprintf("Unexpected annotatePeaks table format: found %d columns", ncol(annotation)))
+    stop(sprintf("Unexpected annotatePeaks table format: found %d columns, expected at least 21", ncol(annotation)))
 }
-colnames(annotation)[seq_along(expected_names)] <- expected_names
+colnames(annotation) <- expected_names[1:ncol(annotation)]
 annotation$Start <- as.integer(annotation$Start)
 annotation$End <- as.integer(annotation$End)
 annotation$DistanceToTSS <- suppressWarnings(as.numeric(annotation$DistanceToTSS))
 annotation$GC_percent <- suppressWarnings(as.numeric(annotation$GC_percent))
+
+# Counts are from BED format (0-based), annotation is from HOMER (1-based)
+# Convert counts to 1-based to match annotation
+counts$Start <- as.integer(counts$Start) + 1
 
 counts_cols <- setdiff(names(counts), c("Chr", "Start", "End"))
 group_a_cols <- counts_cols[startsWith(counts_cols, group_a)]
@@ -98,16 +110,34 @@ peak_key <- function(df) paste(df$Chr, df$Start, df$End, sep = ":")
 count_key <- peak_key(counts)
 annot_key <- peak_key(annotation)
 
-if (!identical(count_key, annot_key)) {
-    ann_index <- match(count_key, annot_key)
-    if (any(is.na(ann_index))) {
-        stop("Merged peak coordinates in counts and annotation tables do not align")
-    }
-    annotation <- annotation[ann_index, , drop = FALSE]
+# Merge annotation and counts tables on genomic coordinates
+# Add keys for merging
+counts$peak_id <- count_key
+annotation$peak_id <- annot_key
+
+# Debug: Show first few keys
+cat("First 5 annotation keys:\n")
+print(head(unique(annot_key), 5))
+cat("\nFirst 5 counts keys:\n")
+print(head(unique(count_key), 5))
+
+# Merge on peak_id
+annotated <- merge(annotation, counts[, c("peak_id", selected_cols), drop = FALSE], by = "peak_id", all = FALSE)
+
+if (nrow(annotated) == 0) {
+    # More detailed error message
+    n_ann_unique <- length(unique(annot_key))
+    n_count_unique <- length(unique(count_key))
+    n_ann_in_counts <- sum(annotation$peak_id %in% counts$peak_id)
+    cat(sprintf("Annotations: %d total, %d unique peaks\n", nrow(annotation), n_ann_unique))
+    cat(sprintf("Counts: %d total, %d unique peaks\n", nrow(counts), n_count_unique))
+    cat(sprintf("Peaks from annotation found in counts: %d\n", n_ann_in_counts))
+    stop("No matching peaks found between counts and annotation tables")
 }
 
-annotated <- cbind(annotation, counts[, selected_cols, drop = FALSE])
-annotated$peak_id <- peak_key(annotated)
+if (nrow(annotated) < nrow(annotation)) {
+    warning(sprintf("Only %d of %d annotation peaks found in counts table", nrow(annotated), nrow(annotation)))
+}
 
 count_matrix <- as.matrix(annotated[, selected_cols, drop = FALSE])
 storage.mode(count_matrix) <- "numeric"
