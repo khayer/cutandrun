@@ -166,6 +166,26 @@ if (nrow(annotated) < nrow(annotation)) {
     warning(sprintf("Only %d of %d annotation peaks found in counts table", nrow(annotated), nrow(annotation)))
 }
 
+# Filter to keep only peaks with at least 5 reads in at least one condition
+group_a_cols_idx <- which(names(annotated) %in% group_a_cols)
+group_b_cols_idx <- which(names(annotated) %in% group_b_cols)
+
+max_reads_a <- if (length(group_a_cols_idx) > 0) {
+    apply(annotated[, group_a_cols_idx, drop = FALSE], 1, max)
+} else {
+    rep(0, nrow(annotated))
+}
+
+max_reads_b <- if (length(group_b_cols_idx) > 0) {
+    apply(annotated[, group_b_cols_idx, drop = FALSE], 1, max)
+} else {
+    rep(0, nrow(annotated))
+}
+
+keep_peaks <- pmax(max_reads_a, max_reads_b) >= 5
+cat(sprintf("Filtering to peaks with >= 5 reads in at least one group: %d peaks kept out of %d\n", sum(keep_peaks), nrow(annotated)))
+annotated <- annotated[keep_peaks, , drop = FALSE]
+
 count_matrix <- as.matrix(annotated[, selected_cols, drop = FALSE])
 storage.mode(count_matrix) <- "numeric"
 count_matrix <- round(count_matrix)
@@ -322,9 +342,25 @@ if (nrow(ranked_gain) > top_n) {
 write.table(ranked_loss, file = paste0(prefix, ".top", top_n, "_loss.tsv"), sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
 write.table(ranked_gain, file = paste0(prefix, ".top", top_n, "_gain.tsv"), sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
 
+# Select random unchanged peaks up to top_n (with seed for reproducibility)
+# These will be used in both the GC comparison plots and volcano plot
+set.seed(42)
+unchanged_promoter <- promoter_df[promoter_df$status == "unchanged" & !is.na(promoter_df$pvalue) & !is.na(promoter_df$log2FoldChange), , drop = FALSE]
+n_unchanged_to_add <- min(top_n, nrow(unchanged_promoter))
+random_unchanged <- data.frame()
+if (n_unchanged_to_add > 0) {
+    random_idx <- sample(seq_len(nrow(unchanged_promoter)), n_unchanged_to_add, replace = FALSE)
+    random_unchanged <- unchanged_promoter[random_idx, , drop = FALSE]
+    random_unchanged$status <- "unchanged"
+}
+
+cat(sprintf("Top-N ranking (raw p-value): %d loss, %d gain, %d random unchanged\n", 
+            nrow(ranked_loss), nrow(ranked_gain), nrow(random_unchanged)))
+
 ranked_gc_df <- rbind(
     transform(ranked_loss, status = "loss"),
-    transform(ranked_gain, status = "gain")
+    transform(ranked_gain, status = "gain"),
+    random_unchanged
 )
 
 if (nrow(ranked_gc_df) == 0) {
@@ -398,6 +434,9 @@ if (is.null(ranked_gc_summary) || nrow(ranked_gc_summary) == 0) {
 write.table(ranked_gc_summary, file = paste0(prefix, ".top", top_n, "_promoter_gc_summary.tsv"), sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
 write.table(ranked_gc_test_df, file = paste0(prefix, ".top", top_n, "_promoter_gc_test.tsv"), sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
 
+# Volcano plot with top N loss/gain and random unchanged controls
+ranked_volcano_df <- ranked_gc_df
+
 plot_gc <- function(df, title_suffix) {
     if (nrow(df) == 0) {
         return(ggplot2::ggplot() + ggplot2::theme_void() + ggplot2::annotate("text", x = 0, y = 0, label = "No promoter GC data available"))
@@ -434,9 +473,50 @@ plot_gc_violin <- function(df, title_suffix) {
         ggplot2::theme(legend.position = "none")
 }
 
+top_volcano_labels <- function(df, p_col) {
+    if (!(p_col %in% colnames(df))) {
+        return(df[FALSE, , drop = FALSE])
+    }
+
+    label_df <- df[
+        !is.na(df[[p_col]]) &
+        !is.na(df$log2FoldChange) &
+        !is.na(df$GeneName) &
+        df$GeneName != "" &
+        df$status %in% c("loss", "gain"),
+        ,
+        drop = FALSE
+    ]
+
+    if (nrow(label_df) == 0) {
+        return(label_df)
+    }
+
+    top_loss <- label_df[label_df$status == "loss", , drop = FALSE]
+    top_gain <- label_df[label_df$status == "gain", , drop = FALSE]
+
+    if (nrow(top_loss) > 0) {
+        top_loss <- top_loss[order(top_loss[[p_col]], -abs(top_loss$log2FoldChange)), , drop = FALSE]
+        if (nrow(top_loss) > 5) {
+            top_loss <- top_loss[seq_len(5), , drop = FALSE]
+        }
+    }
+
+    if (nrow(top_gain) > 0) {
+        top_gain <- top_gain[order(top_gain[[p_col]], -abs(top_gain$log2FoldChange)), , drop = FALSE]
+        if (nrow(top_gain) > 5) {
+            top_gain <- top_gain[seq_len(5), , drop = FALSE]
+        }
+    }
+
+    rbind(top_loss, top_gain)
+}
+
 plot_volcano <- function(df) {
     df$neg_log10_padj <- -log10(pmax(df$padj, .Machine$double.xmin))
-    ggplot2::ggplot(df, ggplot2::aes(x = log2FoldChange, y = neg_log10_padj)) +
+    label_df <- top_volcano_labels(df, "padj")
+
+    p <- ggplot2::ggplot(df, ggplot2::aes(x = log2FoldChange, y = neg_log10_padj)) +
         ggplot2::geom_point(alpha = 0.45, size = 1, aes(color = status)) +
         ggplot2::scale_color_manual(values = c(loss = "#D95F02", unchanged = "#1B9E77", gain = "#7570B3", non_promoter = "#999999"), drop = FALSE) +
         ggplot2::labs(
@@ -445,6 +525,19 @@ plot_volcano <- function(df) {
             y = "-log10 adjusted p-value"
         ) +
         ggplot2::theme_bw()
+
+    if (nrow(label_df) > 0) {
+        p <- p + ggplot2::geom_text(
+            data = label_df,
+            ggplot2::aes(label = GeneName),
+            size = 2.6,
+            vjust = -0.4,
+            check_overlap = TRUE,
+            show.legend = FALSE
+        )
+    }
+
+    p
 }
 
 plot_ma <- function(df) {
@@ -472,6 +565,38 @@ ggplot2::ggsave(paste0(prefix, ".top", top_n, "_promoter_gc_boxplot.png"), plot_
 ggplot2::ggsave(paste0(prefix, ".top", top_n, "_promoter_gc_boxplot.pdf"), plot_gc(ranked_gc_df, paste0("Top ", top_n, " promoter peaks ranked by raw p-value")), width = 7.5, height = 5.5)
 ggplot2::ggsave(paste0(prefix, ".top", top_n, "_promoter_gc_violin.png"), plot_gc_violin(ranked_gc_df, paste0("Top ", top_n, " promoter peaks ranked by raw p-value")), width = 7.5, height = 5.5, dpi = 200)
 ggplot2::ggsave(paste0(prefix, ".top", top_n, "_promoter_gc_violin.pdf"), plot_gc_violin(ranked_gc_df, paste0("Top ", top_n, " promoter peaks ranked by raw p-value")), width = 7.5, height = 5.5)
+
+if (nrow(ranked_volcano_df) > 0) {
+    plot_volcano_ranked <- function(df) {
+        df$neg_log10_pvalue <- -log10(pmax(df$pvalue, .Machine$double.xmin))
+        label_df <- top_volcano_labels(df, "pvalue")
+
+        p <- ggplot2::ggplot(df, ggplot2::aes(x = log2FoldChange, y = neg_log10_pvalue)) +
+            ggplot2::geom_point(alpha = 0.45, size = 1, aes(color = status)) +
+            ggplot2::scale_color_manual(values = c(loss = "#D95F02", unchanged = "#1B9E77", gain = "#7570B3", non_promoter = "#999999"), drop = FALSE) +
+            ggplot2::labs(
+                title = paste0("Top-", top_n, " ranked promoter peaks: ", group_a, " vs ", group_b),
+                x = "log2 fold change",
+                y = "-log10 raw p-value"
+            ) +
+            ggplot2::theme_bw()
+
+        if (nrow(label_df) > 0) {
+            p <- p + ggplot2::geom_text(
+                data = label_df,
+                ggplot2::aes(label = GeneName),
+                size = 2.6,
+                vjust = -0.4,
+                check_overlap = TRUE,
+                show.legend = FALSE
+            )
+        }
+
+        p
+    }
+    ggplot2::ggsave(paste0(prefix, ".top", top_n, "_volcano_raw_pvalue.png"), plot_volcano_ranked(ranked_volcano_df), width = 7.5, height = 5.5, dpi = 200)
+    ggplot2::ggsave(paste0(prefix, ".top", top_n, "_volcano_raw_pvalue.pdf"), plot_volcano_ranked(ranked_volcano_df), width = 7.5, height = 5.5)
+}
 
 versions <- c(
     '"PROMOTER_GC_DIFFBIND":',

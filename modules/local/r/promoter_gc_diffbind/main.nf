@@ -29,6 +29,8 @@ process PROMOTER_GC_DIFFBIND {
     path "${params.promoter_gc_group_a}_vs_${params.promoter_gc_group_b}.top${params.promoter_gc_top_n}_promoter_gc_boxplot.pdf", emit: top_promoter_gc_boxplot_pdf
     path "${params.promoter_gc_group_a}_vs_${params.promoter_gc_group_b}.top${params.promoter_gc_top_n}_promoter_gc_violin.png", emit: top_promoter_gc_violin_png
     path "${params.promoter_gc_group_a}_vs_${params.promoter_gc_group_b}.top${params.promoter_gc_top_n}_promoter_gc_violin.pdf", emit: top_promoter_gc_violin_pdf
+    path "${params.promoter_gc_group_a}_vs_${params.promoter_gc_group_b}.top${params.promoter_gc_top_n}_volcano_raw_pvalue.png", emit: top_volcano_raw_pvalue_png
+    path "${params.promoter_gc_group_a}_vs_${params.promoter_gc_group_b}.top${params.promoter_gc_top_n}_volcano_raw_pvalue.pdf", emit: top_volcano_raw_pvalue_pdf
     path "${params.promoter_gc_group_a}_vs_${params.promoter_gc_group_b}.promoter_gc_boxplot.png", emit: promoter_gc_boxplot_png
     path "${params.promoter_gc_group_a}_vs_${params.promoter_gc_group_b}.promoter_gc_boxplot.pdf", emit: promoter_gc_boxplot_pdf
     path "${params.promoter_gc_group_a}_vs_${params.promoter_gc_group_b}.promoter_gc_violin.png", emit: promoter_gc_violin_png
@@ -77,6 +79,8 @@ process PROMOTER_GC_DIFFBIND {
     touch ${prefix}.top${params.promoter_gc_top_n}_promoter_gc_boxplot.pdf
     touch ${prefix}.top${params.promoter_gc_top_n}_promoter_gc_violin.png
     touch ${prefix}.top${params.promoter_gc_top_n}_promoter_gc_violin.pdf
+    touch ${prefix}.top${params.promoter_gc_top_n}_volcano_raw_pvalue.png
+    touch ${prefix}.top${params.promoter_gc_top_n}_volcano_raw_pvalue.pdf
     touch ${prefix}.promoter_gc_boxplot.png
     touch ${prefix}.promoter_gc_boxplot.pdf
     touch ${prefix}.promoter_gc_violin.png
