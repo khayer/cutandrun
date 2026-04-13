@@ -229,6 +229,11 @@
                     "fa_icon": "fas fa-random",
                     "description": "Skips multiqc"
                 },
+                "skip_bigwigcompare": {
+                    "type": "boolean",
+                    "fa_icon": "fas fa-random",
+                    "description": "Skips deeptools bigwigCompare generation"
+                },
                 "run_bigwig_subtract": {
                     "type": "boolean",
                     "default": true,
@@ -633,6 +638,14 @@
                     "fa_icon": "fas fa-sliders-h",
                     "description": "Absolute log2 fold-change cutoff for promoter classification",
                     "help_text": "Promoter peaks with log2 fold change at or below negative this value are called lost binding; peaks at or above this value are called gained binding."
+                },
+                "promoter_gc_top_n": {
+                    "type": "integer",
+                    "default": 1000,
+                    "minimum": 1,
+                    "fa_icon": "fas fa-list-ol",
+                    "description": "Top-N promoter peaks to retain per direction when ranking by raw p-value",
+                    "help_text": "When using the raw-pvalue ranked outputs, the pipeline keeps the top N promoter peaks with negative log2 fold change as losses and the top N promoter peaks with positive log2 fold change as gains."
                 },
                 "run_pygenometracks_top10": {
                     "type": "boolean",

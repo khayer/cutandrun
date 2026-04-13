@@ -21,6 +21,14 @@ process PROMOTER_GC_DIFFBIND {
     path "${params.promoter_gc_group_a}_vs_${params.promoter_gc_group_b}.promoter_not_affected.tsv", emit: promoter_not_affected
     path "${params.promoter_gc_group_a}_vs_${params.promoter_gc_group_b}.promoter_gc_summary.tsv", emit: promoter_gc_summary
     path "${params.promoter_gc_group_a}_vs_${params.promoter_gc_group_b}.promoter_gc_test.tsv", emit: promoter_gc_test
+    path "${params.promoter_gc_group_a}_vs_${params.promoter_gc_group_b}.top${params.promoter_gc_top_n}_loss.tsv", emit: top_loss
+    path "${params.promoter_gc_group_a}_vs_${params.promoter_gc_group_b}.top${params.promoter_gc_top_n}_gain.tsv", emit: top_gain
+    path "${params.promoter_gc_group_a}_vs_${params.promoter_gc_group_b}.top${params.promoter_gc_top_n}_promoter_gc_summary.tsv", emit: top_promoter_gc_summary
+    path "${params.promoter_gc_group_a}_vs_${params.promoter_gc_group_b}.top${params.promoter_gc_top_n}_promoter_gc_test.tsv", emit: top_promoter_gc_test
+    path "${params.promoter_gc_group_a}_vs_${params.promoter_gc_group_b}.top${params.promoter_gc_top_n}_promoter_gc_boxplot.png", emit: top_promoter_gc_boxplot_png
+    path "${params.promoter_gc_group_a}_vs_${params.promoter_gc_group_b}.top${params.promoter_gc_top_n}_promoter_gc_boxplot.pdf", emit: top_promoter_gc_boxplot_pdf
+    path "${params.promoter_gc_group_a}_vs_${params.promoter_gc_group_b}.top${params.promoter_gc_top_n}_promoter_gc_violin.png", emit: top_promoter_gc_violin_png
+    path "${params.promoter_gc_group_a}_vs_${params.promoter_gc_group_b}.top${params.promoter_gc_top_n}_promoter_gc_violin.pdf", emit: top_promoter_gc_violin_pdf
     path "${params.promoter_gc_group_a}_vs_${params.promoter_gc_group_b}.promoter_gc_boxplot.png", emit: promoter_gc_boxplot_png
     path "${params.promoter_gc_group_a}_vs_${params.promoter_gc_group_b}.promoter_gc_boxplot.pdf", emit: promoter_gc_boxplot_pdf
     path "${params.promoter_gc_group_a}_vs_${params.promoter_gc_group_b}.promoter_gc_violin.png", emit: promoter_gc_violin_png
@@ -47,7 +55,8 @@ process PROMOTER_GC_DIFFBIND {
         --group-b ${params.promoter_gc_group_b} \
         --fdr ${params.promoter_gc_fdr} \
         --log2fc-cutoff ${params.promoter_gc_log2fc_cutoff} \
-        --promoter-window ${params.promoter_gc_tss_dist}
+        --promoter-window ${params.promoter_gc_tss_dist} \
+        --top-n ${params.promoter_gc_top_n}
     """
 
     stub:
@@ -60,6 +69,14 @@ process PROMOTER_GC_DIFFBIND {
     touch ${prefix}.promoter_not_affected.tsv
     touch ${prefix}.promoter_gc_summary.tsv
     touch ${prefix}.promoter_gc_test.tsv
+    touch ${prefix}.top${params.promoter_gc_top_n}_loss.tsv
+    touch ${prefix}.top${params.promoter_gc_top_n}_gain.tsv
+    touch ${prefix}.top${params.promoter_gc_top_n}_promoter_gc_summary.tsv
+    touch ${prefix}.top${params.promoter_gc_top_n}_promoter_gc_test.tsv
+    touch ${prefix}.top${params.promoter_gc_top_n}_promoter_gc_boxplot.png
+    touch ${prefix}.top${params.promoter_gc_top_n}_promoter_gc_boxplot.pdf
+    touch ${prefix}.top${params.promoter_gc_top_n}_promoter_gc_violin.png
+    touch ${prefix}.top${params.promoter_gc_top_n}_promoter_gc_violin.pdf
     touch ${prefix}.promoter_gc_boxplot.png
     touch ${prefix}.promoter_gc_boxplot.pdf
     touch ${prefix}.promoter_gc_violin.png

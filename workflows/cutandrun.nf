@@ -624,11 +624,13 @@ workflow CUTANDRUN {
             .set { ch_bigwig_pairs }
             // EXAMPLE CHANNEL STRUCT: [[META_TARGET], BIGWIG_TARGET, BIGWIG_CONTROL]
             
-            DEEPTOOLS_BIGWIGCOMPARE (
-                ch_bigwig_pairs
-            )
-            ch_bigwig_subtract   = DEEPTOOLS_BIGWIGCOMPARE.out.bigwig
-            ch_software_versions = ch_software_versions.mix(DEEPTOOLS_BIGWIGCOMPARE.out.versions)
+            if (!params.skip_bigwigcompare) {
+                DEEPTOOLS_BIGWIGCOMPARE (
+                    ch_bigwig_pairs
+                )
+                ch_bigwig_subtract   = DEEPTOOLS_BIGWIGCOMPARE.out.bigwig
+                ch_software_versions = ch_software_versions.mix(DEEPTOOLS_BIGWIGCOMPARE.out.versions)
+            }
         }
 
         /*
@@ -797,6 +799,9 @@ workflow CUTANDRUN {
             ch_peaks_primary.collect{it[1]}.ifEmpty([])
         )
         ch_software_versions = ch_software_versions.mix(MERGE_PEAKS_TABLE.out.versions)
+        
+        // Save merged peaks to a variable that can be used by multiple downstream processes
+        ch_merged_peaks_bed = MERGE_PEAKS_TABLE.out.bed
 
         /*
         * MODULE: Annotate replicate peaks with HOMER annotatePeaks and plot feature composition
@@ -846,7 +851,7 @@ workflow CUTANDRUN {
             ch_fasta_for_homer_merged = PREPARE_GENOME.out.fasta.map { it[1] }.first()
             
             HOMER_FINDMOTIFSGENOME_MERGED (
-                MERGE_PEAKS_TABLE.out.bed.map { bed -> [ [id: 'merged_peaks'], bed ] },
+                ch_merged_peaks_bed.map { bed -> [ [id: 'merged_peaks'], bed ] },
                 ch_fasta_for_homer_merged,
                 params.homer_motif_size
             )
@@ -881,7 +886,7 @@ workflow CUTANDRUN {
         
         DEEPTOOLS_MULTIBAMSUMMARY_BED (
             ch_bams_for_summary,
-            MERGE_PEAKS_TABLE.out.bed.collect()
+            ch_merged_peaks_bed.collect()
         )
         ch_software_versions = ch_software_versions.mix(DEEPTOOLS_MULTIBAMSUMMARY_BED.out.versions)
 
@@ -890,7 +895,7 @@ workflow CUTANDRUN {
             ch_gtf_for_peak_annotation   = PREPARE_GENOME.out.gtf.first()
 
             HOMER_ANNOTATEPEAKS_MERGED (
-                MERGE_PEAKS_TABLE.out.bed.map { bed -> [ [id: 'merged_peaks'], bed ] },
+                ch_merged_peaks_bed.map { bed -> [ [id: 'merged_peaks'], bed ] },
                 ch_fasta_for_peak_annotation,
                 ch_gtf_for_peak_annotation
             )
