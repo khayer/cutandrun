@@ -901,9 +901,54 @@ workflow CUTANDRUN {
             )
             ch_software_versions = ch_software_versions.mix(HOMER_ANNOTATEPEAKS_MERGED.out.versions)
 
+            def promoter_gc_contrasts = []
+            if (params.promoter_gc_contrasts) {
+                def contrasts_file = file(params.promoter_gc_contrasts)
+                if (!contrasts_file.exists()) {
+                    error "promoter_gc_contrasts file not found: ${params.promoter_gc_contrasts}"
+                }
+
+                contrasts_file.readLines().eachWithIndex { line, idx ->
+                    def trimmed = line.trim()
+                    if (!trimmed) {
+                        return
+                    }
+
+                    // Allow a simple header row such as: groupA groupB
+                    if (idx == 0 && trimmed.toLowerCase().replaceAll("\\s+", "").startsWith("groupagroupb")) {
+                        return
+                    }
+
+                    def fields = trimmed.split(/\s+/)
+                    if (fields.size() < 2) {
+                        error "Invalid promoter_gc_contrasts row '${line}'. Expected two columns: groupA groupB"
+                    }
+
+                    def group_a = fields[0]
+                    def group_b = fields[1]
+                    promoter_gc_contrasts << [id: "${group_a}_vs_${group_b}", group_a: group_a, group_b: group_b]
+                }
+
+                if (promoter_gc_contrasts.isEmpty()) {
+                    error "No contrasts found in promoter_gc_contrasts file: ${params.promoter_gc_contrasts}"
+                }
+            } else {
+                promoter_gc_contrasts << [
+                    id     : "${params.promoter_gc_group_a}_vs_${params.promoter_gc_group_b}",
+                    group_a: params.promoter_gc_group_a,
+                    group_b: params.promoter_gc_group_b
+                ]
+            }
+
+            Channel
+                .fromList(promoter_gc_contrasts)
+                .combine(HOMER_ANNOTATEPEAKS_MERGED.out.annot.map { meta, table -> table }.first())
+                .combine(DEEPTOOLS_MULTIBAMSUMMARY_BED.out.table.map { meta, table -> table }.first())
+                .map { contrast_meta, annotation_table, counts_table -> [contrast_meta, annotation_table, counts_table] }
+                .set { ch_promoter_gc_diffbind_inputs }
+
             PROMOTER_GC_DIFFBIND (
-                HOMER_ANNOTATEPEAKS_MERGED.out.annot.map { meta, table -> table }.first(),
-                DEEPTOOLS_MULTIBAMSUMMARY_BED.out.table.map { meta, table -> table }.first()
+                ch_promoter_gc_diffbind_inputs
             )
             ch_software_versions = ch_software_versions.mix(PROMOTER_GC_DIFFBIND.out.versions)
         }

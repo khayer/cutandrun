@@ -82,6 +82,7 @@ module load Java/17.0.6 && nextflow run main.nf \
 - [Read Count Annotation](#read-count-annotation)
 - [Peak Feature Annotation Plot](#peak-feature-annotation-plot)
 - [ChIPseeker Enhanced Visualizations](#chipseeker-enhanced-visualizations)
+- [Promoter GC Differential Binding (Top-N Raw P-value Mode)](#promoter-gc-differential-binding-top-n-raw-p-value-mode)
 - [Additional Custom Flags](#additional-custom-flags)
 
 ---
@@ -616,6 +617,146 @@ singularity build chipseeker.sif docker://weishwu/chipseeker:latest
 
 ---
 
+## Promoter GC Differential Binding (Top-N Raw P-value Mode)
+
+**Date Added:** April 2026  
+**Purpose:** Compare promoter GC content for differential binding contrasts even when adjusted p-values are conservative (small n), by providing a ranked raw p-value Top-N mode.
+
+### What this branch does
+
+1. Builds a merged peak universe and annotates with HOMER (including `GeneName`, `GC_percent`, TSS distance).
+2. Counts reads per merged peak and runs DESeq2 for `group_a` vs `group_b`.
+3. Keeps only peaks that pass a minimum evidence filter before DESeq2 testing:
+  - Peak is kept only if it has at least 5 reads in at least one comparison sample (across either condition).
+4. Produces standard FDR-based outputs (`loss`, `gain`, `unchanged`) and a second ranked raw p-value Top-N output mode.
+
+### Exact definition of Top 1000 (or Top N)
+
+Top-N is controlled by `--promoter_gc_top_n` (default 1000). Selection is performed as follows:
+
+1. Start from promoter peaks (`abs(DistanceToTSS) <= promoter window`) with non-missing `pvalue` and `log2FoldChange`.
+2. Split into two sets:
+  - `loss`: `log2FoldChange < 0`
+  - `gain`: `log2FoldChange > 0`
+3. Rank each set independently by:
+  1. raw `pvalue` ascending (most significant first)
+  2. `abs(log2FoldChange)` descending (stronger effect first)
+  3. `baseMean` descending (higher signal first)
+4. Keep first N rows from each set.
+5. If fewer than N exist, keep all available rows (no padding).
+
+### Random unchanged peaks used in Top-N plots
+
+For balanced visualization, the branch also samples unchanged promoter peaks:
+
+1. Candidate pool: promoter peaks with `status == unchanged`, non-missing `pvalue`, non-missing `log2FoldChange`.
+2. Sample size: `min(top_n, number_of_available_unchanged)`.
+3. Sampling is without replacement, fixed seed `42` (reproducible).
+4. The same sampled unchanged set is used in both the Top-N GC plots and the raw p-value volcano.
+
+### Exact definition of Top 5 labels on volcano plots
+
+Gene labels are drawn from `GeneName` for both volcano variants.
+
+1. Consider only rows with non-missing significance metric, non-missing `log2FoldChange`, and non-empty `GeneName`.
+2. Restrict to `status` in `{loss, gain}`.
+3. Rank separately within `loss` and `gain` by:
+  1. volcano metric ascending (`padj` for standard volcano, `pvalue` for raw p-value volcano)
+  2. `abs(log2FoldChange)` descending
+4. Label top 5 `loss` and top 5 `gain`.
+5. If fewer than 5 are available in either class, label all available in that class.
+
+### Usage example
+
+```bash
+nextflow run main.nf \
+  --input samplesheet.csv \
+  --outdir results_human_v2 \
+  --normalisation_mode Spikein \
+  --normalisation_mode_dual true \
+  --normalisation_c 10000 \
+  --peakcaller macs2 \
+  --genome hg38 \
+  --run_promoter_gc_diffbind true \
+  --promoter_gc_group_a RAD51_B02_25 \
+  --promoter_gc_group_b RAD51_DMSO_25 \
+  --promoter_gc_fdr 0.2 \
+  --promoter_gc_log2fc_cutoff 1.0 \
+  --promoter_gc_top_n 1000 \
+  --skip_bigwigcompare true \
+  -profile singularity \
+  -work-dir work_human_v2 \
+  -resume
+```
+
+Multi-contrast mode (recommended when running many pairwise comparisons):
+
+```bash
+# contrasts.tsv
+# groupA groupB
+# ADNP_B02_25 ADNP_DMSO_25
+# RAD51_B02_25 RAD51_DMSO_25
+# RAD51_B02_26 RAD51_DMSO_26
+
+nextflow run main.nf \
+  --input samplesheet.csv \
+  --outdir results_human_v2 \
+  --normalisation_mode Spikein \
+  --normalisation_mode_dual true \
+  --normalisation_c 10000 \
+  --peakcaller macs2 \
+  --genome hg38 \
+  --run_promoter_gc_diffbind true \
+  --promoter_gc_contrasts contrasts.tsv \
+  --promoter_gc_fdr 0.2 \
+  --promoter_gc_log2fc_cutoff 1.0 \
+  --promoter_gc_top_n 1000 \
+  --skip_bigwigcompare true \
+  -profile singularity \
+  -work-dir work_human_v2 \
+  -resume
+```
+
+An example file is provided at `assets/promoter_gc_contrasts.example.tsv`.
+
+When `--promoter_gc_contrasts` is provided, it takes precedence and the single `--promoter_gc_group_a/--promoter_gc_group_b` pair is ignored.
+
+### New/updated outputs
+
+Located in: `results/03_peak_calling/11_differential_binding/{group_a}_vs_{group_b}/`
+
+- Standard DESeq2/FDR outputs:
+  - `{contrast}.deseq2_results.tsv`
+  - `{contrast}.promoter_peaks.tsv`
+  - `{contrast}.promoter_loss.tsv`
+  - `{contrast}.promoter_not_affected.tsv`
+  - `{contrast}.volcano.png/.pdf` (with top-5 gain/loss `GeneName` labels)
+- Top-N raw p-value outputs:
+  - `{contrast}.top{N}_loss.tsv`
+  - `{contrast}.top{N}_gain.tsv`
+  - `{contrast}.top{N}_promoter_gc_summary.tsv`
+  - `{contrast}.top{N}_promoter_gc_test.tsv`
+  - `{contrast}.top{N}_promoter_gc_boxplot.png/.pdf`
+  - `{contrast}.top{N}_promoter_gc_violin.png/.pdf`
+  - `{contrast}.top{N}_volcano_raw_pvalue.png/.pdf` (with top-5 gain/loss `GeneName` labels)
+
+### Quick interpretation guide
+
+Use this as a practical reading order for each contrast:
+
+1. Start with `{contrast}.deseq2_results.tsv` and the standard volcano (`padj`) for conservative, publishable significance.
+2. If few or no FDR-significant promoter peaks are present, inspect Top-N raw p-value outputs to prioritize candidates, not final claims.
+3. Compare `top{N}_loss` versus `top{N}_gain` GC summaries to assess directional GC shifts.
+4. Use the raw p-value volcano labels (top 5 gain/loss by rank) as gene-level hypothesis leads for validation.
+
+Recommended interpretation boundaries:
+
+- FDR-based calls (`promoter_loss`, `promoter_not_affected`) should be treated as higher-confidence differential classes.
+- Top-N raw p-value calls are ranking-based exploratory sets and are expected to be less stringent.
+- With small replicate numbers, effect-size consistency across replicates and orthogonal validation (IGV tracks, qPCR, or follow-up assays) are strongly recommended before biological conclusions.
+
+---
+
 ## Version Information
 
 **Pipeline Base:** nf-core/cutandrun v3.2.2  
@@ -666,6 +807,32 @@ These flags are custom to this fork and are not described in the base pipeline s
 - `--publish_frip` (default: `false`)
   - When enabled, writes per-sample FRiP TSVs to `results/03_peak_calling/07_peak_qc/frip/`.
   - Example: `--publish_frip true`
+
+### Promoter GC differential binding
+
+- `--run_promoter_gc_diffbind` (default: `false`)
+  - Enables DESeq2-based promoter GC differential binding branch.
+- `--promoter_gc_contrasts` (default: `null`)
+  - Optional whitespace-delimited contrasts file with two columns per row: `groupA groupB`.
+  - If set, each row is run as an independent contrast under `03_peak_calling/11_differential_binding/`.
+  - Header row `groupA groupB` is allowed and ignored.
+- `--promoter_gc_group_a` (default: `ADNP_B02_25`)
+  - Numerator condition prefix.
+- `--promoter_gc_group_b` (default: `ADNP_DMSO_25`)
+  - Denominator condition prefix.
+- `--promoter_gc_tss_dist` (default: `3000`)
+  - Promoter window around TSS (bp).
+- `--promoter_gc_fdr` (default: `0.05`)
+  - FDR cutoff for standard significance calls.
+- `--promoter_gc_log2fc_cutoff` (default: `1.0`)
+  - Absolute log2 fold-change cutoff for FDR-based loss/gain status.
+- `--promoter_gc_top_n` (default: `1000`)
+  - Number of top raw p-value loss and gain promoter peaks retained per direction.
+
+### bigwigCompare skip switch
+
+- `--skip_bigwigcompare` (default: `false`)
+  - Skips DEEPTOOLS_BIGWIGCOMPARE execution (useful with `-resume` when subtract bigwigs are not needed).
 
 ### Visualization-only downsampling
 
