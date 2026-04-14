@@ -624,7 +624,7 @@ singularity build chipseeker.sif docker://weishwu/chipseeker:latest
 
 ### What this branch does
 
-1. Builds a merged peak universe and annotates with HOMER (including `GeneName`, `GC_percent`, TSS distance).
+1. For each contrast, builds a merged peak universe using only peak files from that contrast's `groupA` and `groupB` samples (not all conditions), then annotates with HOMER (including `GeneName`, `GC_percent`, TSS distance).
 2. Counts reads per merged peak and runs DESeq2 for `group_a` vs `group_b`.
 3. Keeps only peaks that pass a minimum evidence filter before DESeq2 testing:
   - Peak is kept only if it has at least 5 reads in at least one comparison sample (across either condition).
@@ -739,6 +739,7 @@ Located in: `results/03_peak_calling/11_differential_binding/{group_a}_vs_{group
   - `{contrast}.top{N}_promoter_gc_boxplot.png/.pdf`
   - `{contrast}.top{N}_promoter_gc_violin.png/.pdf`
   - `{contrast}.top{N}_volcano_raw_pvalue.png/.pdf` (with top-5 gain/loss `GeneName` labels)
+  - `{contrast}.promoter_gc_contrast_qc.tsv` (per-contrast universe QC: `n_input_peak_beds`, `n_merged_peaks`)
 
 ### Quick interpretation guide
 

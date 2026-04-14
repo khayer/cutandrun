@@ -123,6 +123,7 @@ include { SAMTOOLS_CUSTOMVIEW        } from "../modules/local/samtools_custom_vi
 include { FRAG_LEN_HIST              } from "../modules/local/python/frag_len_hist"
 include { MULTIQC                    } from "../modules/local/multiqc"
 include { MERGE_PEAKS_TABLE          } from "../modules/local/python/merge_peaks_table"
+include { MERGE_PEAKS_TABLE_CONTRAST } from "../modules/local/python/merge_peaks_table_contrast"
 include { DOWNSAMPLE_BAM             } from "../modules/local/samtools_downsample"
 include { HOMER_FINDMOTIFSGENOME as HOMER_FINDMOTIFSGENOME_MERGED     } from "../modules/local/homer/findmotifsgenome/main"
 include { HOMER_FINDMOTIFSGENOME as HOMER_FINDMOTIFSGENOME_CONSENSUS  } from "../modules/local/homer/findmotifsgenome/main"
@@ -132,6 +133,7 @@ include { SUMMARIZE_HOMER_MOTIFS     } from "../modules/local/python/summarize_h
 include { CREATE_MOTIF_COMPARISON_TABLES } from "../modules/local/python/create_motif_comparison_tables"
 include { SUMMARIZE_PEAK_ANNOTATIONS  } from "../modules/local/python/summarize_peak_annotations"
 include { PYGENOMETRACKS_TOP10        } from "../modules/local/python/pygenometracks_top10"
+include { PROMOTER_GC_CONTRAST_QC     } from "../modules/local/python/promoter_gc_contrast_qc.nf"
 include { CHIPSEEKER_ANNOTATE; CHIPSEEKER_COMPARE } from "../modules/local/r/chipseeker/main"
 include { PROMOTER_GC_DIFFBIND        } from "../modules/local/r/promoter_gc_diffbind/main"
 
@@ -182,6 +184,7 @@ include { DEEPTOOLS_PLOTHEATMAP as DEEPTOOLS_PLOTHEATMAP_GENE_ALL      } from ".
 include { DEEPTOOLS_PLOTHEATMAP as DEEPTOOLS_PLOTHEATMAP_PEAKS_ALL     } from "../modules/nf-core/deeptools/plotheatmap/main"
 include { DEEPTOOLS_BIGWIGCOMPARE                                      } from "../modules/nf-core/deeptools/bigwigcompare/main"
 include { DEEPTOOLS_MULTIBAMSUMMARY_BED                                } from "../modules/nf-core/deeptools/multibamsummary_bed/main"
+include { DEEPTOOLS_MULTIBAMSUMMARY_BED as DEEPTOOLS_MULTIBAMSUMMARY_BED_CONTRAST } from "../modules/nf-core/deeptools/multibamsummary_bed/main"
 include { CUSTOM_DUMPSOFTWAREVERSIONS                                  } from "../modules/local/custom_dumpsoftwareversions"
 
 /*
@@ -894,13 +897,6 @@ workflow CUTANDRUN {
             ch_fasta_for_peak_annotation = PREPARE_GENOME.out.fasta.map { it[1] }.first()
             ch_gtf_for_peak_annotation   = PREPARE_GENOME.out.gtf.first()
 
-            HOMER_ANNOTATEPEAKS_MERGED (
-                ch_merged_peaks_bed.map { bed -> [ [id: 'merged_peaks'], bed ] },
-                ch_fasta_for_peak_annotation,
-                ch_gtf_for_peak_annotation
-            )
-            ch_software_versions = ch_software_versions.mix(HOMER_ANNOTATEPEAKS_MERGED.out.versions)
-
             def promoter_gc_contrasts = []
             if (params.promoter_gc_contrasts) {
                 def contrasts_file = file(params.promoter_gc_contrasts)
@@ -942,9 +938,81 @@ workflow CUTANDRUN {
 
             Channel
                 .fromList(promoter_gc_contrasts)
-                .combine(HOMER_ANNOTATEPEAKS_MERGED.out.annot.map { meta, table -> table }.first())
-                .combine(DEEPTOOLS_MULTIBAMSUMMARY_BED.out.table.map { meta, table -> table }.first())
-                .map { contrast_meta, annotation_table, counts_table -> [contrast_meta, annotation_table, counts_table] }
+                .cross(ch_peaks_primary)
+                .filter { contrast, peak_row ->
+                    !peak_row[0].is_control && (peak_row[0].group == contrast.group_a || peak_row[0].group == contrast.group_b)
+                }
+                .map { contrast, peak_row -> [contrast.id, contrast, peak_row[0].group, peak_row[1]] }
+                .groupTuple(by: 0)
+                .map { contrast_id, contrasts, groups, beds ->
+                    def contrast = contrasts[0]
+                    if (!groups.contains(contrast.group_a) || !groups.contains(contrast.group_b)) {
+                        error "Contrast ${contrast.id} is missing peaks from one or both groups in ch_peaks_primary"
+                    }
+                    [contrast, beds, beds.size()]
+                }
+                .set { ch_promoter_gc_peak_beds_by_contrast }
+
+            MERGE_PEAKS_TABLE_CONTRAST (
+                ch_promoter_gc_peak_beds_by_contrast.map { meta, beds, n_input_beds -> [meta, beds] }
+            )
+            ch_software_versions = ch_software_versions.mix(MERGE_PEAKS_TABLE_CONTRAST.out.versions)
+
+            ch_promoter_gc_peak_beds_by_contrast
+                .map { meta, beds, n_input_beds -> [meta.id, meta, n_input_beds] }
+                .join(MERGE_PEAKS_TABLE_CONTRAST.out.bed.map { meta, bed -> [meta.id, meta, bed] }, by: 0)
+                .map { contrast_id, input_meta, n_input_beds, bed_meta, merged_bed -> [input_meta, merged_bed, n_input_beds] }
+                .set { ch_promoter_gc_contrast_qc_inputs }
+
+            PROMOTER_GC_CONTRAST_QC (
+                ch_promoter_gc_contrast_qc_inputs
+            )
+            ch_software_versions = ch_software_versions.mix(PROMOTER_GC_CONTRAST_QC.out.versions)
+
+            Channel
+                .fromList(promoter_gc_contrasts)
+                .cross(ch_samtools_bam.join(ch_samtools_bai, by: 0))
+                .filter { contrast, row ->
+                    !row[0].is_control && (row[0].group == contrast.group_a || row[0].group == contrast.group_b)
+                }
+                .map { contrast, row -> [contrast.id, contrast, row[0].group, row[1], row[2], row[0].id] }
+                .groupTuple(by: 0)
+                .map { contrast_id, contrasts, groups, bams, bais, labels ->
+                    def contrast = contrasts[0]
+                    if (!groups.contains(contrast.group_a) || !groups.contains(contrast.group_b)) {
+                        error "Contrast ${contrast.id} is missing BAMs from one or both groups"
+                    }
+                    def idx = (0..<labels.size()).toList().sort { labels[it] }
+                    def sorted_bams = idx.collect { bams[it] }
+                    def sorted_bais = idx.collect { bais[it] }
+                    def sorted_labels = idx.collect { labels[it] }
+                    [contrast, sorted_bams, sorted_bais, sorted_labels]
+                }
+                .set { ch_promoter_gc_bams_by_contrast }
+
+            ch_promoter_gc_bams_by_contrast
+                .map { meta, bams, bais, labels -> [meta.id, meta, bams, bais, labels] }
+                .join(MERGE_PEAKS_TABLE_CONTRAST.out.bed.map { meta, bed -> [meta.id, meta, bed] }, by: 0)
+                .map { contrast_id, bam_meta, bams, bais, labels, bed_meta, bed -> [bam_meta, bams, bais, labels, bed] }
+                .set { ch_promoter_gc_count_inputs }
+
+            DEEPTOOLS_MULTIBAMSUMMARY_BED_CONTRAST (
+                ch_promoter_gc_count_inputs.map { meta, bams, bais, labels, bed -> [meta, bams, bais, labels] },
+                ch_promoter_gc_count_inputs.map { meta, bams, bais, labels, bed -> bed }
+            )
+            ch_software_versions = ch_software_versions.mix(DEEPTOOLS_MULTIBAMSUMMARY_BED_CONTRAST.out.versions)
+
+            HOMER_ANNOTATEPEAKS_MERGED (
+                MERGE_PEAKS_TABLE_CONTRAST.out.bed,
+                ch_fasta_for_peak_annotation,
+                ch_gtf_for_peak_annotation
+            )
+            ch_software_versions = ch_software_versions.mix(HOMER_ANNOTATEPEAKS_MERGED.out.versions)
+
+            HOMER_ANNOTATEPEAKS_MERGED.out.annot
+                .map { meta, table -> [meta.id, meta, table] }
+                .join(DEEPTOOLS_MULTIBAMSUMMARY_BED_CONTRAST.out.table.map { meta, table -> [meta.id, meta, table] }, by: 0)
+                .map { contrast_id, annot_meta, annot_table, counts_meta, counts_table -> [annot_meta, annot_table, counts_table] }
                 .set { ch_promoter_gc_diffbind_inputs }
 
             PROMOTER_GC_DIFFBIND (
