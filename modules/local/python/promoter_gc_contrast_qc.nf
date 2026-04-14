@@ -58,7 +58,7 @@ PY
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        python: "$(python --version | sed 's/Python //')"
+        python: "\$(python --version | sed 's/Python //')"
     END_VERSIONS
     """
 }
