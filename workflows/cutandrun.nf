@@ -442,8 +442,6 @@ workflow CUTANDRUN {
         ch_metadata_picard_duplicates = EXTRACT_PICARD_DUP_META.out.metadata
         ch_software_versions          = ch_software_versions.mix(EXTRACT_PICARD_DUP_META.out.versions)
     }
-    //ch_metadata_picard_duplicates | view
-
 
     /*
      * SUBWORKFLOW: Remove linear amplification duplicates - default is false
@@ -773,12 +771,26 @@ workflow CUTANDRUN {
             ch_peaks_secondary = ch_seacr_peaks
         }
 
+        // Broadcast primary peaks so each downstream consumer gets a full copy.
+        ch_peaks_primary
+            .multiMap { row ->
+                summits: row
+                awk_name: row
+                merge_table: row
+                homer_annot: row
+                promoter_gc: row
+                peak_qc: row
+                igv_a: row
+                igv_b: row
+            }
+            .set { ch_peaks_primary_split }
+
         if(callers[0] == 'seacr') {
             /*
             * MODULE: Extract summits from seacr peak beds
             */
             AWK_EXTRACT_SUMMITS (
-                ch_peaks_primary
+                ch_peaks_primary_split.summits
             )
             ch_peaks_summits     = AWK_EXTRACT_SUMMITS.out.file
             ch_software_versions = ch_software_versions.mix(AWK_EXTRACT_SUMMITS.out.versions)
@@ -789,7 +801,7 @@ workflow CUTANDRUN {
         * MODULE: Add sample identifier column to peak beds
         */
         AWK_NAME_PEAK_BED (
-            ch_peaks_primary
+            ch_peaks_primary_split.awk_name
         )
         ch_software_versions = ch_software_versions.mix(AWK_NAME_PEAK_BED.out.versions)
         // EXAMPLE CHANNEL STRUCT: [[META], BED]
@@ -799,7 +811,7 @@ workflow CUTANDRUN {
         * MODULE: Create merged peaks table showing peak presence across samples
         */
         MERGE_PEAKS_TABLE (
-            ch_peaks_primary.collect{it[1]}.ifEmpty([])
+            ch_peaks_primary_split.merge_table.collect{it[1]}.ifEmpty([])
         )
         ch_software_versions = ch_software_versions.mix(MERGE_PEAKS_TABLE.out.versions)
         
@@ -814,7 +826,7 @@ workflow CUTANDRUN {
             ch_gtf_for_peak_annotation   = PREPARE_GENOME.out.gtf.first()
 
             HOMER_ANNOTATEPEAKS (
-                ch_peaks_primary,
+                ch_peaks_primary_split.homer_annot,
                 ch_fasta_for_peak_annotation,
                 ch_gtf_for_peak_annotation
             )
@@ -938,11 +950,24 @@ workflow CUTANDRUN {
 
             Channel
                 .fromList(promoter_gc_contrasts)
-                .cross(ch_peaks_primary)
-                .filter { contrast, peak_row ->
-                    !peak_row[0].is_control && (peak_row[0].group == contrast.group_a || peak_row[0].group == contrast.group_b)
+                .combine(ch_peaks_primary_split.promoter_gc)
+                .filter { row ->
+                    def contrast = (row instanceof List && row.size() > 0) ? row[0] : null
+                    def peak_row = (row instanceof List && row.size() > 1) ? row[1] : null
+                    def peak_meta = (peak_row instanceof List && peak_row.size() > 0) ? peak_row[0] : null
+                    if (!contrast || !peak_meta) {
+                        return false
+                    }
+                    def grp = peak_meta.group?.toString()?.trim()
+                    def a = contrast.group_a?.toString()?.trim()
+                    def b = contrast.group_b?.toString()?.trim()
+                    grp == a || grp == b
                 }
-                .map { contrast, peak_row -> [contrast.id, contrast, peak_row[0].group, peak_row[1]] }
+                .map { row ->
+                    def contrast = row[0]
+                    def peak_row = row[1]
+                    [contrast.id, contrast, peak_row[0].group, peak_row[1]]
+                }
                 .groupTuple(by: 0)
                 .map { contrast_id, contrasts, groups, beds ->
                     def contrast = contrasts[0]
@@ -954,28 +979,37 @@ workflow CUTANDRUN {
                 .set { ch_promoter_gc_peak_beds_by_contrast }
 
             MERGE_PEAKS_TABLE_CONTRAST (
-                ch_promoter_gc_peak_beds_by_contrast.map { meta, beds, n_input_beds -> [meta, beds] }
+                ch_promoter_gc_peak_beds_by_contrast.map { meta, beds, n_input_beds -> [meta + [n_input_peak_beds: n_input_beds], beds] }
             )
             ch_software_versions = ch_software_versions.mix(MERGE_PEAKS_TABLE_CONTRAST.out.versions)
 
-            ch_promoter_gc_peak_beds_by_contrast
-                .map { meta, beds, n_input_beds -> [meta.id, meta, n_input_beds] }
-                .join(MERGE_PEAKS_TABLE_CONTRAST.out.bed.map { meta, bed -> [meta.id, meta, bed] }, by: 0)
-                .map { contrast_id, input_meta, n_input_beds, bed_meta, merged_bed -> [input_meta, merged_bed, n_input_beds] }
-                .set { ch_promoter_gc_contrast_qc_inputs }
-
-            PROMOTER_GC_CONTRAST_QC (
-                ch_promoter_gc_contrast_qc_inputs
-            )
-            ch_software_versions = ch_software_versions.mix(PROMOTER_GC_CONTRAST_QC.out.versions)
+            MERGE_PEAKS_TABLE_CONTRAST.out.bed
+                .multiMap { row ->
+                    counts: row
+                    homer: row
+                }
+                .set { ch_promoter_gc_merged_bed_split }
 
             Channel
                 .fromList(promoter_gc_contrasts)
-                .cross(ch_samtools_bam.join(ch_samtools_bai, by: 0))
-                .filter { contrast, row ->
-                    !row[0].is_control && (row[0].group == contrast.group_a || row[0].group == contrast.group_b)
+                .combine(ch_samtools_bam.join(ch_samtools_bai, by: 0))
+                .filter { pair ->
+                    def contrast = (pair instanceof List && pair.size() > 0) ? pair[0] : null
+                    def row = (pair instanceof List && pair.size() > 1) ? pair[1] : null
+                    def bam_meta = (row instanceof List && row.size() > 0) ? row[0] : null
+                    if (!contrast || !bam_meta) {
+                        return false
+                    }
+                    def grp = bam_meta.group?.toString()?.trim()
+                    def a = contrast.group_a?.toString()?.trim()
+                    def b = contrast.group_b?.toString()?.trim()
+                    grp == a || grp == b
                 }
-                .map { contrast, row -> [contrast.id, contrast, row[0].group, row[1], row[2], row[0].id] }
+                .map { pair ->
+                    def contrast = pair[0]
+                    def row = pair[1]
+                    [contrast.id, contrast, row[0].group, row[1], row[2], row[0].id]
+                }
                 .groupTuple(by: 0)
                 .map { contrast_id, contrasts, groups, bams, bais, labels ->
                     def contrast = contrasts[0]
@@ -992,7 +1026,7 @@ workflow CUTANDRUN {
 
             ch_promoter_gc_bams_by_contrast
                 .map { meta, bams, bais, labels -> [meta.id, meta, bams, bais, labels] }
-                .join(MERGE_PEAKS_TABLE_CONTRAST.out.bed.map { meta, bed -> [meta.id, meta, bed] }, by: 0)
+                .join(ch_promoter_gc_merged_bed_split.counts.map { meta, bed -> [meta.id, meta, bed] }, by: 0)
                 .map { contrast_id, bam_meta, bams, bais, labels, bed_meta, bed -> [bam_meta, bams, bais, labels, bed] }
                 .set { ch_promoter_gc_count_inputs }
 
@@ -1003,7 +1037,7 @@ workflow CUTANDRUN {
             ch_software_versions = ch_software_versions.mix(DEEPTOOLS_MULTIBAMSUMMARY_BED_CONTRAST.out.versions)
 
             HOMER_ANNOTATEPEAKS_MERGED (
-                MERGE_PEAKS_TABLE_CONTRAST.out.bed,
+                ch_promoter_gc_merged_bed_split.homer,
                 ch_fasta_for_peak_annotation,
                 ch_gtf_for_peak_annotation
             )
@@ -1157,7 +1191,7 @@ workflow CUTANDRUN {
                 ch_igv_fasta_index,
                 PREPARE_GENOME.out.bed_index,
                 //PREPARE_GENOME.out.gtf.collect(),
-                ch_peaks_primary.collect{it[1]}.filter{ it -> it.size() > 1}.ifEmpty([]),
+                ch_peaks_primary_split.igv_a.collect{it[1]}.filter{ it -> it.size() > 1}.ifEmpty([]),
                 ch_peaks_secondary.collect{it[1]}.filter{ it -> it.size() > 1}.ifEmpty([]),
                 ch_bigwig_for_igv,
                 params.igv_sort_by_groups,
@@ -1177,7 +1211,7 @@ workflow CUTANDRUN {
                     ch_igv_fasta,
                     ch_igv_fasta_index,
                     PREPARE_GENOME.out.bed_index,
-                    ch_peaks_primary.collect{it[1]}.filter{ it -> it.size() > 1}.ifEmpty([]),
+                    ch_peaks_primary_split.igv_b.collect{it[1]}.filter{ it -> it.size() > 1}.ifEmpty([]),
                     ch_peaks_secondary.collect{it[1]}.filter{ it -> it.size() > 1}.ifEmpty([]),
                     ch_bigwig_downsampled_for_igv,
                     params.igv_sort_by_groups,
@@ -1373,7 +1407,7 @@ workflow CUTANDRUN {
             * SUBWORKFLOW: Run suite of peak QC on peaks
             */
             PEAK_QC(
-                ch_peaks_primary,
+                ch_peaks_primary_split.peak_qc,
                 AWK_NAME_PEAK_BED.out.file,
                 ch_consensus_peaks,
                 ch_consensus_peaks_unfilt,

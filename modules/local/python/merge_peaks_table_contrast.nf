@@ -8,12 +8,15 @@ process MERGE_PEAKS_TABLE_CONTRAST {
     conda "conda-forge::python=3.8.3 conda-forge::pandas=1.2.3"
     container "quay.io/biocontainers/python:3.8.3"
 
+    publishDir "${params.outdir}/03_peak_calling/11_differential_binding", mode: 'copy', saveAs: { filename -> "${task.tag}/${filename}" }
+
     input:
     tuple val(meta), path(peak_beds)
 
     output:
     tuple val(meta), path("merged_peaks_table.txt"), emit: table
     tuple val(meta), path("merged_peaks.bed"), emit: bed
+    tuple val(meta), path("${meta.id}.promoter_gc_contrast_qc.tsv"), emit: qc
     path "versions.yml", emit: versions
 
     when:
@@ -84,6 +87,11 @@ process MERGE_PEAKS_TABLE_CONTRAST {
     with open('merged_peaks.bed', 'w') as out:
         for i, (chrom, start, end) in enumerate(merged_peaks, 1):
             out.write(f"{chrom}\t{start}\t{end}\tpeak_{i}\t0\t.\n")
+
+    qc_file = "${meta.id}.promoter_gc_contrast_qc.tsv"
+    with open(qc_file, 'w') as qc:
+        qc.write('contrast_id\tgroup_a\tgroup_b\tn_input_peak_beds\tn_merged_peaks\n')
+        qc.write(f"${meta.id}\t${meta.group_a}\t${meta.group_b}\t${meta.n_input_peak_beds}\t{len(merged_peaks)}\n")
 
     samples = sorted(peaks_by_sample.keys())
 
