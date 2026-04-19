@@ -819,11 +819,15 @@ workflow CUTANDRUN {
         ch_merged_peaks_bed = MERGE_PEAKS_TABLE.out.bed
 
         /*
+        * Shared reference inputs for downstream peak annotation and contrast analyses
+        */
+        ch_fasta_for_peak_annotation = PREPARE_GENOME.out.fasta.map { it[1] }.first()
+        ch_gtf_for_peak_annotation   = PREPARE_GENOME.out.gtf.first()
+
+        /*
         * MODULE: Annotate replicate peaks with HOMER annotatePeaks and plot feature composition
         */
         if(params.run_homer_peak_annotation) {
-            ch_fasta_for_peak_annotation = PREPARE_GENOME.out.fasta.map { it[1] }.first()
-            ch_gtf_for_peak_annotation   = PREPARE_GENOME.out.gtf.first()
 
             HOMER_ANNOTATEPEAKS (
                 ch_peaks_primary_split.homer_annot,
@@ -906,9 +910,6 @@ workflow CUTANDRUN {
         ch_software_versions = ch_software_versions.mix(DEEPTOOLS_MULTIBAMSUMMARY_BED.out.versions)
 
         if (params.run_promoter_gc_diffbind) {
-            ch_fasta_for_peak_annotation = PREPARE_GENOME.out.fasta.map { it[1] }.first()
-            ch_gtf_for_peak_annotation   = PREPARE_GENOME.out.gtf.first()
-
             def promoter_gc_contrasts = []
             if (params.promoter_gc_contrasts) {
                 def contrasts_file = file(params.promoter_gc_contrasts)
