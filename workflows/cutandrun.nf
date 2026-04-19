@@ -750,7 +750,7 @@ workflow CUTANDRUN {
             }
         }
 
-        if ("macs2" in params.callers) {
+        if ("macs2" in callers) {
             /*
             * MODULE: Convert narrow or broad peak to bed
             */
@@ -949,9 +949,16 @@ workflow CUTANDRUN {
                 ]
             }
 
+            log.info "[CONTRAST_SETUP] Initialized contrasts: ${promoter_gc_contrasts}"
+
+            ch_peaks_primary_split.promoter_gc
+                .view { "[PEAKS_STREAM] Peak stream entry: sample_id=${it[0]?.id ?: 'UNKNOWN'}, group=${it[0]?.group ?: 'UNKNOWN'}, bed=${it[1]?.getFileName()}" }
+                .set { ch_peaks_for_contrast }
+
             Channel
                 .fromList(promoter_gc_contrasts)
-                .combine(ch_peaks_primary_split.promoter_gc)
+                .combine(ch_peaks_for_contrast)
+                .view { row -> "[CONTRAST_DEBUG] Combined row: contrast=${row[0]?.id}, peak_meta=${row[1]?.[0]?.id ?: 'UNKNOWN'}, peak_meta.group=${row[1]?.[0]?.group ?: 'UNKNOWN'}" }
                 .filter { row ->
                     def contrast = (row instanceof List && row.size() > 0) ? row[0] : null
                     def peak_row = (row instanceof List && row.size() > 1) ? row[1] : null
@@ -962,13 +969,16 @@ workflow CUTANDRUN {
                     def grp = peak_meta.group?.toString()?.trim()
                     def a = contrast.group_a?.toString()?.trim()
                     def b = contrast.group_b?.toString()?.trim()
-                    grp == a || grp == b
+                    def match = grp == a || grp == b
+                    log.info "[CONTRAST_FILTER] Checking: grp='${grp}' vs a='${a}' b='${b}' => match=${match}"
+                    match
                 }
                 .map { row ->
                     def contrast = row[0]
                     def peak_row = row[1]
                     [contrast.id, contrast, peak_row[0].group, peak_row[1]]
                 }
+                .view { "[CONTRAST_MAP_OUTPUT] Mapped row: contrast_id=${it[0]}, group=${it[2]}, bed=${it[3]?.getFileName()}" }
                 .groupTuple(by: 0)
                 .map { contrast_id, contrasts, groups, beds ->
                     def contrast = contrasts[0]
