@@ -951,14 +951,11 @@ workflow CUTANDRUN {
 
             log.info "[CONTRAST_SETUP] Initialized contrasts: ${promoter_gc_contrasts}"
 
-            ch_peaks_primary_split.promoter_gc
-                .view { "[PEAKS_STREAM] Peak stream entry: sample_id=${it[0]?.id ?: 'UNKNOWN'}, group=${it[0]?.group ?: 'UNKNOWN'}, bed=${it[1]?.getFileName()}" }
-                .set { ch_peaks_for_contrast }
-
             Channel
                 .fromList(promoter_gc_contrasts)
-                .combine(ch_peaks_for_contrast)
-                .view { row -> "[CONTRAST_DEBUG] Combined row: contrast=${row[0]?.id}, peak_meta=${row[1]?.[0]?.id ?: 'UNKNOWN'}, peak_meta.group=${row[1]?.[0]?.group ?: 'UNKNOWN'}" }
+                .view { "[CONTRAST_LIST] Contrast: ${it.id} (${it.group_a} vs ${it.group_b})" }
+                .combine(ch_peaks_primary_split.promoter_gc)
+                .view { row -> "[PEAKS_STREAM] Combined with peak: contrast=${row[0]?.id}, sample_id=${row[1]?.[0]?.id ?: 'UNKNOWN'}, group=${row[1]?.[0]?.group ?: 'UNKNOWN'}" }
                 .filter { row ->
                     def contrast = (row instanceof List && row.size() > 0) ? row[0] : null
                     def peak_row = (row instanceof List && row.size() > 1) ? row[1] : null
