@@ -99,7 +99,7 @@ def prepare_tool_indices = ["bowtie2"]
 
 // Check peak caller params
 def caller_list = ['seacr', 'macs2']
-def callers = params.peakcaller ? params.peakcaller.split(',').collect{ it.trim().toLowerCase() } : ['seacr']
+callers = params.peakcaller ? params.peakcaller.split(',').collect{ it.trim().toLowerCase() } : ['seacr']
 if ((caller_list + callers).unique().size() != caller_list.size()) {
     exit 1, "Invalid variant calller option: ${params.peakcaller}. Valid options: ${caller_list.join(', ')}"
 }
@@ -949,13 +949,9 @@ workflow CUTANDRUN {
                 ]
             }
 
-            log.info "[CONTRAST_SETUP] Initialized contrasts: ${promoter_gc_contrasts}"
-
             Channel
                 .fromList(promoter_gc_contrasts)
-                .view { "[CONTRAST_LIST] Contrast: ${it.id} (${it.group_a} vs ${it.group_b})" }
                 .combine(ch_peaks_primary_split.promoter_gc)
-                .view { row -> "[PEAKS_STREAM] Combined with peak: contrast=${row[0]?.id}, sample_id=${row[1]?.[0]?.id ?: 'UNKNOWN'}, group=${row[1]?.[0]?.group ?: 'UNKNOWN'}" }
                 .filter { row ->
                     def contrast = (row instanceof List && row.size() > 0) ? row[0] : null
                     def peak_row = (row instanceof List && row.size() > 1) ? row[1] : null
@@ -966,16 +962,13 @@ workflow CUTANDRUN {
                     def grp = peak_meta.group?.toString()?.trim()
                     def a = contrast.group_a?.toString()?.trim()
                     def b = contrast.group_b?.toString()?.trim()
-                    def match = grp == a || grp == b
-                    log.info "[CONTRAST_FILTER] Checking: grp='${grp}' vs a='${a}' b='${b}' => match=${match}"
-                    match
+                    grp == a || grp == b
                 }
                 .map { row ->
                     def contrast = row[0]
                     def peak_row = row[1]
                     [contrast.id, contrast, peak_row[0].group, peak_row[1]]
                 }
-                .view { "[CONTRAST_MAP_OUTPUT] Mapped row: contrast_id=${it[0]}, group=${it[2]}, bed=${it[3]?.getFileName()}" }
                 .groupTuple(by: 0)
                 .map { contrast_id, contrasts, groups, beds ->
                     def contrast = contrasts[0]
@@ -990,6 +983,11 @@ workflow CUTANDRUN {
                 ch_promoter_gc_peak_beds_by_contrast.map { meta, beds, n_input_beds -> [meta + [n_input_peak_beds: n_input_beds], beds] }
             )
             ch_software_versions = ch_software_versions.mix(MERGE_PEAKS_TABLE_CONTRAST.out.versions)
+
+            PROMOTER_GC_CONTRAST_QC (
+                MERGE_PEAKS_TABLE_CONTRAST.out.bed.map { meta, merged_bed -> [meta, merged_bed, meta.n_input_peak_beds] }
+            )
+            ch_software_versions = ch_software_versions.mix(PROMOTER_GC_CONTRAST_QC.out.versions)
 
             MERGE_PEAKS_TABLE_CONTRAST.out.bed
                 .multiMap { row ->
