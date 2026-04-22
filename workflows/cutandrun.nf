@@ -949,39 +949,71 @@ workflow CUTANDRUN {
                 ]
             }
 
+            def canonical_condition = { value ->
+                def s = value?.toString()?.trim()
+                if (!s) {
+                    return null
+                }
+                // Normalize common replicate suffixes such as _R1 or _R1_sorted.
+                def m = (s =~ /^(.+?)_R\d+(?:[_\.-].*)?$/)
+                if (m.matches()) {
+                    return m[0][1]
+                }
+                return s
+            }
+
+            def contrast_conditions = { contrast ->
+                def out = [] as LinkedHashSet
+                out << canonical_condition(contrast?.group_a)
+                out << canonical_condition(contrast?.group_b)
+                out.findAll { it != null }
+            }
+
+            def meta_conditions = { meta ->
+                def out = [] as LinkedHashSet
+                [meta?.group, meta?.condition, meta?.sample, meta?.id].each { v ->
+                    def raw = v?.toString()?.trim()
+                    if (raw) {
+                        out << raw
+                        out << canonical_condition(raw)
+                    }
+                }
+                out.findAll { it != null }
+            }
+
+            def matches_condition = { condition, query ->
+                if (!condition || !query) {
+                    return false
+                }
+                if (condition == query) {
+                    return true
+                }
+                condition ==~ /^${java.util.regex.Pattern.quote(query)}(?:[_\.-].*)$/
+            }
+
             def match_contrast_group = { meta, contrast ->
                 if (!meta || !contrast) {
                     return false
                 }
-                def a = contrast.group_a?.toString()?.trim()
-                def b = contrast.group_b?.toString()?.trim()
-                def grp = meta.group?.toString()?.trim()
-                if (grp && (grp == a || grp == b)) {
-                    return true
-                }
-                def sid = meta.id?.toString()?.trim()
-                if (!sid) {
+                def wanted = contrast_conditions(contrast)
+                if (wanted.isEmpty()) {
                     return false
                 }
-                sid == a || sid == b || sid.startsWith("${a}_") || sid.startsWith("${b}_")
+                def seen = meta_conditions(meta)
+                seen.any { c -> wanted.any { w -> matches_condition(c, w) } }
             }
 
             def resolve_group = { meta, contrast ->
                 if (!meta || !contrast) {
                     return null
                 }
-                def grp = meta.group?.toString()?.trim()
-                if (grp) {
-                    return grp
-                }
-                def sid = meta.id?.toString()?.trim()
-                if (!sid) {
-                    return null
-                }
-                if (sid == contrast.group_a || sid.startsWith("${contrast.group_a}_")) {
+                def a = canonical_condition(contrast.group_a)
+                def b = canonical_condition(contrast.group_b)
+                def seen = meta_conditions(meta)
+                if (seen.any { c -> matches_condition(c, a) }) {
                     return contrast.group_a
                 }
-                if (sid == contrast.group_b || sid.startsWith("${contrast.group_b}_")) {
+                if (seen.any { c -> matches_condition(c, b) }) {
                     return contrast.group_b
                 }
                 return null
@@ -992,15 +1024,29 @@ workflow CUTANDRUN {
                 .combine(ch_peaks_primary_split.promoter_gc)
                 .filter { row ->
                     def contrast = (row instanceof List && row.size() > 0) ? row[0] : null
-                    def peak_row = (row instanceof List && row.size() > 1) ? row[1] : null
-                    def peak_meta = (peak_row instanceof List && peak_row.size() > 0) ? peak_row[0] : null
+                    def peak_meta = null
+                    if (row instanceof List && row.size() > 2) {
+                        peak_meta = row[1]
+                    } else {
+                        def peak_row = (row instanceof List && row.size() > 1) ? row[1] : null
+                        peak_meta = (peak_row instanceof List && peak_row.size() > 0) ? peak_row[0] : null
+                    }
                     match_contrast_group(peak_meta, contrast)
                 }
                 .map { row ->
                     def contrast = row[0]
-                    def peak_row = row[1]
-                    def grp = resolve_group(peak_row[0], contrast)
-                    [contrast.id, contrast, grp, peak_row[1]]
+                    def peak_meta = null
+                    def peak_bed = null
+                    if (row instanceof List && row.size() > 2) {
+                        peak_meta = row[1]
+                        peak_bed = row[2]
+                    } else {
+                        def peak_row = row[1]
+                        peak_meta = peak_row[0]
+                        peak_bed = peak_row[1]
+                    }
+                    def grp = resolve_group(peak_meta, contrast)
+                    [contrast.id, contrast, grp, peak_bed]
                 }
                 .filter { row -> row[2] != null }
                 .groupTuple(by: 0)
@@ -1038,15 +1084,32 @@ workflow CUTANDRUN {
                 .combine(ch_samtools_bam.join(ch_samtools_bai, by: 0))
                 .filter { pair ->
                     def contrast = (pair instanceof List && pair.size() > 0) ? pair[0] : null
-                    def row = (pair instanceof List && pair.size() > 1) ? pair[1] : null
-                    def bam_meta = (row instanceof List && row.size() > 0) ? row[0] : null
+                    def bam_meta = null
+                    if (pair instanceof List && pair.size() > 3) {
+                        bam_meta = pair[1]
+                    } else {
+                        def row = (pair instanceof List && pair.size() > 1) ? pair[1] : null
+                        bam_meta = (row instanceof List && row.size() > 0) ? row[0] : null
+                    }
                     match_contrast_group(bam_meta, contrast)
                 }
                 .map { pair ->
                     def contrast = pair[0]
-                    def row = pair[1]
-                    def grp = resolve_group(row[0], contrast)
-                    [contrast.id, contrast, grp, row[1], row[2], row[0].id]
+                    def bam_meta = null
+                    def bam_file = null
+                    def bai_file = null
+                    if (pair instanceof List && pair.size() > 3) {
+                        bam_meta = pair[1]
+                        bam_file = pair[2]
+                        bai_file = pair[3]
+                    } else {
+                        def row = pair[1]
+                        bam_meta = row[0]
+                        bam_file = row[1]
+                        bai_file = row[2]
+                    }
+                    def grp = resolve_group(bam_meta, contrast)
+                    [contrast.id, contrast, grp, bam_file, bai_file, bam_meta.id]
                 }
                 .filter { row -> row[2] != null }
                 .groupTuple(by: 0)

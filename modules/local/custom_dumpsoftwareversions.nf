@@ -23,6 +23,7 @@ process CUSTOM_DUMPSOFTWAREVERSIONS {
     """
     #!/usr/bin/env python
 
+    import sys
     import yaml
     import platform
     from textwrap import dedent
@@ -112,14 +113,43 @@ process CUSTOM_DUMPSOFTWAREVERSIONS {
         html.append("</table>")
         return "\\n".join(html)
 
+    def _load_workflow_versions(path):
+        with open(path) as f:
+            raw = f.read()
+
+        try:
+            parsed = yaml.load(raw, Loader=yaml.BaseLoader)
+            return parsed if isinstance(parsed, dict) else {}
+        except yaml.YAMLError as e:
+            # Some module version snippets can occasionally include malformed YAML.
+            # Fall back to a best-effort parser so the pipeline can still finish.
+            print(f"WARN: Failed to parse {path} as YAML, using best-effort parser: {e}", file=sys.stderr)
+
+        recovered = {}
+        current_process = None
+        for line in raw.splitlines():
+            if not line.strip() or line.lstrip().startswith('#'):
+                continue
+
+            if not line.startswith(' ') and line.rstrip().endswith(':'):
+                current_process = line.strip()[:-1]
+                recovered.setdefault(current_process, {})
+                continue
+
+            if current_process and line.startswith('  ') and ':' in line:
+                key, value = line.strip().split(':', 1)
+                recovered[current_process][key.strip()] = value.strip().strip('"').strip("'")
+
+        return recovered
+
     module_versions = {}
     module_versions["${task.process}"] = {
         'python': platform.python_version(),
         'yaml': yaml.__version__
     }
 
-    with open("$versions") as f:
-        workflow_versions = yaml.load(f, Loader=yaml.BaseLoader) | module_versions
+    workflow_versions = _load_workflow_versions("$versions")
+    workflow_versions.update(module_versions)
 
     workflow_versions["Workflow"] = {
         "Nextflow": "$workflow.nextflow.version",
