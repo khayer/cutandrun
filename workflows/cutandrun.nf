@@ -949,6 +949,44 @@ workflow CUTANDRUN {
                 ]
             }
 
+            def match_contrast_group = { meta, contrast ->
+                if (!meta || !contrast) {
+                    return false
+                }
+                def a = contrast.group_a?.toString()?.trim()
+                def b = contrast.group_b?.toString()?.trim()
+                def grp = meta.group?.toString()?.trim()
+                if (grp && (grp == a || grp == b)) {
+                    return true
+                }
+                def sid = meta.id?.toString()?.trim()
+                if (!sid) {
+                    return false
+                }
+                sid == a || sid == b || sid.startsWith("${a}_") || sid.startsWith("${b}_")
+            }
+
+            def resolve_group = { meta, contrast ->
+                if (!meta || !contrast) {
+                    return null
+                }
+                def grp = meta.group?.toString()?.trim()
+                if (grp) {
+                    return grp
+                }
+                def sid = meta.id?.toString()?.trim()
+                if (!sid) {
+                    return null
+                }
+                if (sid == contrast.group_a || sid.startsWith("${contrast.group_a}_")) {
+                    return contrast.group_a
+                }
+                if (sid == contrast.group_b || sid.startsWith("${contrast.group_b}_")) {
+                    return contrast.group_b
+                }
+                return null
+            }
+
             Channel
                 .fromList(promoter_gc_contrasts)
                 .combine(ch_peaks_primary_split.promoter_gc)
@@ -956,19 +994,15 @@ workflow CUTANDRUN {
                     def contrast = (row instanceof List && row.size() > 0) ? row[0] : null
                     def peak_row = (row instanceof List && row.size() > 1) ? row[1] : null
                     def peak_meta = (peak_row instanceof List && peak_row.size() > 0) ? peak_row[0] : null
-                    if (!contrast || !peak_meta) {
-                        return false
-                    }
-                    def grp = peak_meta.group?.toString()?.trim()
-                    def a = contrast.group_a?.toString()?.trim()
-                    def b = contrast.group_b?.toString()?.trim()
-                    grp == a || grp == b
+                    match_contrast_group(peak_meta, contrast)
                 }
                 .map { row ->
                     def contrast = row[0]
                     def peak_row = row[1]
-                    [contrast.id, contrast, peak_row[0].group, peak_row[1]]
+                    def grp = resolve_group(peak_row[0], contrast)
+                    [contrast.id, contrast, grp, peak_row[1]]
                 }
+                .filter { row -> row[2] != null }
                 .groupTuple(by: 0)
                 .map { contrast_id, contrasts, groups, beds ->
                     def contrast = contrasts[0]
@@ -976,6 +1010,9 @@ workflow CUTANDRUN {
                         error "Contrast ${contrast.id} is missing peaks from one or both groups in ch_peaks_primary"
                     }
                     [contrast, beds, beds.size()]
+                }
+                .ifEmpty {
+                    error "No peaks matched promoter GC contrast(s): ${promoter_gc_contrasts}. Check group names and metadata propagation."
                 }
                 .set { ch_promoter_gc_peak_beds_by_contrast }
 
@@ -1003,19 +1040,15 @@ workflow CUTANDRUN {
                     def contrast = (pair instanceof List && pair.size() > 0) ? pair[0] : null
                     def row = (pair instanceof List && pair.size() > 1) ? pair[1] : null
                     def bam_meta = (row instanceof List && row.size() > 0) ? row[0] : null
-                    if (!contrast || !bam_meta) {
-                        return false
-                    }
-                    def grp = bam_meta.group?.toString()?.trim()
-                    def a = contrast.group_a?.toString()?.trim()
-                    def b = contrast.group_b?.toString()?.trim()
-                    grp == a || grp == b
+                    match_contrast_group(bam_meta, contrast)
                 }
                 .map { pair ->
                     def contrast = pair[0]
                     def row = pair[1]
-                    [contrast.id, contrast, row[0].group, row[1], row[2], row[0].id]
+                    def grp = resolve_group(row[0], contrast)
+                    [contrast.id, contrast, grp, row[1], row[2], row[0].id]
                 }
+                .filter { row -> row[2] != null }
                 .groupTuple(by: 0)
                 .map { contrast_id, contrasts, groups, bams, bais, labels ->
                     def contrast = contrasts[0]
@@ -1027,6 +1060,9 @@ workflow CUTANDRUN {
                     def sorted_bais = idx.collect { bais[it] }
                     def sorted_labels = idx.collect { labels[it] }
                     [contrast, sorted_bams, sorted_bais, sorted_labels]
+                }
+                .ifEmpty {
+                    error "No BAMs matched promoter GC contrast(s): ${promoter_gc_contrasts}. Check group names and metadata propagation."
                 }
                 .set { ch_promoter_gc_bams_by_contrast }
 
