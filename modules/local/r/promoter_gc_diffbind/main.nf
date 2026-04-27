@@ -17,6 +17,7 @@ process PROMOTER_GC_DIFFBIND {
     tuple val(meta), path("*.deseq2_results.tsv"), emit: results
     tuple val(meta), path("*.promoter_peaks.tsv"), emit: promoter_peaks
     tuple val(meta), path("*.promoter_loss.tsv"), emit: promoter_loss
+    tuple val(meta), path("*.promoter_gain.tsv"), emit: promoter_gain
     tuple val(meta), path("*.promoter_not_affected.tsv"), emit: promoter_not_affected
     tuple val(meta), path("*.promoter_gc_summary.tsv"), emit: promoter_gc_summary
     tuple val(meta), path("*.promoter_gc_test.tsv"), emit: promoter_gc_test
@@ -67,6 +68,7 @@ process PROMOTER_GC_DIFFBIND {
     touch ${prefix}.deseq2_results.tsv
     touch ${prefix}.promoter_peaks.tsv
     touch ${prefix}.promoter_loss.tsv
+    touch ${prefix}.promoter_gain.tsv
     touch ${prefix}.promoter_not_affected.tsv
     touch ${prefix}.promoter_gc_summary.tsv
     touch ${prefix}.promoter_gc_test.tsv

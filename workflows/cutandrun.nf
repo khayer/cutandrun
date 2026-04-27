@@ -128,13 +128,14 @@ include { DOWNSAMPLE_BAM             } from "../modules/local/samtools_downsampl
 include { HOMER_FINDMOTIFSGENOME as HOMER_FINDMOTIFSGENOME_MERGED     } from "../modules/local/homer/findmotifsgenome/main"
 include { HOMER_FINDMOTIFSGENOME as HOMER_FINDMOTIFSGENOME_CONSENSUS  } from "../modules/local/homer/findmotifsgenome/main"
 include { HOMER_ANNOTATEPEAKS                                          } from "../modules/local/homer/annotatepeaks/main"
+include { HOMER_ANNOTATEPEAKS as HOMER_ANNOTATEPEAKS_CONSENSUS         } from "../modules/local/homer/annotatepeaks/main"
 include { HOMER_ANNOTATEPEAKS as HOMER_ANNOTATEPEAKS_MERGED            } from "../modules/local/homer/annotatepeaks/main"
 include { SUMMARIZE_HOMER_MOTIFS     } from "../modules/local/python/summarize_homer_motifs"
 include { CREATE_MOTIF_COMPARISON_TABLES } from "../modules/local/python/create_motif_comparison_tables"
 include { SUMMARIZE_PEAK_ANNOTATIONS  } from "../modules/local/python/summarize_peak_annotations"
 include { PYGENOMETRACKS_TOP10        } from "../modules/local/python/pygenometracks_top10"
 include { PROMOTER_GC_CONTRAST_QC     } from "../modules/local/python/promoter_gc_contrast_qc.nf"
-include { CHIPSEEKER_ANNOTATE; CHIPSEEKER_COMPARE } from "../modules/local/r/chipseeker/main"
+include { CHIPSEEKER_ANNOTATE; CHIPSEEKER_ANNOTATE as CHIPSEEKER_ANNOTATE_CONSENSUS; CHIPSEEKER_COMPARE } from "../modules/local/r/chipseeker/main"
 include { PROMOTER_GC_DIFFBIND        } from "../modules/local/r/promoter_gc_diffbind/main"
 
 /*
@@ -644,13 +645,43 @@ workflow CUTANDRUN {
         //ch_bedgraph_target | view
         //ch_bedgraph_control | view
 
+        // Preserve BAMs for promoter-GC diffbind BEFORE consuming them for peak calling
+        // Fan out the BAM/BAI channels to avoid consumption
+        ch_samtools_bam
+            .multiMap { row ->
+                for_peakcalling: row
+                for_promoter_gc: row
+            }
+            .set { ch_bam_split }
+        
+        ch_samtools_bai
+            .multiMap { row ->
+                for_peakcalling: row
+                for_promoter_gc: row
+            }
+            .set { ch_bai_split }
+
         /*
         * CHANNEL: Separate bams into target/control
         */
-        ch_samtools_bam.filter { it -> it[0].is_control == false }
+        ch_bam_split.for_peakcalling.filter { it -> it[0].is_control == false }
         .set { ch_bam_target }
-        ch_samtools_bam.filter { it -> it[0].is_control == true }
+        ch_bam_split.for_peakcalling.filter { it -> it[0].is_control == true }
         .set { ch_bam_control }
+
+        ch_bam_target
+            .multiMap { row ->
+                for_peakcalling: row
+                for_promoter_gc: row
+            }
+            .set { ch_bam_target_split }
+
+        ch_bam_target_split.for_promoter_gc
+            .map { meta, bam -> [meta.id, [meta, bam]] }
+            .join(ch_bai_split.for_peakcalling.filter { it -> it[0].is_control == false }.map { meta, bai -> [meta.id, [meta, bai]] }, by: 0)
+            .map { sid, left_row, right_row -> [left_row[0], left_row[1], right_row[1]] }
+            .set { ch_promoter_gc_bam_bai }
+
         //ch_bam_target | view
         //ch_bam_control | view
 
@@ -686,7 +717,7 @@ workflow CUTANDRUN {
                 * CHANNEL: Create target/control pairings
                 */
                 ch_bam_control.map{ row -> [row[0].control_group + "_" + row[0].replicate, row] }
-                .cross( ch_bam_target.map{ row -> [row[0].control_group, row] } )
+                .cross( ch_bam_target_split.for_peakcalling.map{ row -> [row[0].control_group, row] } )
                 .map {
                     row ->
                     [ row[1][1][0], row[1][1][1], row[0][1][1] ]
@@ -733,7 +764,7 @@ workflow CUTANDRUN {
                 /*
                 * CHANNEL: Add fake control channel
                 */
-                ch_bam_target.map{ row-> [ row[0], row[1], [] ] }
+                ch_bam_target_split.for_peakcalling.map{ row-> [ row[0], row[1], [] ] }
                 .set { ch_samtools_bam_target_fctrl }
                 // EXAMPLE CHANNEL STRUCT: [[META], BAM, FAKE_CTRL]
                 //ch_samtools_bam_target_fctrl | view
@@ -778,7 +809,8 @@ workflow CUTANDRUN {
                 awk_name: row
                 merge_table: row
                 homer_annot: row
-                promoter_gc: row
+                promoter_gc_match: row
+                promoter_gc_debug: row
                 peak_qc: row
                 igv_a: row
                 igv_b: row
@@ -954,101 +986,63 @@ workflow CUTANDRUN {
                 if (!s) {
                     return null
                 }
-                // Normalize common replicate suffixes such as _R1 or _R1_sorted.
-                def m = (s =~ /^(.+?)_R\d+(?:[_\.-].*)?$/)
-                if (m.matches()) {
-                    return m[0][1]
+                // Normalize common replicate and technical-replicate suffixes such as
+                // _R1, _R1_T1, _R1_sorted, or _T1.
+                def normalized = s
+                while (normalized ==~ /^.+?_[RT]\d+(?:[_\.-].*)?$/) {
+                    normalized = normalized.replaceFirst(/_[RT]\d+(?:[_\.-].*)?$/, '')
                 }
-                return s
+                return normalized
             }
 
-            def contrast_conditions = { contrast ->
-                def out = [] as LinkedHashSet
-                out << canonical_condition(contrast?.group_a)
-                out << canonical_condition(contrast?.group_b)
-                out.findAll { it != null }
-            }
-
-            def meta_conditions = { meta ->
-                def out = [] as LinkedHashSet
-                [meta?.group, meta?.condition, meta?.sample, meta?.id].each { v ->
-                    def raw = v?.toString()?.trim()
-                    if (raw) {
-                        out << raw
-                        out << canonical_condition(raw)
+            def unwrap_meta = { value ->
+                def current = value
+                while (current instanceof List && !current.isEmpty()) {
+                    def first = current[0]
+                    if (first instanceof Map) {
+                        return first
                     }
+                    current = first
                 }
-                out.findAll { it != null }
+                return (current instanceof Map) ? current : null
             }
 
-            def matches_condition = { condition, query ->
-                if (!condition || !query) {
-                    return false
-                }
-                if (condition == query) {
-                    return true
-                }
-                condition ==~ /^${java.util.regex.Pattern.quote(query)}(?:[_\.-].*)$/
-            }
-
-            def match_contrast_group = { meta, contrast ->
-                if (!meta || !contrast) {
-                    return false
-                }
-                def wanted = contrast_conditions(contrast)
-                if (wanted.isEmpty()) {
-                    return false
-                }
-                def seen = meta_conditions(meta)
-                seen.any { c -> wanted.any { w -> matches_condition(c, w) } }
-            }
-
-            def resolve_group = { meta, contrast ->
-                if (!meta || !contrast) {
-                    return null
-                }
-                def a = canonical_condition(contrast.group_a)
-                def b = canonical_condition(contrast.group_b)
-                def seen = meta_conditions(meta)
-                if (seen.any { c -> matches_condition(c, a) }) {
-                    return contrast.group_a
-                }
-                if (seen.any { c -> matches_condition(c, b) }) {
-                    return contrast.group_b
-                }
-                return null
+            def peak_group_key = { meta ->
+                meta = unwrap_meta(meta)
+                def raw = meta?.group ?: meta?.condition ?: meta?.sample ?: meta?.id ?: meta?.control_group
+                return canonical_condition(raw)
             }
 
             Channel
                 .fromList(promoter_gc_contrasts)
-                .combine(ch_peaks_primary_split.promoter_gc)
-                .filter { row ->
-                    def contrast = (row instanceof List && row.size() > 0) ? row[0] : null
-                    def peak_meta = null
-                    if (row instanceof List && row.size() > 2) {
-                        peak_meta = row[1]
-                    } else {
-                        def peak_row = (row instanceof List && row.size() > 1) ? row[1] : null
-                        peak_meta = (peak_row instanceof List && peak_row.size() > 0) ? peak_row[0] : null
-                    }
-                    match_contrast_group(peak_meta, contrast)
-                }
+                .combine(ch_peaks_primary_split.promoter_gc_match)
                 .map { row ->
                     def contrast = row[0]
                     def peak_meta = null
                     def peak_bed = null
-                    if (row instanceof List && row.size() > 2) {
+                    if (row instanceof List && row.size() > 2 && row[1] instanceof Map) {
+                        // combine() may flatten tuples as [contrast, meta, bed]
                         peak_meta = row[1]
                         peak_bed = row[2]
                     } else {
-                        def peak_row = row[1]
-                        peak_meta = peak_row[0]
-                        peak_bed = peak_row[1]
+                        // Defensive fallback for nested tuple shapes: [contrast, [meta, bed]]
+                        def peak_row = (row instanceof List && row.size() > 1) ? row[1] : null
+                        peak_meta = unwrap_meta(peak_row)
+                        peak_bed = (peak_row instanceof List && peak_row.size() > 1) ? peak_row[1] : null
                     }
-                    def grp = resolve_group(peak_meta, contrast)
-                    [contrast.id, contrast, grp, peak_bed]
+                    def peak_key = peak_group_key(peak_meta)
+                    def group_a_key = canonical_condition(contrast?.group_a)
+                    def group_b_key = canonical_condition(contrast?.group_b)
+                    [contrast, peak_key, group_a_key, group_b_key, peak_bed]
                 }
-                .filter { row -> row[2] != null }
+                .filter { row -> row[1] && row[4] && (row[1] == row[2] || row[1] == row[3]) }
+                .map { row ->
+                    def contrast = row[0]
+                    def peak_key = row[1]
+                    def peak_bed = row[4]
+                    def matched_group = (peak_key == row[2]) ? contrast.group_a : contrast.group_b
+                    [contrast.id, contrast, matched_group, peak_bed]
+                }
                 .groupTuple(by: 0)
                 .map { contrast_id, contrasts, groups, beds ->
                     def contrast = contrasts[0]
@@ -1079,37 +1073,46 @@ workflow CUTANDRUN {
                 }
                 .set { ch_promoter_gc_merged_bed_split }
 
+            log.info "DEBUG: Promoter GC contrasts: ${promoter_gc_contrasts.size()} items"
+            ch_peaks_primary_split.promoter_gc_debug.view { "DEBUG peak row: meta.group=${it[0]?.group}, meta.id=${it[0]?.id}" }
+
+            def bam_group_key = { meta ->
+                meta = unwrap_meta(meta)
+                def raw = meta?.group ?: meta?.condition ?: meta?.sample ?: meta?.id ?: meta?.control_group
+                return canonical_condition(raw)
+            }
+
             Channel
                 .fromList(promoter_gc_contrasts)
-                .combine(ch_samtools_bam.join(ch_samtools_bai, by: 0))
-                .filter { pair ->
-                    def contrast = (pair instanceof List && pair.size() > 0) ? pair[0] : null
-                    def bam_meta = null
-                    if (pair instanceof List && pair.size() > 3) {
-                        bam_meta = pair[1]
-                    } else {
-                        def row = (pair instanceof List && pair.size() > 1) ? pair[1] : null
-                        bam_meta = (row instanceof List && row.size() > 0) ? row[0] : null
-                    }
-                    match_contrast_group(bam_meta, contrast)
-                }
+                .combine(ch_promoter_gc_bam_bai)
+                .view { "DEBUG: Combined contrast+BAM pair: ${it}" }
                 .map { pair ->
                     def contrast = pair[0]
                     def bam_meta = null
                     def bam_file = null
                     def bai_file = null
-                    if (pair instanceof List && pair.size() > 3) {
+                    if (pair instanceof List && pair.size() > 3 && pair[1] instanceof Map) {
+                        // combine() may flatten tuples as [contrast, meta, bam, bai]
                         bam_meta = pair[1]
                         bam_file = pair[2]
                         bai_file = pair[3]
                     } else {
-                        def row = pair[1]
-                        bam_meta = row[0]
-                        bam_file = row[1]
-                        bai_file = row[2]
+                        // Defensive fallback for nested tuple shapes: [contrast, [meta, bam, bai]]
+                        def bam_row = (pair instanceof List && pair.size() > 1) ? pair[1] : null
+                        bam_meta = unwrap_meta(bam_row)
+                        bam_file = (bam_row instanceof List && bam_row.size() > 1) ? bam_row[1] : null
+                        bai_file = (bam_row instanceof List && bam_row.size() > 2) ? bam_row[2] : null
                     }
-                    def grp = resolve_group(bam_meta, contrast)
-                    [contrast.id, contrast, grp, bam_file, bai_file, bam_meta.id]
+                    def bam_key = bam_group_key(bam_meta)
+                    def group_a_key = canonical_condition(contrast?.group_a)
+                    def group_b_key = canonical_condition(contrast?.group_b)
+                    def grp = null
+                    if (bam_key && bam_key == group_a_key) {
+                        grp = contrast.group_a
+                    } else if (bam_key && bam_key == group_b_key) {
+                        grp = contrast.group_b
+                    }
+                    [contrast.id, contrast, grp, bam_file, bai_file, bam_meta?.id]
                 }
                 .filter { row -> row[2] != null }
                 .groupTuple(by: 0)
@@ -1117,6 +1120,12 @@ workflow CUTANDRUN {
                     def contrast = contrasts[0]
                     if (!groups.contains(contrast.group_a) || !groups.contains(contrast.group_b)) {
                         error "Contrast ${contrast.id} is missing BAMs from one or both groups"
+                    }
+                    def group_counts = groups.countBy { it }
+                    def group_a_count = group_counts[contrast.group_a] ?: 0
+                    def group_b_count = group_counts[contrast.group_b] ?: 0
+                    if (group_a_count < 2 || group_b_count < 2) {
+                        error "Contrast ${contrast.id} requires at least two BAMs per group for DESeq2, but found ${group_a_count} for ${contrast.group_a} and ${group_b_count} for ${contrast.group_b}. Update --promoter_gc_contrasts or the input samplesheet."
                     }
                     def idx = (0..<labels.size()).toList().sort { labels[it] }
                     def sorted_bams = idx.collect { bams[it] }
@@ -1330,6 +1339,33 @@ workflow CUTANDRUN {
                 .map { rows -> [bigwig_rows: rows] }
                 .set { ch_bigwig_all_for_pygt }
 
+            HOMER_ANNOTATEPEAKS_CONSENSUS (
+                ch_consensus_peaks,
+                ch_fasta_for_peak_annotation,
+                ch_gtf_for_peak_annotation
+            )
+            ch_software_versions = ch_software_versions.mix(HOMER_ANNOTATEPEAKS_CONSENSUS.out.versions)
+
+            def ch_consensus_peak_chipseeker_annotations
+            if (params.run_chipseeker) {
+                CHIPSEEKER_ANNOTATE_CONSENSUS (
+                    HOMER_ANNOTATEPEAKS_CONSENSUS.out.annot,
+                    file("${projectDir}/assets/dummy_file.txt"),
+                    ch_gtf_for_peak_annotation
+                )
+                ch_software_versions = ch_software_versions.mix(CHIPSEEKER_ANNOTATE_CONSENSUS.out.versions)
+                ch_consensus_peak_chipseeker_annotations = CHIPSEEKER_ANNOTATE_CONSENSUS.out.annotation
+                    .map { meta, anno -> [meta.id, meta, anno] }
+            }
+
+            ch_consensus_peak_annotations = HOMER_ANNOTATEPEAKS_CONSENSUS.out.annot
+                .map { meta, table -> [meta.id, meta, table] }
+
+            if (!params.run_chipseeker) {
+                ch_consensus_peak_chipseeker_annotations = ch_consensus_peak_annotations
+                    .map { id, meta, table -> [id, meta, file("${projectDir}/assets/dummy_file.txt")] }
+            }
+
             ch_consensus_peaks
                 .combine(ch_bigwig_all_for_pygt)
                 .map { row ->
@@ -1357,9 +1393,14 @@ workflow CUTANDRUN {
                         tracks << control_rep
                     }
 
-                    [meta, bed, tracks, own_bigwigs.size(), control_rep ? 1 : 0]
+                    [meta.id, meta, bed, tracks, own_bigwigs.size(), control_rep ? 1 : 0]
                 }
                 .filter { row -> row[2] && row[2].size() > 0 }
+                .join(ch_consensus_peak_annotations, by: 0)
+                .join(ch_consensus_peak_chipseeker_annotations, by: 0)
+                .map { group_id, meta, bed, tracks, own_count, has_control, annot_meta, annot_table, chip_meta, chip_table ->
+                    [meta, bed, tracks, own_count, has_control, chip_table, annot_table]
+                }
                 .set { ch_pygenometracks_top10_input }
 
             PYGENOMETRACKS_TOP10(
@@ -1367,6 +1408,10 @@ workflow CUTANDRUN {
                 PREPARE_GENOME.out.gtf.first(),
                 params.pygt_top_n,
                 params.pygt_peak_flank,
+                params.pygt_window_bp,
+                params.pygt_rank_mode,
+                params.pygt_feature_types,
+                params.pygt_feature_anchor_window,
                 params.pygt_output_format
             )
             ch_software_versions = ch_software_versions.mix(PYGENOMETRACKS_TOP10.out.versions)

@@ -670,10 +670,41 @@
                 },
                 "pygt_peak_flank": {
                     "type": "integer",
-                    "default": 1000,
+                    "default": 2000,
                     "minimum": 0,
                     "fa_icon": "fas fa-ruler-horizontal",
                     "description": "Flank in bp added around each peak midpoint for pyGenomeTracks region rendering"
+                },
+                "pygt_window_bp": {
+                    "type": "integer",
+                    "default": 0,
+                    "minimum": 0,
+                    "fa_icon": "fas fa-search-minus",
+                    "description": "Exact per-panel window size in bp centered at peak midpoint",
+                    "help_text": "If greater than zero, this overrides pygt_peak_flank and renders each panel at a fixed width (for example 1000 bp)."
+                },
+                "pygt_rank_mode": {
+                    "type": "string",
+                    "default": "by_feature",
+                    "enum": ["global", "by_feature"],
+                    "fa_icon": "fas fa-layer-group",
+                    "description": "How top peaks are selected for pyGenomeTracks",
+                    "help_text": "global: top-N peaks overall per group; by_feature: top-N peaks per feature class (for example promoter, TES, UTR)."
+                },
+                "pygt_feature_types": {
+                    "type": "string",
+                    "default": "promoter,TES,UTR,exon,intron,intergenic",
+                    "fa_icon": "fas fa-tags",
+                    "description": "Comma-separated feature classes to include when pygt_rank_mode=by_feature",
+                    "help_text": "Supported classes are promoter, TES, UTR, exon, intron, intergenic."
+                },
+                "pygt_feature_anchor_window": {
+                    "type": "integer",
+                    "default": 3000,
+                    "minimum": 0,
+                    "fa_icon": "fas fa-bullseye",
+                    "description": "Window in bp around TSS/TES used for promoter/TES feature assignment",
+                    "help_text": "Used by pyGenomeTracks top-feature selection when classifying peaks into promoter and TES."
                 },
                 "pygt_output_format": {
                     "type": "string",

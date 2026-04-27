@@ -71,7 +71,14 @@ module load Java/17.0.6 && nextflow run main.nf \
   -profile singularity \
   -work-dir work_33K \
   -resume
+
+
+  ## 2026_04_25 
+  nextflow run main.nf --input samplesheet_33K.csv --outdir results_33K --normalisation_mode Spikein -profile singularity,slurm -work-dir work_33K --peakcaller macs2 --run_homer_peak_annotation true --run_chipseeker true --run_chipseeker_compare true --publish_frip true --bigwigcompare_binsize 5 --genome hg38 --run_pygenometracks_top10 --blacklist assets/blacklists/hg38-blacklist.bed --run_promoter_gc_diffbind true --promoter_gc_contrasts assets/promoter_gc_contrasts.example_33K.tsv -resume --pygt_peak_flank 5000 --pygt_window_bp 0 --pygt_rank_mode by_feature --pygt_feature_types promoter,TES,UTR,exon,intron,intergenic --pygt_feature_anchor_window 3000
 ```
+
+
+
 
 
 ## Table of Contents
@@ -729,6 +736,7 @@ Located in: `results/03_peak_calling/11_differential_binding/{group_a}_vs_{group
   - `{contrast}.deseq2_results.tsv`
   - `{contrast}.promoter_peaks.tsv`
   - `{contrast}.promoter_loss.tsv`
+  - `{contrast}.promoter_gain.tsv`
   - `{contrast}.promoter_not_affected.tsv`
   - `{contrast}.volcano.png/.pdf` (with top-5 gain/loss `GeneName` labels)
 - Top-N raw p-value outputs:
@@ -752,7 +760,7 @@ Use this as a practical reading order for each contrast:
 
 Recommended interpretation boundaries:
 
-- FDR-based calls (`promoter_loss`, `promoter_not_affected`) should be treated as higher-confidence differential classes.
+- FDR-based calls (`promoter_loss`, `promoter_gain`, `promoter_not_affected`) should be treated as higher-confidence differential classes.
 - Top-N raw p-value calls are ranking-based exploratory sets and are expected to be less stringent.
 - With small replicate numbers, effect-size consistency across replicates and orthogonal validation (IGV tracks, qPCR, or follow-up assays) are strongly recommended before biological conclusions.
 
@@ -852,3 +860,6 @@ Downsampling is applied only to visualization bigWigs and does not affect peak c
   - `03_peak_calling/02_clip_bed_visual/`
   - `03_peak_calling/03_bed_to_bigwig_visual/`
   - `03_peak_calling/07_bigwig_minus_igg_visual/`
+
+
+

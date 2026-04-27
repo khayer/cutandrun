@@ -257,8 +257,10 @@ promoter_df <- annotated_kept[annotated_kept$promoter_window, , drop = FALSE]
 write.table(promoter_df, file = paste0(prefix, ".promoter_peaks.tsv"), sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
 
 promoter_loss <- promoter_df[promoter_df$status == "loss", , drop = FALSE]
+promoter_gain <- promoter_df[promoter_df$status == "gain", , drop = FALSE]
 promoter_unchanged <- promoter_df[promoter_df$status == "unchanged", , drop = FALSE]
 write.table(promoter_loss, file = paste0(prefix, ".promoter_loss.tsv"), sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
+write.table(promoter_gain, file = paste0(prefix, ".promoter_gain.tsv"), sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
 write.table(promoter_unchanged, file = paste0(prefix, ".promoter_not_affected.tsv"), sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
 
 gc_df <- promoter_df[promoter_df$status %in% c("loss", "unchanged") & !is.na(promoter_df$GC_percent), , drop = FALSE]

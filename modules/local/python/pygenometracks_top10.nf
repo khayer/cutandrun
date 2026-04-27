@@ -11,10 +11,14 @@ process PYGENOMETRACKS_TOP10 {
         'biocontainers/pygenometracks:3.9--pyhdfd78af_0' }"
 
     input:
-    tuple val(meta), path(consensus_bed), path(bigwigs), val(own_count), val(has_control)
+    tuple val(meta), path(consensus_bed), path(bigwigs), val(own_count), val(has_control), path(chipseeker_annot), path(homer_annot)
     path gtf
     val top_n
     val flank
+    val window_bp
+    val rank_mode
+    val feature_types
+    val feature_anchor_window
     val output_format
 
     output:
@@ -34,9 +38,15 @@ process PYGENOMETRACKS_TOP10 {
     python ${workflow.projectDir}/bin/plot_top10_peaks_pygenometracks.py \
         --consensus-bed ${consensus_bed} \
         --gtf ${gtf} \
+        --chipseeker-annot ${chipseeker_annot} \
+        --homer-annot ${homer_annot} \
         --group-id ${meta.id} \
         --top-n ${top_n} \
         --flank ${flank} \
+        --window-bp ${window_bp} \
+        --rank-mode ${rank_mode} \
+        --feature-types "${feature_types}" \
+        --anchor-window ${feature_anchor_window} \
         --out-regions-tsv ${meta.id}/top_regions.tsv \
         --out-top-bed ${meta.id}/top_peaks.bed
 
