@@ -11,6 +11,7 @@ process HOMER_FINDMOTIFSGENOME {
     container "${ workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container ?
         'https://depot.galaxyproject.org/singularity/homer:4.11--pl526hc9558a2_3' :
         'biocontainers/homer:4.11--pl526hc9558a2_3' }"
+    publishDir "${params.outdir}/05_motif_annotation/homer", mode: 'copy', saveAs: { filename -> "${task.tag}/${filename}" }
 
     input:
     tuple val(meta), path(bed)

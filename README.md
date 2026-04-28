@@ -99,6 +99,27 @@ To see the the results of a test run with a full size dataset refer to the [resu
 For more details about the output files and reports, please refer to the
 [output documentation](https://nf-co.re/cutandrun/output).
 
+## CUT_and_RUN Report
+
+A comprehensive HTML report can be generated at the end of the pipeline that summarizes key results and QC metrics. This report is organized by analysis type and includes:
+
+- **QC Section**: Sample-level QC metrics (FRiP, fragment length, mapping quality)
+- **Promoter GC / Differential Binding**: Promoter gain/loss TSVs, volcano plots, and MA plots
+- **Motifs & Annotations**: HOMER motif enrichment results and ChIPseeker annotations
+
+To enable report generation, add the `--with-report` flag to your Nextflow command:
+
+```bash
+nextflow run nf-core/cutandrun \
+  -profile <docker/singularity/...> \
+  --input samplesheet.csv \
+  --genome GRCh38 \
+  --outdir results \
+  --with-report
+```
+
+The report will be generated as `results/report/CUT_and_RUN_report.html` and includes interactive tables and download links for TSV files for downstream analysis.
+
 ## Credits
 
 nf-core/cutandrun was originally written by Chris Cheshire ([@chris-cheshire](https://github.com/chris-cheshire)) and Charlotte West ([@charlotte-west](https://github.com/charlotte-west)) from [Luscombe Lab](https://www.crick.ac.uk/research/labs/nicholas-luscombe) at [The Francis Crick Institute](https://www.crick.ac.uk/), London, UK.

@@ -10,6 +10,8 @@ process PYGENOMETRACKS_TOP10 {
         'https://depot.galaxyproject.org/singularity/pygenometracks:3.9--pyhdfd78af_0' :
         'biocontainers/pygenometracks:3.9--pyhdfd78af_0' }"
 
+    publishDir "${params.outdir}/04_consensus_peaks/pygenometracks_top10", mode: 'copy', saveAs: { filename -> "${task.tag}/${filename}" }
+
     input:
     tuple val(meta), path(consensus_bed), path(bigwigs), val(own_count), val(has_control), path(chipseeker_annot), path(homer_annot)
     path gtf

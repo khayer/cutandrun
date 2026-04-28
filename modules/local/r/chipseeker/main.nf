@@ -2,6 +2,7 @@ process CHIPSEEKER_ANNOTATE {
     tag "$meta.id"
     label 'process_medium'
     container 'docker://weishwu/chipseeker:1.42.0'
+    publishDir "${params.outdir}/04_consensus_peaks/chipseeker", mode: 'copy', saveAs: { filename -> "${task.tag}/${filename}" }
 
     input:
     tuple val(meta), path(peaks_annotated)

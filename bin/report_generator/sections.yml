@@ -1,0 +1,27 @@
+# Sections mapping for CUT_and_RUN_report
+# title: Title shown in report
+# question: biological question the section answers
+# globs: list of glob patterns (relative to staging dir) that feed the section
+
+qc:
+  title: QC
+  question: "Are sample-level QC metrics within expected ranges? (FRiP, fragment length, mapping quality)"
+  globs:
+    - "*_mqc.tsv"
+    - "frag_len_*.png"
+
+promoter_gc:
+  title: Promoter GC / Differential Binding
+  question: "Which promoter regions show gain or loss of binding between groups?"
+  globs:
+    - "*.promoter_gain.tsv"
+    - "*.promoter_loss.tsv"
+    - "*.volcano.png"
+    - "*.ma_plot.png"
+
+annotations:
+  title: Motifs & Annotations
+  question: "What motifs and genomic annotations are enriched in peaks?"
+  globs:
+    - "**/homerResults.html"
+    - "*_chipseeker_annotation.tsv"

@@ -122,6 +122,7 @@ include { AWK as AWK_EXTRACT_SUMMITS } from "../modules/local/linux/awk"
 include { SAMTOOLS_CUSTOMVIEW        } from "../modules/local/samtools_custom_view"
 include { FRAG_LEN_HIST              } from "../modules/local/python/frag_len_hist"
 include { MULTIQC                    } from "../modules/local/multiqc"
+include { REPORT                     } from "../modules/local/report"
 include { MERGE_PEAKS_TABLE          } from "../modules/local/python/merge_peaks_table"
 include { MERGE_PEAKS_TABLE_CONTRAST } from "../modules/local/python/merge_peaks_table_contrast"
 include { DOWNSAMPLE_BAM             } from "../modules/local/samtools_downsample"
@@ -1682,6 +1683,16 @@ workflow CUTANDRUN {
             ch_linear_duplication_mqc.collect{it[1]}.ifEmpty([])
         )
         multiqc_report = MULTIQC.out.report.toList()
+        
+        /*
+        * MODULE: Generate CUT_and_RUN HTML Report
+        */
+        if(params.with_report) {
+            REPORT (
+                Channel.of(params.outdir)
+            )
+            ch_software_versions = ch_software_versions.mix(REPORT.out.versions)
+        }
     }
 }
 
