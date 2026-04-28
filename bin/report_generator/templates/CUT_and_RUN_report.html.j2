@@ -4,8 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CUT_and_RUN_report</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+    <link href="static/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="static/css/dataTables.bootstrap5.min.css">
     <style>
       body { padding-top: 3.5rem; }
       .nav-sidebar { position: fixed; top: 56px; left: 0; width: 220px; height: 100%; padding: 1rem; overflow-y: auto; }
@@ -25,6 +25,7 @@
       <ul class="nav flex-column">
         <li class="nav-item"><a class="nav-link" href="#qc">QC</a></li>
         <li class="nav-item"><a class="nav-link" href="#promoter_gc">Promoter GC / Differential Binding</a></li>
+        <li class="nav-item"><a class="nav-link" href="#peaks">Peak Visualizations</a></li>
         <li class="nav-item"><a class="nav-link" href="#annotations">Motifs & Annotations</a></li>
       </ul>
     </div>
@@ -34,13 +35,9 @@
         <div id="qc" class="section">
           <h3>QC</h3>
           <p><strong>Question:</strong> Are sample-level QC metrics within expected ranges? (FRiP, fragment length, mapping quality)</p>
-          {% if ctx.frip %}
-          <h5>FRiP / QC tables</h5>
-          <ul>
-            {% for f in ctx.frip %}
-              <li><a href="{{ f|replace(ctx.staging_dir + '/', '') }}">{{ f|basename }}</a></li>
-            {% endfor %}
-          </ul>
+          {% if ctx.previews.frip %}
+          <h5>FRiP Scores</h5>
+          <div class=\"table-responsive\">{{ ctx.previews.frip|safe }}</div>
           {% else %}
           <p>No FRiP metrics found in staging directory.</p>
           {% endif %}
@@ -53,7 +50,7 @@
           <h5>Promoter Gain (preview)</h5>
           {% if ctx.previews.promoter_gain %}
           <div class="table-responsive">{{ ctx.previews.promoter_gain|safe }}</div>
-          <p><a href="{{ ctx.promoter_gain[0]|replace(ctx.staging_dir + '/', '') }}">Download full promoter_gain.tsv</a></p>
+          <p><a href="{{ ctx.promoter_gain_rel[0] if ctx.promoter_gain_rel else '#' }}">Download full promoter_gain.tsv</a></p>
           {% else %}
           <p>No promoter_gain.tsv found.</p>
           {% endif %}
@@ -61,7 +58,7 @@
           <h5>Promoter Loss (preview)</h5>
           {% if ctx.previews.promoter_loss %}
           <div class="table-responsive">{{ ctx.previews.promoter_loss|safe }}</div>
-          <p><a href="{{ ctx.promoter_loss[0]|replace(ctx.staging_dir + '/', '') }}">Download full promoter_loss.tsv</a></p>
+          <p><a href="{{ ctx.promoter_loss_rel[0] if ctx.promoter_loss_rel else '#' }}">Download full promoter_loss.tsv</a></p>
           {% else %}
           <p>No promoter_loss.tsv found.</p>
           {% endif %}
@@ -69,15 +66,15 @@
           <h5>Volcano / MA plots</h5>
           <div class="row">
             <div class="col-md-6">
-              {% if ctx.volcano %}
-                <img src="{{ ctx.volcano[0]|replace(ctx.staging_dir + '/', '') }}" alt="volcano" class="img-fluid">
+              {% if ctx.volcano_rel %}
+                <img src="{{ ctx.volcano_rel[0] }}" alt="volcano" class="img-fluid">
               {% else %}
                 <p>No volcano plot found.</p>
               {% endif %}
             </div>
             <div class="col-md-6">
-              {% if ctx.ma %}
-                <img src="{{ ctx.ma[0]|replace(ctx.staging_dir + '/', '') }}" alt="MA plot" class="img-fluid">
+              {% if ctx.ma_rel %}
+                <img src="{{ ctx.ma_rel[0] }}" alt="MA plot" class="img-fluid">
               {% else %}
                 <p>No MA plot found.</p>
               {% endif %}
@@ -85,11 +82,35 @@
           </div>
         </div>
 
+        <div id="peaks" class="section">
+          <h3>Peak Visualizations</h3>
+          <p><strong>Question:</strong> What do the top peaks look like across samples? (pyGenomeTracks snapshots)</p>
+          {% if ctx.pygenometracks_dirs_rel %}
+            {% for condition, images in ctx.pygenometracks_dirs_rel.items() %}
+              <h5>{{ condition }} - Top Peaks</h5>
+              <div class="row">
+                {% for img in images %}
+                  <div class="col-md-6" style="margin-bottom: 1rem;">
+                    <img src="{{ img }}" alt="{{ img|basename }}" class="img-fluid">
+                  </div>
+                {% endfor %}
+              </div>
+            {% endfor %}
+          {% else %}
+            <p>No peak visualizations found.</p>
+          {% endif %}
+        </div>
+
         <div id="annotations" class="section">
           <h3>Motifs & Annotations</h3>
           <p><strong>Question:</strong> What motifs and genomic annotations are enriched in peaks?</p>
-          {% if ctx.homer_html %}
-            <p>HOMER results: <a href="{{ ctx.homer_html[0]|replace(ctx.staging_dir + '/', '') }}">{{ ctx.homer_html[0]|basename }}</a></p>
+          {% if ctx.homer_html_rel %}
+            <h5>HOMER Motif Analysis</h5>
+            <ul>
+              {% for homer_result in ctx.homer_html_rel %}
+                <li><a href="{{ homer_result }}">{{ homer_result|dirname|basename }} motifs</a></li>
+              {% endfor %}
+            </ul>
           {% else %}
             <p>No HOMER results found.</p>
           {% endif %}
@@ -97,7 +118,7 @@
           {% if ctx.previews.chipseeker %}
             <h5>ChIPseeker annotation (preview)</h5>
             <div class="table-responsive">{{ ctx.previews.chipseeker|safe }}</div>
-            <p><a href="{{ ctx.chipseeker[0]|replace(ctx.staging_dir + '/', '') }}">Download full ChIPseeker annotation TSV</a></p>
+            <p><a href="{{ ctx.chipseeker_rel[0] if ctx.chipseeker_rel else '#' }}">Download full ChIPseeker annotation TSV</a></p>
           {% else %}
             <p>No ChIPseeker annotation found.</p>
           {% endif %}
@@ -106,8 +127,9 @@
       </div>
     </main>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+    <script src="static/js/jquery.min.js"></script>
+    <script src="static/js/bootstrap.bundle.min.js"></script>
+    <script src="static/js/jquery.dataTables.min.js"></script>
+    <script src="static/js/dataTables.bootstrap5.min.js"></script>
   </body>
 </html>
