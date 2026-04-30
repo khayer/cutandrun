@@ -1683,16 +1683,16 @@ workflow CUTANDRUN {
             ch_linear_duplication_mqc.collect{it[1]}.ifEmpty([])
         )
         multiqc_report = MULTIQC.out.report.toList()
-        
-        /*
-        * MODULE: Generate CUT_and_RUN HTML Report
-        */
-        if(params.with_report) {
-            REPORT (
-                Channel.of(params.outdir)
-            )
-            ch_software_versions = ch_software_versions.mix(REPORT.out.versions)
-        }
+    }
+
+    /*
+    * MODULE: Generate CUT_and_RUN HTML Report
+    */
+    if(params.with_report) {
+        REPORT (
+            Channel.of(params.outdir)
+        )
+        ch_software_versions = ch_software_versions.mix(REPORT.out.versions)
     }
 }
 

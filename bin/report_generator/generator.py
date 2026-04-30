@@ -3,6 +3,7 @@ import argparse
 import json
 import os
 import glob
+import fnmatch
 import pathlib
 import shutil
 import pandas as pd
@@ -10,11 +11,31 @@ from jinja2 import Environment, FileSystemLoader
 
 
 def find_first(glob_patterns, base):
+    # Directories to skip during recursive search
+    skip_dirs = {'work', '.git', 'logs', 'tmp', '__pycache__', '.nextflow'}
+    
     for pat in glob_patterns:
-        # Use recursive glob so patterns with ** match nested publishDir output
-        matches = sorted(glob.glob(os.path.join(base, pat), recursive=True))
-        if matches:
-            return matches
+        if '**' not in pat:
+            # Non-recursive pattern - use glob as-is
+            matches = sorted(glob.glob(os.path.join(base, pat), recursive=False))
+            if matches:
+                return matches
+        else:
+            # Recursive pattern - use walk to have better control
+            matches = []
+            for root, dirs, files in os.walk(base):
+                # Filter out skip_dirs in-place to prevent traversal
+                dirs[:] = [d for d in dirs if d not in skip_dirs]
+                
+                # Convert pattern to filename pattern for matching
+                pat_filename = pat.replace('**/', '').lstrip('/')
+                for file in files:
+                    if fnmatch.fnmatch(file, pat_filename):
+                        matches.append(os.path.join(root, file))
+            
+            if matches:
+                return sorted(matches)
+    
     return []
 
 
@@ -49,8 +70,28 @@ def parse_frip_scores(frip_files):
     return None
 
 
+def parse_gc_test(gc_test_path):
+    """Parse gc_test.tsv file and return as HTML table."""
+    try:
+        df = pd.read_csv(gc_test_path, sep="\t")
+        # Format numeric columns for display
+        if 'p_value' in df.columns:
+            df['p_value'] = df['p_value'].apply(lambda x: f"{x:.2e}" if pd.notna(x) else x)
+        if 'statistic' in df.columns:
+            df['statistic'] = df['statistic'].apply(lambda x: f"{x:.2f}" if pd.notna(x) else x)
+        for col in ['median_gc_loss', 'median_gc_gain', 'median_difference']:
+            if col in df.columns:
+                df[col] = df[col].apply(lambda x: f"{x:.4f}" if pd.notna(x) else x)
+        return df.to_html(classes='table table-sm table-striped', index=False, na_rep='NA', escape=False)
+    except Exception as e:
+        return f"<pre>Error loading gc_test.tsv: {e}</pre>"
+
+
 def build_context(staging_dir):
     ctx = {}
+    def is_report_artifact(path):
+        return f"{os.path.sep}report{os.path.sep}artifacts{os.path.sep}" in path.replace('/', os.path.sep)
+
     # Files of interest
     ctx['promoter_gain'] = find_first(["*.promoter_gain.tsv", "*/.promoter_gain.tsv", "**/*.promoter_gain.tsv"], staging_dir)
     ctx['promoter_loss'] = find_first(["*.promoter_loss.tsv", "**/*.promoter_loss.tsv"], staging_dir)
@@ -58,19 +99,90 @@ def build_context(staging_dir):
     ctx['volcano'] = find_first(["*.volcano.png", "**/*.volcano.png"], staging_dir)
     ctx['ma'] = find_first(["*.ma_plot.png", "**/*.ma_plot.png"], staging_dir)
     ctx['top_images'] = find_first(["*top*_volcano_raw_pvalue.png", "**/*top*_volcano_raw_pvalue.png", "pygt*.png", "**/pygt*.png"], staging_dir)
-    # Find pygenometracks directories grouped by condition
-    pygt_base = sorted(glob.glob(os.path.join(staging_dir, '**', 'pygenometracks_top10'), recursive=True))
-    ctx['pygenometracks_dirs'] = {}
+    # Find pygenometracks directories grouped by condition and feature
+    pygt_base = [path for path in sorted(glob.glob(os.path.join(staging_dir, '**', 'pygenometracks_top10'), recursive=True)) if not is_report_artifact(path)]
+    ctx['pygenometracks'] = {}
     if pygt_base:
         for pygt_dir in pygt_base:
-            for condition_dir in glob.glob(os.path.join(pygt_dir, '*')):
+            for condition_dir in sorted(glob.glob(os.path.join(pygt_dir, '*'))):
                 if os.path.isdir(condition_dir):
                     condition_name = os.path.basename(condition_dir)
-                    images = sorted(glob.glob(os.path.join(condition_dir, '*.png')))
-                    if images:
-                        ctx['pygenometracks_dirs'][condition_name] = images
+                    feature_groups = {}
+                    for image_path in sorted(glob.glob(os.path.join(condition_dir, '*.png'))):
+                        basename = os.path.basename(image_path)
+                        prefix = f"{condition_name}_"
+                        remainder = basename[len(prefix):] if basename.startswith(prefix) else basename
+                        parts = remainder.split('_')
+                        feature = 'Other'
+                        if len(parts) >= 1:
+                            feature_token = parts[0].lower()
+                            if feature_token == 'tes':
+                                feature = 'TES'
+                            else:
+                                feature = feature_token.capitalize()
+                        feature_groups.setdefault(feature, []).append(image_path)
+                    if feature_groups:
+                        ctx['pygenometracks'][condition_name] = feature_groups
     ctx['chipseeker'] = find_first(["*_chipseeker_annotation.tsv", "**/*_chipseeker_annotation.tsv"], staging_dir)
     ctx['homer_html'] = find_first(["**/homerResults.html", "homerResults.html"], staging_dir)
+    ctx['homer_tables'] = sorted(glob.glob(os.path.join(staging_dir, '**', '*Motifs_Table.pdf'), recursive=True))
+    ctx['diffbind_plots'] = {}
+    ctx['diffbind_data'] = {}  # Store gain/loss/gc_test files per contrast
+    diffbind_roots = [path for path in sorted(glob.glob(os.path.join(staging_dir, '**', '11_differential_binding', '*'))) if not is_report_artifact(path)]
+    plot_priority = [
+        'top1000_promoter_gc_boxplot.png',
+        'top1000_promoter_gc_violin.png',
+        'top1000_volcano_raw_pvalue.png',
+        'promoter_gc_boxplot.png',
+        'promoter_gc_violin.png',
+        'volcano.png',
+        'ma_plot.png',
+    ]
+    for contrast_dir in diffbind_roots:
+        if not os.path.isdir(contrast_dir):
+            continue
+        if os.path.join('report', 'artifacts') in contrast_dir.replace(os.path.sep, '/'):
+            continue
+        contrast_name = os.path.basename(contrast_dir)
+        plot_map = {}
+        for image_path in glob.glob(os.path.join(contrast_dir, '*.png')):
+            plot_map[os.path.basename(image_path)] = image_path
+        ordered_plots = []
+        used = set()
+        for priority_suffix in plot_priority:
+            for filename, image_path in plot_map.items():
+                if filename.endswith(priority_suffix) and filename not in used:
+                    ordered_plots.append(image_path)
+                    used.add(filename)
+        for filename, image_path in sorted(plot_map.items()):
+            if filename not in used:
+                ordered_plots.append(image_path)
+        if ordered_plots:
+            ctx['diffbind_plots'][contrast_name] = ordered_plots
+        
+        # Find top 1000 gain/loss/gc_test files for this contrast
+        gain_file = None
+        loss_file = None
+        gc_test_file = None
+        for file_path in glob.glob(os.path.join(contrast_dir, '*.top1000_gain.tsv')):
+            gain_file = file_path
+            break
+        for file_path in glob.glob(os.path.join(contrast_dir, '*.top1000_loss.tsv')):
+            loss_file = file_path
+            break
+        for file_path in glob.glob(os.path.join(contrast_dir, '*.top1000_promoter_gc_test.tsv')):
+            gc_test_file = file_path
+            break
+        if gain_file or loss_file or gc_test_file:
+            ctx['diffbind_data'][contrast_name] = {
+                'gain': gain_file,
+                'loss': loss_file,
+                'gc_test': gc_test_file,
+            }
+    chp_plots = []
+    for pattern in ["**/*chipseeker*pdf", "**/*chipseeker*png", "**/*chipseeker*jpg"]:
+        chp_plots.extend(path for path in glob.glob(os.path.join(staging_dir, pattern), recursive=True) if not is_report_artifact(path))
+    ctx['chipseeker_plots'] = sorted(set(chp_plots))
     ctx['frip'] = find_first(["*_mqc.tsv", "**/*_mqc.tsv"], staging_dir)
 
     # Preview HTMLs
@@ -116,11 +228,15 @@ def render_template(staging_dir, out_html):
         """Copy artifact to artifacts/ folder and return relative link."""
         if not src_path or not os.path.exists(src_path):
             return None
-        dest_name = os.path.basename(src_path)
-        dest_path = os.path.join(artifacts_dir, dest_name)
+        rel_src = os.path.relpath(src_path, start=staging_dir)
+        rel_src = rel_src.replace(os.path.sep, '/')
+        dest_path = os.path.join(artifacts_dir, rel_src)
+        dest_dir = os.path.dirname(dest_path)
+        if not os.path.exists(dest_dir):
+            os.makedirs(dest_dir, exist_ok=True)
         if not os.path.exists(dest_path):
             shutil.copy2(src_path, dest_path)
-        return f"artifacts/{dest_name}"
+        return f"artifacts/{rel_src}"
     
     # Convert artifact lists to links within report folder
     ctx['promoter_gain_rel'] = [copy_artifact(p) for p in (ctx.get('promoter_gain') or [])]
@@ -129,12 +245,44 @@ def render_template(staging_dir, out_html):
     ctx['volcano_rel'] = [copy_artifact(p) for p in (ctx.get('volcano') or [])]
     ctx['ma_rel'] = [copy_artifact(p) for p in (ctx.get('ma') or [])]
     ctx['chipseeker_rel'] = [copy_artifact(p) for p in (ctx.get('chipseeker') or [])]
-    ctx['homer_html_rel'] = [copy_artifact(p) for p in (ctx.get('homer_html') or [])]
+    ctx['homer_reports'] = []
+    for p in (ctx.get('homer_html') or []):
+        label = os.path.basename(os.path.dirname(p))
+        ctx['homer_reports'].append({'label': label, 'link': copy_artifact(p)})
+    ctx['homer_tables_rel'] = [ {'label': os.path.basename(p), 'link': copy_artifact(p)} for p in (ctx.get('homer_tables') or []) ]
+    ctx['chipseeker_comparison_plots_rel'] = [
+        copy_artifact(p)
+        for p in (ctx.get('chipseeker_plots') or [])
+        if os.path.basename(p).startswith('chipseeker_comparison') and os.path.basename(p).endswith('.png')
+    ]
+    ctx['diffbind_plots_rel'] = {}
+    for contrast, plots in ctx.get('diffbind_plots', {}).items():
+        ctx['diffbind_plots_rel'][contrast] = [copy_artifact(plot) for plot in plots]
+    ctx['diffbind_data_rel'] = {}
+    for contrast, data in ctx.get('diffbind_data', {}).items():
+        gc_test_html = None
+        if data.get('gc_test'):
+            gc_test_html = parse_gc_test(data['gc_test'])
+        ctx['diffbind_data_rel'][contrast] = {
+            'gain': copy_artifact(data['gain']) if data.get('gain') else None,
+            'loss': copy_artifact(data['loss']) if data.get('loss') else None,
+            'gc_test': copy_artifact(data['gc_test']) if data.get('gc_test') else None,
+            'gc_test_html': gc_test_html,
+        }
     
-    # Copy pygenometracks images organized by condition
-    ctx['pygenometracks_dirs_rel'] = {}
-    for condition, img_list in ctx.get('pygenometracks_dirs', {}).items():
-        ctx['pygenometracks_dirs_rel'][condition] = [copy_artifact(img) for img in img_list]
+    # Copy pygenometracks images organized by condition and feature
+    ctx['pygenometracks_rel'] = {}
+    for condition, feats in ctx.get('pygenometracks', {}).items():
+        ctx['pygenometracks_rel'][condition] = {}
+        for feature, img_list in feats.items():
+            items = []
+            for img in img_list:
+                pdf = os.path.splitext(img)[0] + '.pdf'
+                items.append({
+                    'png': copy_artifact(img),
+                    'pdf': copy_artifact(pdf) if os.path.exists(pdf) else None,
+                })
+            ctx['pygenometracks_rel'][condition][feature] = items
     
     rendered = tpl.render(ctx=ctx)
     with open(out_html, 'w') as fh:

@@ -13,7 +13,8 @@ process CREATE_MOTIF_COMPARISON_TABLES {
     conda "conda-forge::python=3.9 conda-forge::pandas=1.5.3 conda-forge::matplotlib=3.8.4 conda-forge::cairosvg=2.7.1"
 
     input:
-    path(motif_dirs, stageAs: 'motif_dirs/*')
+    // Accept as individual paths in a collection, each will be available as a variable
+    val(motif_dirs)  // This will be a list of directory paths
 
     output:
     path("Known_Motifs_Comparison_Table.tsv") , emit: known_table
@@ -32,16 +33,52 @@ process CREATE_MOTIF_COMPARISON_TABLES {
     mkdir -p homer_motifs/consensus_peaks
     mkdir -p homer_motifs/merged_peaks
 
-    # Link all motif directories to appropriate locations
-    for dir in motif_dirs/*; do
-        if [[ \$dir == *"merged_peaks_motifs"* ]]; then
-            ln -sfn "\$(readlink -f \$dir)" homer_motifs/merged_peaks/merged_peaks_motifs
+    # Process motif directories
+    echo "Processing motif directories..."
+    found_count=0
+    
+    # Read directories from input (motif_dirs is a list of paths)
+    cat > /tmp/motif_dirs.txt <<'EOF'
+${motif_dirs.join('\n')}
+EOF
+    
+    while IFS= read -r dir; do
+        # Skip empty lines
+        [[ -z "\$dir" ]] && continue
+        
+        # Handle case where path might not exist
+        if [[ ! -d "\$dir" ]]; then
+            echo "WARNING: Motif directory does not exist or is not a directory: \$dir"
+            continue
+        fi
+        
+        echo "Processing motif directory: \$dir"
+        found_count=\$((found_count + 1))
+        
+        # Resolve the real absolute path
+        real_path="\$(cd "\$dir" 2>/dev/null && pwd)" || {
+            echo "WARNING: Failed to resolve path for \$dir, skipping..."
+            continue
+        }
+        
+        if [[ "\$dir" == *"merged_peaks_motifs"* ]]; then
+            echo "Linking merged peaks: \$real_path"
+            ln -sfn "\$real_path" homer_motifs/merged_peaks/merged_peaks_motifs
         else
             # Extract condition name from directory (e.g., DRB_RI_26_motifs)
-            condition=\$(basename \$dir)
-            ln -sfn "\$(readlink -f \$dir)" homer_motifs/consensus_peaks/\${condition}
+            condition=\$(basename "\$dir")
+            echo "Linking consensus peaks (\$condition): \$real_path"
+            ln -sfn "\$real_path" homer_motifs/consensus_peaks/\${condition}
         fi
-    done
+    done < /tmp/motif_dirs.txt
+    
+    if [[ \$found_count -eq 0 ]]; then
+        echo "ERROR: No valid motif directories found!"
+        echo "This may indicate that HOMER processes did not produce output."
+        exit 1
+    fi
+    
+    echo "Successfully processed \$found_count motif directories"
     
     # Run the comparison table script
     create_motif_comparison_tables.py homer_motifs/ 5

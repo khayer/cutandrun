@@ -24,9 +24,19 @@
       <h6>Sections</h6>
       <ul class="nav flex-column">
         <li class="nav-item"><a class="nav-link" href="#qc">QC</a></li>
+        <li class="nav-item"><a class="nav-link" href="#qc-frip">FRiP Scores</a></li>
         <li class="nav-item"><a class="nav-link" href="#promoter_gc">Promoter GC / Differential Binding</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#promoter_gain">Promoter Gain</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#promoter_loss">Promoter Loss</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#diffbind_top1000">Top 1000 PNGs</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#diffbind_data">Top 1000 Data</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#diffbind_plots">Volcano / MA</a></li>
         <li class="nav-item"><a class="nav-link" href="#peaks">Peak Visualizations</a></li>
         <li class="nav-item"><a class="nav-link" href="#annotations">Motifs & Annotations</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#homer_reports">HOMER Reports</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#homer_tables">HOMER Tables</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#chipseeker_preview">ChIPseeker Preview</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#chipseeker_comparison_plots">ChIPseeker Comparison PNGs</a></li>
       </ul>
     </div>
 
@@ -36,7 +46,7 @@
           <h3>QC</h3>
           <p><strong>Question:</strong> Are sample-level QC metrics within expected ranges? (FRiP, fragment length, mapping quality)</p>
           {% if ctx.previews.frip %}
-          <h5>FRiP Scores</h5>
+          <h5 id="qc-frip">FRiP Scores</h5>
           <div class=\"table-responsive\">{{ ctx.previews.frip|safe }}</div>
           {% else %}
           <p>No FRiP metrics found in staging directory.</p>
@@ -47,7 +57,7 @@
           <h3>Promoter GC / Differential Binding</h3>
           <p><strong>Question:</strong> Which promoter regions show gain or loss of binding between groups?</p>
 
-          <h5>Promoter Gain (preview)</h5>
+          <h5 id="promoter_gain">Promoter Gain (preview)</h5>
           {% if ctx.previews.promoter_gain %}
           <div class="table-responsive">{{ ctx.previews.promoter_gain|safe }}</div>
           <p><a href="{{ ctx.promoter_gain_rel[0] if ctx.promoter_gain_rel else '#' }}">Download full promoter_gain.tsv</a></p>
@@ -55,7 +65,7 @@
           <p>No promoter_gain.tsv found.</p>
           {% endif %}
 
-          <h5>Promoter Loss (preview)</h5>
+          <h5 id="promoter_loss">Promoter Loss (preview)</h5>
           {% if ctx.previews.promoter_loss %}
           <div class="table-responsive">{{ ctx.previews.promoter_loss|safe }}</div>
           <p><a href="{{ ctx.promoter_loss_rel[0] if ctx.promoter_loss_rel else '#' }}">Download full promoter_loss.tsv</a></p>
@@ -63,7 +73,60 @@
           <p>No promoter_loss.tsv found.</p>
           {% endif %}
 
-          <h5>Volcano / MA plots</h5>
+          <h5 id="diffbind_top1000">Top 1000 differential-binding PNGs</h5>
+          {% if ctx.diffbind_plots_rel %}
+            {% for contrast, plots in ctx.diffbind_plots_rel.items() %}
+              <div class="card mb-3">
+                <div class="card-header"><strong>{{ contrast }}</strong></div>
+                <div class="card-body">
+                  <div class="row">
+                    {% for plot in plots %}
+                      <div class="col-md-6" style="margin-bottom: 1rem;">
+                        <img src="{{ plot }}" alt="{{ plot|basename }}" class="img-fluid">
+                        <div class="small text-muted mt-1">{{ plot|basename }}</div>
+                      </div>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <p>No top-1000 differential-binding PNGs found.</p>
+          {% endif %}
+
+          <h5 id="diffbind_data">Top 1000 data files and GC statistics</h5>
+          {% if ctx.diffbind_data_rel %}
+            {% for contrast, data in ctx.diffbind_data_rel.items() %}
+              <div class="card mb-3">
+                <div class="card-header"><strong>{{ contrast }}</strong></div>
+                <div class="card-body">
+                  <h6>Download data files:</h6>
+                  <ul>
+                    {% if data.gain %}
+                      <li><a href="{{ data.gain }}" download>{{ data.gain|basename }}</a> (Top 1000 Gain)</li>
+                    {% endif %}
+                    {% if data.loss %}
+                      <li><a href="{{ data.loss }}" download>{{ data.loss|basename }}</a> (Top 1000 Loss)</li>
+                    {% endif %}
+                    {% if data.gc_test %}
+                      <li><a href="{{ data.gc_test }}" download>{{ data.gc_test|basename }}</a> (GC Test Stats)</li>
+                    {% endif %}
+                  </ul>
+                  
+                  {% if data.gc_test_html %}
+                    <h6 class="mt-3">GC Content Statistics:</h6>
+                    <div class="table-responsive">
+                      {{ data.gc_test_html|safe }}
+                    </div>
+                  {% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <p>No top-1000 data files found.</p>
+          {% endif %}
+
+          <h5 id="diffbind_plots">Volcano / MA plots</h5>
           <div class="row">
             <div class="col-md-6">
               {% if ctx.volcano_rel %}
@@ -85,15 +148,27 @@
         <div id="peaks" class="section">
           <h3>Peak Visualizations</h3>
           <p><strong>Question:</strong> What do the top peaks look like across samples? (pyGenomeTracks snapshots)</p>
-          {% if ctx.pygenometracks_dirs_rel %}
-            {% for condition, images in ctx.pygenometracks_dirs_rel.items() %}
-              <h5>{{ condition }} - Top Peaks</h5>
-              <div class="row">
-                {% for img in images %}
-                  <div class="col-md-6" style="margin-bottom: 1rem;">
-                    <img src="{{ img }}" alt="{{ img|basename }}" class="img-fluid">
-                  </div>
-                {% endfor %}
+          {% if ctx.pygenometracks_rel %}
+            {% for condition, features in ctx.pygenometracks_rel.items() %}
+              <div class="card mb-3">
+                <div class="card-header"><strong>{{ condition }}</strong></div>
+                <div class="card-body">
+                  {% for feature, images in features.items() %}
+                    <h6>{{ feature }}</h6>
+                    <div class="row">
+                      {% for item in images %}
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="{{ item.png }}" alt="{{ item.png|basename }}" class="img-fluid">
+                          {% if item.pdf %}
+                            <div class="mt-2">
+                              <a href="{{ item.pdf }}" target="_blank" rel="noopener">Open PDF</a>
+                            </div>
+                          {% endif %}
+                        </div>
+                      {% endfor %}
+                    </div>
+                  {% endfor %}
+                </div>
               </div>
             {% endfor %}
           {% else %}
@@ -104,21 +179,41 @@
         <div id="annotations" class="section">
           <h3>Motifs & Annotations</h3>
           <p><strong>Question:</strong> What motifs and genomic annotations are enriched in peaks?</p>
-          {% if ctx.homer_html_rel %}
-            <h5>HOMER Motif Analysis</h5>
+          {% if ctx.homer_reports %}
+            <h5 id="homer_reports">HOMER Motif Reports</h5>
             <ul>
-              {% for homer_result in ctx.homer_html_rel %}
-                <li><a href="{{ homer_result }}">{{ homer_result|dirname|basename }} motifs</a></li>
+              {% for report in ctx.homer_reports %}
+                <li><a href="{{ report.link }}">{{ report.label }} HOMER report</a></li>
               {% endfor %}
             </ul>
-          {% else %}
+          {% endif %}
+          {% if ctx.homer_tables_rel %}
+            <h5 id="homer_tables">HOMER motif tables</h5>
+            <ul>
+              {% for table in ctx.homer_tables_rel %}
+                <li><a href="{{ table.link }}">{{ table.label }}</a></li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+          {% if not ctx.homer_reports and not ctx.homer_tables_rel %}
             <p>No HOMER results found.</p>
           {% endif %}
 
           {% if ctx.previews.chipseeker %}
-            <h5>ChIPseeker annotation (preview)</h5>
+            <h5 id="chipseeker_preview">ChIPseeker annotation (preview)</h5>
             <div class="table-responsive">{{ ctx.previews.chipseeker|safe }}</div>
             <p><a href="{{ ctx.chipseeker_rel[0] if ctx.chipseeker_rel else '#' }}">Download full ChIPseeker annotation TSV</a></p>
+            {% if ctx.chipseeker_comparison_plots_rel %}
+              <h6 id="chipseeker_comparison_plots">ChIPseeker comparison plots</h6>
+              <div class="row">
+                {% for plot in ctx.chipseeker_comparison_plots_rel %}
+                  <div class="col-md-6" style="margin-bottom: 1rem;">
+                    <img src="{{ plot }}" alt="{{ plot|basename }}" class="img-fluid">
+                    <div class="small text-muted mt-1">{{ plot|basename }}</div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
           {% else %}
             <p>No ChIPseeker annotation found.</p>
           {% endif %}
