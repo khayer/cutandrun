@@ -19,8 +19,13 @@ process PROMOTER_GC_DIFFBIND {
     tuple val(meta), path("*.promoter_loss.tsv"), emit: promoter_loss
     tuple val(meta), path("*.promoter_gain.tsv"), emit: promoter_gain
     tuple val(meta), path("*.promoter_not_affected.tsv"), emit: promoter_not_affected
+    tuple val(meta), path("*.promoter_loss_raw_pval.tsv"), emit: promoter_loss_raw_pval
+    tuple val(meta), path("*.promoter_gain_raw_pval.tsv"), emit: promoter_gain_raw_pval
+    tuple val(meta), path("*.promoter_not_affected_raw_pval.tsv"), emit: promoter_not_affected_raw_pval
     tuple val(meta), path("*.promoter_gc_summary.tsv"), emit: promoter_gc_summary
     tuple val(meta), path("*.promoter_gc_test.tsv"), emit: promoter_gc_test
+    tuple val(meta), path("*.promoter_gc_summary_raw_pval.tsv"), emit: promoter_gc_summary_raw_pval
+    tuple val(meta), path("*.promoter_gc_test_raw_pval.tsv"), emit: promoter_gc_test_raw_pval
     tuple val(meta), path("*.top${params.promoter_gc_top_n}_loss.tsv"), emit: top_loss
     tuple val(meta), path("*.top${params.promoter_gc_top_n}_gain.tsv"), emit: top_gain
     tuple val(meta), path("*.top${params.promoter_gc_top_n}_promoter_gc_summary.tsv"), emit: top_promoter_gc_summary
@@ -35,6 +40,10 @@ process PROMOTER_GC_DIFFBIND {
     tuple val(meta), path("*.promoter_gc_boxplot.pdf"), emit: promoter_gc_boxplot_pdf
     tuple val(meta), path("*.promoter_gc_violin.png"), emit: promoter_gc_violin_png
     tuple val(meta), path("*.promoter_gc_violin.pdf"), emit: promoter_gc_violin_pdf
+    tuple val(meta), path("*.promoter_gc_boxplot_raw_pval.png"), emit: promoter_gc_boxplot_raw_pval_png
+    tuple val(meta), path("*.promoter_gc_boxplot_raw_pval.pdf"), emit: promoter_gc_boxplot_raw_pval_pdf
+    tuple val(meta), path("*.promoter_gc_violin_raw_pval.png"), emit: promoter_gc_violin_raw_pval_png
+    tuple val(meta), path("*.promoter_gc_violin_raw_pval.pdf"), emit: promoter_gc_violin_raw_pval_pdf
     tuple val(meta), path("*.volcano.png"), emit: volcano_png
     tuple val(meta), path("*.volcano.pdf"), emit: volcano_pdf
     tuple val(meta), path("*.ma_plot.png"), emit: ma_plot_png
@@ -70,8 +79,13 @@ process PROMOTER_GC_DIFFBIND {
     touch ${prefix}.promoter_loss.tsv
     touch ${prefix}.promoter_gain.tsv
     touch ${prefix}.promoter_not_affected.tsv
+    touch ${prefix}.promoter_loss_raw_pval.tsv
+    touch ${prefix}.promoter_gain_raw_pval.tsv
+    touch ${prefix}.promoter_not_affected_raw_pval.tsv
     touch ${prefix}.promoter_gc_summary.tsv
     touch ${prefix}.promoter_gc_test.tsv
+    touch ${prefix}.promoter_gc_summary_raw_pval.tsv
+    touch ${prefix}.promoter_gc_test_raw_pval.tsv
     touch ${prefix}.top${params.promoter_gc_top_n}_loss.tsv
     touch ${prefix}.top${params.promoter_gc_top_n}_gain.tsv
     touch ${prefix}.top${params.promoter_gc_top_n}_promoter_gc_summary.tsv
@@ -86,6 +100,10 @@ process PROMOTER_GC_DIFFBIND {
     touch ${prefix}.promoter_gc_boxplot.pdf
     touch ${prefix}.promoter_gc_violin.png
     touch ${prefix}.promoter_gc_violin.pdf
+    touch ${prefix}.promoter_gc_boxplot_raw_pval.png
+    touch ${prefix}.promoter_gc_boxplot_raw_pval.pdf
+    touch ${prefix}.promoter_gc_violin_raw_pval.png
+    touch ${prefix}.promoter_gc_violin_raw_pval.pdf
     touch ${prefix}.volcano.png
     touch ${prefix}.volcano.pdf
     touch ${prefix}.ma_plot.png

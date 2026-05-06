@@ -61,6 +61,9 @@ file = ${gtf}
 file_type = gtf
 title = Genes
 height = 2
+renderGenes = yes
+arrowLinkColor = black
+arrowLinkStyle = solid
 
 [consensus_peaks]
 file = ${meta.id}/top_peaks.bed

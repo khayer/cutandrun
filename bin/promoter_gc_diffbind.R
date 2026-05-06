@@ -600,6 +600,135 @@ if (nrow(ranked_volcano_df) > 0) {
     ggplot2::ggsave(paste0(prefix, ".top", top_n, "_volcano_raw_pvalue.pdf"), plot_volcano_ranked(ranked_volcano_df), width = 7.5, height = 5.5)
 }
 
+# =====================================
+# REPEAT ANALYSIS WITH RAW P-VALUES
+# =====================================
+# Generate parallel plots using raw p-value threshold (p <= 0.05)
+raw_pval_cutoff <- 0.05
+
+# Create status based on raw p-values instead of FDR
+annotated_kept$significant_pval <- !is.na(annotated_kept$pvalue) & annotated_kept$pvalue <= raw_pval_cutoff
+annotated_kept$status_pval <- "non_promoter"
+annotated_kept$status_pval[annotated_kept$promoter_window & !annotated_kept$significant_pval] <- "unchanged"
+annotated_kept$status_pval[annotated_kept$promoter_window & annotated_kept$significant_pval & annotated_kept$log2FoldChange <= -log2fc_cutoff] <- "loss"
+annotated_kept$status_pval[annotated_kept$promoter_window & annotated_kept$significant_pval & annotated_kept$log2FoldChange >= log2fc_cutoff] <- "gain"
+annotated_kept$status_pval <- factor(annotated_kept$status_pval, levels = c("loss", "unchanged", "gain", "non_promoter"))
+
+# Write raw p-value results
+promoter_pval_df <- annotated_kept[annotated_kept$promoter_window, , drop = FALSE]
+promoter_pval_loss <- promoter_pval_df[promoter_pval_df$status_pval == "loss", , drop = FALSE]
+promoter_pval_gain <- promoter_pval_df[promoter_pval_df$status_pval == "gain", , drop = FALSE]
+promoter_pval_unchanged <- promoter_pval_df[promoter_pval_df$status_pval == "unchanged", , drop = FALSE]
+write.table(promoter_pval_loss, file = paste0(prefix, ".promoter_loss_raw_pval.tsv"), sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
+write.table(promoter_pval_gain, file = paste0(prefix, ".promoter_gain_raw_pval.tsv"), sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
+write.table(promoter_pval_unchanged, file = paste0(prefix, ".promoter_not_affected_raw_pval.tsv"), sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
+
+# GC analysis for raw p-value filtered data
+gc_pval_df <- promoter_pval_df[promoter_pval_df$status_pval %in% c("loss", "unchanged") & !is.na(promoter_pval_df$GC_percent), , drop = FALSE]
+
+gc_pval_groups <- split(gc_pval_df, droplevels(gc_pval_df$status_pval))
+gc_pval_groups <- gc_pval_groups[lengths(gc_pval_groups) > 0]
+gc_pval_summary <- if (length(gc_pval_groups) == 0) {
+    gc_pval_summary <- data.frame(status = character(), n_peaks = integer(), mean_gc_percent = numeric(), median_gc_percent = numeric(), sd_gc_percent = numeric())
+} else {
+    do.call(rbind, lapply(names(gc_pval_groups), function(status_name) {
+        df <- gc_pval_groups[[status_name]]
+        data.frame(
+            status = status_name,
+            n_peaks = nrow(df),
+            mean_gc_percent = mean(df$GC_percent),
+            median_gc_percent = median(df$GC_percent),
+            sd_gc_percent = if (nrow(df) > 1) stats::sd(df$GC_percent) else NA_real_,
+            stringsAsFactors = FALSE
+        )
+    }))
+}
+if (is.null(gc_pval_summary) || nrow(gc_pval_summary) == 0) {
+    gc_pval_summary <- data.frame(status = character(), n_peaks = integer(), mean_gc_percent = numeric(), median_gc_percent = numeric(), sd_gc_percent = numeric())
+}
+write.table(gc_pval_summary, file = paste0(prefix, ".promoter_gc_summary_raw_pval.tsv"), sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
+
+if (nrow(gc_pval_df) >= 2 && length(unique(gc_pval_df$status_pval)) == 2) {
+    gc_pval_test <- stats::wilcox.test(GC_percent ~ status_pval, data = gc_pval_df, exact = FALSE)
+    gc_pval_test_df <- data.frame(
+        comparison = paste(group_a, "vs", group_b),
+        promoter_window_bp = promoter_window,
+        pvalue_cutoff = raw_pval_cutoff,
+        log2fc_cutoff = log2fc_cutoff,
+        n_loss = sum(gc_pval_df$status_pval == "loss"),
+        n_unchanged = sum(gc_pval_df$status_pval == "unchanged"),
+        statistic = unname(gc_pval_test$statistic),
+        p_value = gc_pval_test$p.value,
+        median_gc_loss = median(gc_pval_df$GC_percent[gc_pval_df$status_pval == "loss"]),
+        median_gc_unchanged = median(gc_pval_df$GC_percent[gc_pval_df$status_pval == "unchanged"]),
+        median_difference = median(gc_pval_df$GC_percent[gc_pval_df$status_pval == "loss"]) - median(gc_pval_df$GC_percent[gc_pval_df$status_pval == "unchanged"]),
+        stringsAsFactors = FALSE
+    )
+} else {
+    gc_pval_test_df <- data.frame(
+        comparison = paste(group_a, "vs", group_b),
+        promoter_window_bp = promoter_window,
+        pvalue_cutoff = raw_pval_cutoff,
+        log2fc_cutoff = log2fc_cutoff,
+        n_loss = sum(gc_pval_df$status_pval == "loss"),
+        n_unchanged = sum(gc_pval_df$status_pval == "unchanged"),
+        statistic = NA_real_,
+        p_value = NA_real_,
+        median_gc_loss = if (sum(gc_pval_df$status_pval == "loss") > 0) median(gc_pval_df$GC_percent[gc_pval_df$status_pval == "loss"]) else NA_real_,
+        median_gc_unchanged = if (sum(gc_pval_df$status_pval == "unchanged") > 0) median(gc_pval_df$GC_percent[gc_pval_df$status_pval == "unchanged"]) else NA_real_,
+        median_difference = if (sum(gc_pval_df$status_pval == "loss") > 0 && sum(gc_pval_df$status_pval == "unchanged") > 0) {
+            median(gc_pval_df$GC_percent[gc_pval_df$status_pval == "loss"]) - median(gc_pval_df$GC_percent[gc_pval_df$status_pval == "unchanged"])
+        } else {
+            NA_real_
+        },
+        stringsAsFactors = FALSE
+    )
+}
+write.table(gc_pval_test_df, file = paste0(prefix, ".promoter_gc_test_raw_pval.tsv"), sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
+
+# Create plotting function variations that use the pval status
+plot_gc_pval <- function(df, title_suffix) {
+    if (nrow(df) == 0) {
+        return(ggplot2::ggplot() + ggplot2::theme_void() + ggplot2::annotate("text", x = 0, y = 0, label = "No promoter GC data available"))
+    }
+    ggplot2::ggplot(df, ggplot2::aes(x = status_pval, y = GC_percent, fill = status_pval)) +
+        ggplot2::geom_boxplot(width = 0.55, outlier.alpha = 0.35) +
+        ggplot2::geom_jitter(width = 0.12, alpha = 0.45, size = 1) +
+        ggplot2::scale_fill_manual(values = c(loss = "#D95F02", unchanged = "#1B9E77", gain = "#7570B3", non_promoter = "#999999"), drop = FALSE) +
+        ggplot2::labs(
+            title = paste0("Promoter GC content: ", group_a, " vs ", group_b),
+            subtitle = title_suffix,
+            x = "Promoter status",
+            y = "GC content (%)"
+        ) +
+        ggplot2::theme_bw() +
+        ggplot2::theme(legend.position = "none")
+}
+
+plot_gc_violin_pval <- function(df, title_suffix) {
+    if (nrow(df) == 0) {
+        return(ggplot2::ggplot() + ggplot2::theme_void() + ggplot2::annotate("text", x = 0, y = 0, label = "No promoter GC data available"))
+    }
+    ggplot2::ggplot(df, ggplot2::aes(x = status_pval, y = GC_percent, fill = status_pval)) +
+        ggplot2::geom_violin(trim = FALSE, alpha = 0.65) +
+        ggplot2::geom_boxplot(width = 0.14, outlier.shape = NA, alpha = 0.85) +
+        ggplot2::scale_fill_manual(values = c(loss = "#D95F02", unchanged = "#1B9E77", gain = "#7570B3", non_promoter = "#999999"), drop = FALSE) +
+        ggplot2::labs(
+            title = paste0("Promoter GC content (violin): ", group_a, " vs ", group_b),
+            subtitle = title_suffix,
+            x = "Promoter status",
+            y = "GC content (%)"
+        ) +
+        ggplot2::theme_bw() +
+        ggplot2::theme(legend.position = "none")
+}
+
+# Generate raw p-value version plots
+ggplot2::ggsave(paste0(prefix, ".promoter_gc_boxplot_raw_pval.png"), plot_gc_pval(gc_pval_df, paste0("Promoter window: ", promoter_window, " bp; p-value <= ", raw_pval_cutoff)), width = 7.5, height = 5.5, dpi = 200)
+ggplot2::ggsave(paste0(prefix, ".promoter_gc_boxplot_raw_pval.pdf"), plot_gc_pval(gc_pval_df, paste0("Promoter window: ", promoter_window, " bp; p-value <= ", raw_pval_cutoff)), width = 7.5, height = 5.5)
+ggplot2::ggsave(paste0(prefix, ".promoter_gc_violin_raw_pval.png"), plot_gc_violin_pval(gc_pval_df, paste0("Promoter window: ", promoter_window, " bp; p-value <= ", raw_pval_cutoff)), width = 7.5, height = 5.5, dpi = 200)
+ggplot2::ggsave(paste0(prefix, ".promoter_gc_violin_raw_pval.pdf"), plot_gc_violin_pval(gc_pval_df, paste0("Promoter window: ", promoter_window, " bp; p-value <= ", raw_pval_cutoff)), width = 7.5, height = 5.5)
+
 versions <- c(
     '"PROMOTER_GC_DIFFBIND":',
     sprintf('  R: "%s"', getRversion()),

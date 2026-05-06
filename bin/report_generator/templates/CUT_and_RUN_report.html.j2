@@ -30,6 +30,7 @@
         <li class="nav-item"><a class="nav-link ms-3" href="#promoter_loss">Promoter Loss</a></li>
         <li class="nav-item"><a class="nav-link ms-3" href="#diffbind_top1000">Top 1000 PNGs</a></li>
         <li class="nav-item"><a class="nav-link ms-3" href="#diffbind_data">Top 1000 Data</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#diffbind_pval">Raw p-value Analysis</a></li>
         <li class="nav-item"><a class="nav-link ms-3" href="#diffbind_plots">Volcano / MA</a></li>
         <li class="nav-item"><a class="nav-link" href="#peaks">Peak Visualizations</a></li>
         <li class="nav-item"><a class="nav-link" href="#annotations">Motifs & Annotations</a></li>
@@ -125,6 +126,58 @@
           {% else %}
             <p>No top-1000 data files found.</p>
           {% endif %}
+
+          <div style="border-top: 3px solid #17a2b8; padding-top: 2rem; margin-top: 2rem;">
+            <h5 id="diffbind_pval" style="color: #17a2b8;">Raw p-value Analysis (p ≤ 0.05)</h5>
+            <p><em><strong>Note:</strong> This section shows results using raw p-values (p ≤ 0.05) instead of FDR-adjusted p-values for comparison. Use with caution for small sample numbers.</em></p>
+            
+            {% if ctx.diffbind_plots_pval_rel or ctx.diffbind_data_pval_rel %}
+              <h6>GC Content Plots</h6>
+              {% if ctx.diffbind_plots_pval_rel %}
+                {% for contrast, plots in ctx.diffbind_plots_pval_rel.items() %}
+                  <div class="card mb-3">
+                    <div class="card-header"><strong>{{ contrast }}</strong></div>
+                    <div class="card-body">
+                      <div class="row">
+                        {% for plot in plots %}
+                          <div class="col-md-6" style="margin-bottom: 1rem;">
+                            <img src="{{ plot }}" alt="{{ plot|basename }}" class="img-fluid">
+                            <div class="small text-muted mt-1">{{ plot|basename }}</div>
+                          </div>
+                        {% endfor %}
+                      </div>
+                    </div>
+                  </div>
+                {% endfor %}
+              {% else %}
+                <p>No raw p-value GC plots found.</p>
+              {% endif %}
+
+              <h6>GC Content Statistics (Raw p-value)</h6>
+              {% if ctx.diffbind_data_pval_rel %}
+                {% for contrast, data in ctx.diffbind_data_pval_rel.items() %}
+                  <div class="card mb-3">
+                    <div class="card-header"><strong>{{ contrast }}</strong></div>
+                    <div class="card-body">
+                      {% if data.gc_test %}
+                        <p><a href="{{ data.gc_test }}" download>{{ data.gc_test|basename }}</a></p>
+                      {% endif %}
+                      
+                      {% if data.gc_test_html %}
+                        <div class="table-responsive">
+                          {{ data.gc_test_html|safe }}
+                        </div>
+                      {% endif %}
+                    </div>
+                  </div>
+                {% endfor %}
+              {% else %}
+                <p>No raw p-value GC statistics found.</p>
+              {% endif %}
+            {% else %}
+              <p><em>No raw p-value results available. This is normal if the workflow did not run with promoter GC analysis enabled.</em></p>
+            {% endif %}
+          </div>
 
           <h5 id="diffbind_plots">Volcano / MA plots</h5>
           <div class="row">

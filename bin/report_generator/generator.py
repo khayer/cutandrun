@@ -127,7 +127,9 @@ def build_context(staging_dir):
     ctx['homer_html'] = find_first(["**/homerResults.html", "homerResults.html"], staging_dir)
     ctx['homer_tables'] = sorted(glob.glob(os.path.join(staging_dir, '**', '*Motifs_Table.pdf'), recursive=True))
     ctx['diffbind_plots'] = {}
+    ctx['diffbind_plots_pval'] = {}  # Raw p-value version plots
     ctx['diffbind_data'] = {}  # Store gain/loss/gc_test files per contrast
+    ctx['diffbind_data_pval'] = {}  # Raw p-value version data
     diffbind_roots = [path for path in sorted(glob.glob(os.path.join(staging_dir, '**', '11_differential_binding', '*'))) if not is_report_artifact(path)]
     plot_priority = [
         'top1000_promoter_gc_boxplot.png',
@@ -137,6 +139,10 @@ def build_context(staging_dir):
         'promoter_gc_violin.png',
         'volcano.png',
         'ma_plot.png',
+    ]
+    plot_priority_pval = [
+        'promoter_gc_boxplot_raw_pval.png',
+        'promoter_gc_violin_raw_pval.png',
     ]
     for contrast_dir in diffbind_roots:
         if not os.path.isdir(contrast_dir):
@@ -179,6 +185,25 @@ def build_context(staging_dir):
                 'loss': loss_file,
                 'gc_test': gc_test_file,
             }
+        
+        # Find raw p-value gc_test files for this contrast
+        gc_test_pval_file = None
+        for file_path in glob.glob(os.path.join(contrast_dir, '*.promoter_gc_test_raw_pval.tsv')):
+            gc_test_pval_file = file_path
+            break
+        if gc_test_pval_file:
+            ctx['diffbind_data_pval'][contrast_name] = {
+                'gc_test': gc_test_pval_file,
+            }
+        
+        # Collect raw p-value plots
+        pval_plots = []
+        for priority_suffix in plot_priority_pval:
+            for filename, image_path in plot_map.items():
+                if filename.endswith(priority_suffix):
+                    pval_plots.append(image_path)
+        if pval_plots:
+            ctx['diffbind_plots_pval'][contrast_name] = pval_plots
     chp_plots = []
     for pattern in ["**/*chipseeker*pdf", "**/*chipseeker*png", "**/*chipseeker*jpg"]:
         chp_plots.extend(path for path in glob.glob(os.path.join(staging_dir, pattern), recursive=True) if not is_report_artifact(path))
@@ -258,6 +283,9 @@ def render_template(staging_dir, out_html):
     ctx['diffbind_plots_rel'] = {}
     for contrast, plots in ctx.get('diffbind_plots', {}).items():
         ctx['diffbind_plots_rel'][contrast] = [copy_artifact(plot) for plot in plots]
+    ctx['diffbind_plots_pval_rel'] = {}
+    for contrast, plots in ctx.get('diffbind_plots_pval', {}).items():
+        ctx['diffbind_plots_pval_rel'][contrast] = [copy_artifact(plot) for plot in plots]
     ctx['diffbind_data_rel'] = {}
     for contrast, data in ctx.get('diffbind_data', {}).items():
         gc_test_html = None
@@ -268,6 +296,15 @@ def render_template(staging_dir, out_html):
             'loss': copy_artifact(data['loss']) if data.get('loss') else None,
             'gc_test': copy_artifact(data['gc_test']) if data.get('gc_test') else None,
             'gc_test_html': gc_test_html,
+        }
+    ctx['diffbind_data_pval_rel'] = {}
+    for contrast, data in ctx.get('diffbind_data_pval', {}).items():
+        gc_test_pval_html = None
+        if data.get('gc_test'):
+            gc_test_pval_html = parse_gc_test(data['gc_test'])
+        ctx['diffbind_data_pval_rel'][contrast] = {
+            'gc_test': copy_artifact(data['gc_test']) if data.get('gc_test') else None,
+            'gc_test_html': gc_test_pval_html,
         }
     
     # Copy pygenometracks images organized by condition and feature
