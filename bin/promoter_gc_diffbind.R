@@ -263,7 +263,7 @@ write.table(promoter_loss, file = paste0(prefix, ".promoter_loss.tsv"), sep = "\
 write.table(promoter_gain, file = paste0(prefix, ".promoter_gain.tsv"), sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
 write.table(promoter_unchanged, file = paste0(prefix, ".promoter_not_affected.tsv"), sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
 
-gc_df <- promoter_df[promoter_df$status %in% c("loss", "unchanged") & !is.na(promoter_df$GC_percent), , drop = FALSE]
+gc_df <- promoter_df[promoter_df$status %in% c("loss", "unchanged", "gain") & !is.na(promoter_df$GC_percent), , drop = FALSE]
 
 gc_groups <- split(gc_df, droplevels(gc_df$status))
 gc_groups <- gc_groups[lengths(gc_groups) > 0]
@@ -287,8 +287,18 @@ if (is.null(gc_summary) || nrow(gc_summary) == 0) {
 }
 write.table(gc_summary, file = paste0(prefix, ".promoter_gc_summary.tsv"), sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
 
-if (nrow(gc_df) >= 2 && length(unique(gc_df$status)) == 2) {
-    gc_test <- stats::wilcox.test(GC_percent ~ status, data = gc_df, exact = FALSE)
+if (nrow(gc_df) >= 2 && length(unique(gc_df$status)) >= 2) {
+    if (length(unique(gc_df$status)) == 2) {
+        # Wilcoxon test for 2 groups
+        gc_test <- stats::wilcox.test(GC_percent ~ status, data = gc_df, exact = FALSE)
+        test_statistic <- unname(gc_test$statistic)
+        test_p_value <- gc_test$p.value
+    } else {
+        # Kruskal-Wallis test for 3+ groups
+        gc_test <- stats::kruskal.test(GC_percent ~ status, data = gc_df)
+        test_statistic <- unname(gc_test$statistic)
+        test_p_value <- gc_test$p.value
+    }
     gc_test_df <- data.frame(
         comparison = paste(group_a, "vs", group_b),
         promoter_window_bp = promoter_window,
@@ -296,11 +306,12 @@ if (nrow(gc_df) >= 2 && length(unique(gc_df$status)) == 2) {
         log2fc_cutoff = log2fc_cutoff,
         n_loss = sum(gc_df$status == "loss"),
         n_unchanged = sum(gc_df$status == "unchanged"),
-        statistic = unname(gc_test$statistic),
-        p_value = gc_test$p.value,
+        n_gain = sum(gc_df$status == "gain"),
+        statistic = test_statistic,
+        p_value = test_p_value,
         median_gc_loss = median(gc_df$GC_percent[gc_df$status == "loss"]),
         median_gc_unchanged = median(gc_df$GC_percent[gc_df$status == "unchanged"]),
-        median_difference = median(gc_df$GC_percent[gc_df$status == "loss"]) - median(gc_df$GC_percent[gc_df$status == "unchanged"]),
+        median_gc_gain = median(gc_df$GC_percent[gc_df$status == "gain"]),
         stringsAsFactors = FALSE
     )
 } else {
@@ -311,15 +322,12 @@ if (nrow(gc_df) >= 2 && length(unique(gc_df$status)) == 2) {
         log2fc_cutoff = log2fc_cutoff,
         n_loss = sum(gc_df$status == "loss"),
         n_unchanged = sum(gc_df$status == "unchanged"),
+        n_gain = sum(gc_df$status == "gain"),
         statistic = NA_real_,
         p_value = NA_real_,
         median_gc_loss = if (sum(gc_df$status == "loss") > 0) median(gc_df$GC_percent[gc_df$status == "loss"]) else NA_real_,
         median_gc_unchanged = if (sum(gc_df$status == "unchanged") > 0) median(gc_df$GC_percent[gc_df$status == "unchanged"]) else NA_real_,
-        median_difference = if (sum(gc_df$status == "loss") > 0 && sum(gc_df$status == "unchanged") > 0) {
-            median(gc_df$GC_percent[gc_df$status == "loss"]) - median(gc_df$GC_percent[gc_df$status == "unchanged"])
-        } else {
-            NA_real_
-        },
+        median_gc_gain = if (sum(gc_df$status == "gain") > 0) median(gc_df$GC_percent[gc_df$status == "gain"]) else NA_real_,
         stringsAsFactors = FALSE
     )
 }
@@ -624,7 +632,7 @@ write.table(promoter_pval_gain, file = paste0(prefix, ".promoter_gain_raw_pval.t
 write.table(promoter_pval_unchanged, file = paste0(prefix, ".promoter_not_affected_raw_pval.tsv"), sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
 
 # GC analysis for raw p-value filtered data
-gc_pval_df <- promoter_pval_df[promoter_pval_df$status_pval %in% c("loss", "unchanged") & !is.na(promoter_pval_df$GC_percent), , drop = FALSE]
+gc_pval_df <- promoter_pval_df[promoter_pval_df$status_pval %in% c("loss", "unchanged", "gain") & !is.na(promoter_pval_df$GC_percent), , drop = FALSE]
 
 gc_pval_groups <- split(gc_pval_df, droplevels(gc_pval_df$status_pval))
 gc_pval_groups <- gc_pval_groups[lengths(gc_pval_groups) > 0]
@@ -648,8 +656,18 @@ if (is.null(gc_pval_summary) || nrow(gc_pval_summary) == 0) {
 }
 write.table(gc_pval_summary, file = paste0(prefix, ".promoter_gc_summary_raw_pval.tsv"), sep = "\t", quote = FALSE, row.names = FALSE, na = "NA")
 
-if (nrow(gc_pval_df) >= 2 && length(unique(gc_pval_df$status_pval)) == 2) {
-    gc_pval_test <- stats::wilcox.test(GC_percent ~ status_pval, data = gc_pval_df, exact = FALSE)
+if (nrow(gc_pval_df) >= 2 && length(unique(gc_pval_df$status_pval)) >= 2) {
+    if (length(unique(gc_pval_df$status_pval)) == 2) {
+        # Wilcoxon test for 2 groups
+        gc_pval_test <- stats::wilcox.test(GC_percent ~ status_pval, data = gc_pval_df, exact = FALSE)
+        test_statistic <- unname(gc_pval_test$statistic)
+        test_p_value <- gc_pval_test$p.value
+    } else {
+        # Kruskal-Wallis test for 3+ groups
+        gc_pval_test <- stats::kruskal.test(GC_percent ~ status_pval, data = gc_pval_df)
+        test_statistic <- unname(gc_pval_test$statistic)
+        test_p_value <- gc_pval_test$p.value
+    }
     gc_pval_test_df <- data.frame(
         comparison = paste(group_a, "vs", group_b),
         promoter_window_bp = promoter_window,
@@ -657,11 +675,12 @@ if (nrow(gc_pval_df) >= 2 && length(unique(gc_pval_df$status_pval)) == 2) {
         log2fc_cutoff = log2fc_cutoff,
         n_loss = sum(gc_pval_df$status_pval == "loss"),
         n_unchanged = sum(gc_pval_df$status_pval == "unchanged"),
-        statistic = unname(gc_pval_test$statistic),
-        p_value = gc_pval_test$p.value,
+        n_gain = sum(gc_pval_df$status_pval == "gain"),
+        statistic = test_statistic,
+        p_value = test_p_value,
         median_gc_loss = median(gc_pval_df$GC_percent[gc_pval_df$status_pval == "loss"]),
         median_gc_unchanged = median(gc_pval_df$GC_percent[gc_pval_df$status_pval == "unchanged"]),
-        median_difference = median(gc_pval_df$GC_percent[gc_pval_df$status_pval == "loss"]) - median(gc_pval_df$GC_percent[gc_pval_df$status_pval == "unchanged"]),
+        median_gc_gain = median(gc_pval_df$GC_percent[gc_pval_df$status_pval == "gain"]),
         stringsAsFactors = FALSE
     )
 } else {
@@ -672,15 +691,12 @@ if (nrow(gc_pval_df) >= 2 && length(unique(gc_pval_df$status_pval)) == 2) {
         log2fc_cutoff = log2fc_cutoff,
         n_loss = sum(gc_pval_df$status_pval == "loss"),
         n_unchanged = sum(gc_pval_df$status_pval == "unchanged"),
+        n_gain = sum(gc_pval_df$status_pval == "gain"),
         statistic = NA_real_,
         p_value = NA_real_,
         median_gc_loss = if (sum(gc_pval_df$status_pval == "loss") > 0) median(gc_pval_df$GC_percent[gc_pval_df$status_pval == "loss"]) else NA_real_,
         median_gc_unchanged = if (sum(gc_pval_df$status_pval == "unchanged") > 0) median(gc_pval_df$GC_percent[gc_pval_df$status_pval == "unchanged"]) else NA_real_,
-        median_difference = if (sum(gc_pval_df$status_pval == "loss") > 0 && sum(gc_pval_df$status_pval == "unchanged") > 0) {
-            median(gc_pval_df$GC_percent[gc_pval_df$status_pval == "loss"]) - median(gc_pval_df$GC_percent[gc_pval_df$status_pval == "unchanged"])
-        } else {
-            NA_real_
-        },
+        median_gc_gain = if (sum(gc_pval_df$status_pval == "gain") > 0) median(gc_pval_df$GC_percent[gc_pval_df$status_pval == "gain"]) else NA_real_,
         stringsAsFactors = FALSE
     )
 }

@@ -1690,7 +1690,9 @@ workflow CUTANDRUN {
     */
     if(params.with_report) {
         REPORT (
-            Channel.of(params.outdir)
+            Channel.of(
+                params.outdir.startsWith('/') ? params.outdir : "${workflow.launchDir}/${params.outdir}"
+            )
         )
         ch_software_versions = ch_software_versions.mix(REPORT.out.versions)
     }

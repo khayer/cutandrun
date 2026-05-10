@@ -50,3 +50,5 @@ your_table.stacked_by_condition.png
 your_table.tsv
 multiqc_samtools_idxstats.txt
 assets/promoter_gc_contrasts.example.tsv
+artifacts/03_peak_calling/10_peak_feature_annotation/*
+artifacts/*

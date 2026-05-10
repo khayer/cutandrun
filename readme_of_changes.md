@@ -78,7 +78,7 @@ module load Java/17.0.6 && nextflow run main.nf \
 ```
 
 
-
+module load Java/17.0.6 && nextflow run main.nf --input samplesheet.csv --outdir results_human_final --normalisation_mode Spikein --normalisation_mode_dual true --normalisation_c 10000 -profile singularity,slurm -work-dir work_human_final --peakcaller macs2 --run_homer_peak_annotation true --run_chipseeker true --run_chipseeker_compare true --run_pygenometracks_top10 true --blacklist assets/blacklists/hg38-blacklist.bed --run_promoter_gc_diffbind true --pygt_peak_flank 5000 --pygt_window_bp 0 --pygt_rank_mode by_feature --pygt_feature_types promoter,TES,UTR,exon,intron,intergenic --pygt_feature_anchor_window 5000 --with-report --genome hg38 --promoter_gc_contrasts assets/promoter_gc_contrasts.example.tsv 
 
 
 ## Table of Contents
