@@ -145,6 +145,7 @@ include { PROMOTER_GC_DIFFBIND        } from "../modules/local/r/promoter_gc_dif
 include { PREPARE_GENOME                                   } from "../subworkflows/local/prepare_genome"
 include { FASTQC_TRIMGALORE                                } from "../subworkflows/local/fastqc_trimgalore"
 include { ALIGN_BOWTIE2                                    } from "../subworkflows/local/align_bowtie2"
+include { DESEQ2_PEAK_DIFF_ANALYSIS                        } from "../subworkflows/local/deseq2_peak_analysis"
 include { EXTRACT_METADATA_AWK as EXTRACT_BT2_TARGET_META  } from "../subworkflows/local/extract_metadata_awk"
 include { EXTRACT_METADATA_AWK as EXTRACT_BT2_SPIKEIN_META } from "../subworkflows/local/extract_metadata_awk"
 include { EXTRACT_METADATA_AWK as EXTRACT_PICARD_DUP_META  } from "../subworkflows/local/extract_metadata_awk"
@@ -1168,6 +1169,14 @@ workflow CUTANDRUN {
                 ch_promoter_gc_diffbind_inputs
             )
             ch_software_versions = ch_software_versions.mix(PROMOTER_GC_DIFFBIND.out.versions)
+        }
+
+        if (params.run_deseq2_peak_analysis) {
+            DESEQ2_PEAK_DIFF_ANALYSIS (
+                DEEPTOOLS_MULTIBAMSUMMARY_BED.out.table,
+                ch_gtf_for_peak_annotation
+            )
+            ch_software_versions = ch_software_versions.mix(DESEQ2_PEAK_DIFF_ANALYSIS.out.versions)
         }
 
         if(params.run_consensus_all) {

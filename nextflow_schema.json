@@ -729,6 +729,20 @@
                     "type": "boolean",
                     "default": true,
                     "description": "Sort the IGV output tracks by group"
+                },
+                "run_deseq2_peak_analysis": {
+                    "type": "boolean",
+                    "default": false,
+                    "fa_icon": "fas fa-chart-bar",
+                    "description": "Run DESeq2 differential peak analysis",
+                    "help_text": "Performs differential abundance analysis of peaks using DESeq2. Requires deseq2_contrasts file specifying treatment vs control group pairs."
+                },
+                "deseq2_contrasts": {
+                    "type": "string",
+                    "default": null,
+                    "fa_icon": "fas fa-file-alt",
+                    "description": "Path to contrasts file for DESeq2 analysis",
+                    "help_text": "Tab-separated file with two columns (treatment_group control_group). Each row specifies a contrast to analyze. Groups must match sample group names in the samplesheet."
                 }
             }
         },

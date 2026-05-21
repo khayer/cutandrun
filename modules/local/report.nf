@@ -5,6 +5,7 @@ process REPORT {
 
     input:
     val staging_dir_path
+    val promoter_gc_complete
 
     output:
     path "CUT_and_RUN_report.html", emit: html

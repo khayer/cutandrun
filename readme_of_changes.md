@@ -58,6 +58,8 @@ nextflow run main.nf \
   -work-dir work_33K \
   -resume
 
+
+
 # Re-run only peak annotation summary branch (with cache reuse)
 module load Java/17.0.6 && nextflow run main.nf \
   --input samplesheet_33K.csv \
@@ -75,6 +77,9 @@ module load Java/17.0.6 && nextflow run main.nf \
 
   ## 2026_04_25 
   nextflow run main.nf --input samplesheet_33K.csv --outdir results_33K --normalisation_mode Spikein -profile singularity,slurm -work-dir work_33K --peakcaller macs2 --run_homer_peak_annotation true --run_chipseeker true --run_chipseeker_compare true --publish_frip true --bigwigcompare_binsize 5 --genome hg38 --run_pygenometracks_top10 --blacklist assets/blacklists/hg38-blacklist.bed --run_promoter_gc_diffbind true --promoter_gc_contrasts assets/promoter_gc_contrasts.example_33K.tsv -resume --pygt_peak_flank 5000 --pygt_window_bp 0 --pygt_rank_mode by_feature --pygt_feature_types promoter,TES,UTR,exon,intron,intergenic --pygt_feature_anchor_window 3000
+
+## 2026_05_20
+  module load Java/17.0.6 && nextflow run main.nf --input samplesheet_33K.csv --outdir results_human_33K_final --normalisation_mode Spikein -profile singularity,slurm -work-dir work_human_33K_final --peakcaller macs2 --run_homer_peak_annotation true --run_chipseeker true --run_chipseeker_compare true --run_pygenometracks_top10 true --blacklist assets/blacklists/hg38-blacklist.bed --pygt_peak_flank 5000 --pygt_window_bp 0 --pygt_rank_mode by_feature --pygt_feature_types promoter,TES,UTR,exon,intron,intergenic --pygt_feature_anchor_window 5000 --with-report true --genome hg38  -resume --run_deseq2_peak_analysis --deseq2_contrasts assets/promoter_gc_contrasts.example_33K.tsv --with-report --promoter_gc_contrasts assets/promoter_gc_contrasts.example_33K.tsv
 ```
 
 

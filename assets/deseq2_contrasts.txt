@@ -1,0 +1,21 @@
+# DESeq2 Peak Differential Analysis Contrasts File
+# Format: TSV (tab-separated) with columns: treatment_group control_group
+# 
+# treatment_group: Name of the treatment group (from samplesheet.csv "group" column)
+# control_group: Name of the control group (from samplesheet.csv "group" column)
+#
+# The pipeline will automatically:
+# 1. Find all samples in each group from the samplesheet
+# 2. Match them to columns in the all_samples.tab file
+# 3. Run DESeq2 comparison
+#
+# Example (for HSV-17 virus genome CUT&RUN):
+# RAD51_B02_26	RAD51_DMSO_26
+# PAA_TI_26	RAD51_DMSO_26
+# DRB_RI_26	RAD51_DMSO_26
+
+# Add your contrasts below (modify group names to match your samplesheet):
+
+RAD51_B02_26	RAD51_DMSO_26
+PAA_TI_26	RAD51_DMSO_26
+DRB_RI_26	RAD51_DMSO_26

@@ -60,10 +60,15 @@ where = top
 file = ${gtf}
 file_type = gtf
 title = Genes
-height = 2
+height = 3
+style = flybase
 renderGenes = yes
 arrowLinkColor = black
 arrowLinkStyle = solid
+fontsize = 10
+showBorder = true
+gene_rows = 1
+labels = on
 
 [consensus_peaks]
 file = ${meta.id}/top_peaks.bed
