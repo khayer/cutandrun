@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import argparse
-import csv
 import json
 import os
 import glob
@@ -40,19 +39,12 @@ def find_first(glob_patterns, base):
     return []
 
 
-def preview_table(path, n=10):
+def preview_table(tsv_path, n=10):
     try:
-        # Auto-detect separator for CSV vs TSV
-        if path.endswith('.csv'):
-            df = pd.read_csv(path, dtype=str)
-        else:
-            df = pd.read_csv(path, sep="\t", dtype=str)
-        # Show only first 10 columns if there are many
-        if len(df.columns) > 10:
-            df = df.iloc[:, :10]
+        df = pd.read_csv(tsv_path, sep="\t", dtype=str)
         return df.head(n).to_html(classes='table table-sm table-striped', index=False, na_rep='NA', escape=False)
     except Exception as e:
-        return f"<pre>Error loading {os.path.basename(path)}: {e}</pre>"
+        return f"<pre>Error loading {os.path.basename(tsv_path)}: {e}</pre>"
 
 
 def parse_frip_scores(frip_files):
@@ -104,25 +96,6 @@ def build_context(staging_dir):
     ctx['promoter_gain'] = find_first(["*.promoter_gain.tsv", "*/.promoter_gain.tsv", "**/*.promoter_gain.tsv"], staging_dir)
     ctx['promoter_loss'] = find_first(["*.promoter_loss.tsv", "**/*.promoter_loss.tsv"], staging_dir)
     ctx['deseq2'] = find_first(["*.deseq2_results.tsv", "**/*.deseq2_results.tsv"], staging_dir)
-    
-    # DESeq2 peak analysis results (CSV format)
-    deseq2_results_files = sorted(glob.glob(os.path.join(staging_dir, '**', '*_results.csv'), recursive=True))
-    deseq2_results_files = [f for f in deseq2_results_files if not is_report_artifact(f)]
-    ctx['deseq2_results'] = deseq2_results_files[0] if deseq2_results_files else None  # Take first if multiple
-    
-    deseq2_sig_files = sorted(glob.glob(os.path.join(staging_dir, '**', '*_significant.csv'), recursive=True))
-    deseq2_sig_files = [f for f in deseq2_sig_files if not is_report_artifact(f)]
-    ctx['deseq2_significant'] = deseq2_sig_files[0] if deseq2_sig_files else None  # Take first if multiple
-    
-    # DESeq2 plots (PDF format)
-    deseq2_volcano_files = sorted(glob.glob(os.path.join(staging_dir, '**', '*_volcano_plot.pdf'), recursive=True))
-    deseq2_volcano_files = [f for f in deseq2_volcano_files if not is_report_artifact(f)]
-    ctx['deseq2_volcano'] = deseq2_volcano_files[0] if deseq2_volcano_files else None
-    
-    deseq2_ma_files = sorted(glob.glob(os.path.join(staging_dir, '**', '*_ma_plot.pdf'), recursive=True))
-    deseq2_ma_files = [f for f in deseq2_ma_files if not is_report_artifact(f)]
-    ctx['deseq2_ma'] = deseq2_ma_files[0] if deseq2_ma_files else None
-    
     ctx['volcano'] = find_first(["*.volcano.png", "**/*.volcano.png"], staging_dir)
     ctx['ma'] = find_first(["*.ma_plot.png", "**/*.ma_plot.png"], staging_dir)
     ctx['top_images'] = find_first(["*top*_volcano_raw_pvalue.png", "**/*top*_volcano_raw_pvalue.png", "pygt*.png", "**/pygt*.png"], staging_dir)
@@ -245,8 +218,6 @@ def build_context(staging_dir):
         ctx['previews']['promoter_loss'] = preview_table(ctx['promoter_loss'][0])
     if ctx['deseq2']:
         ctx['previews']['deseq2'] = preview_table(ctx['deseq2'][0])
-    if ctx['deseq2_significant']:
-        ctx['previews']['deseq2_significant'] = preview_table(ctx['deseq2_significant'])
     if ctx['chipseeker']:
         ctx['previews']['chipseeker'] = preview_table(ctx['chipseeker'][0])
     
@@ -296,10 +267,6 @@ def render_template(staging_dir, out_html):
     ctx['promoter_gain_rel'] = [copy_artifact(p) for p in (ctx.get('promoter_gain') or [])]
     ctx['promoter_loss_rel'] = [copy_artifact(p) for p in (ctx.get('promoter_loss') or [])]
     ctx['deseq2_rel'] = [copy_artifact(p) for p in (ctx.get('deseq2') or [])]
-    ctx['deseq2_results_rel'] = copy_artifact(ctx.get('deseq2_results')) if ctx.get('deseq2_results') else None
-    ctx['deseq2_significant_rel'] = copy_artifact(ctx.get('deseq2_significant')) if ctx.get('deseq2_significant') else None
-    ctx['deseq2_volcano_rel'] = copy_artifact(ctx.get('deseq2_volcano')) if ctx.get('deseq2_volcano') else None
-    ctx['deseq2_ma_rel'] = copy_artifact(ctx.get('deseq2_ma')) if ctx.get('deseq2_ma') else None
     ctx['volcano_rel'] = [copy_artifact(p) for p in (ctx.get('volcano') or [])]
     ctx['ma_rel'] = [copy_artifact(p) for p in (ctx.get('ma') or [])]
     ctx['chipseeker_rel'] = [copy_artifact(p) for p in (ctx.get('chipseeker') or [])]

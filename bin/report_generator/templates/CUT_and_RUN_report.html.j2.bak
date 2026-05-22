@@ -11,17 +11,10 @@
       .nav-sidebar { position: fixed; top: 56px; left: 0; width: 220px; height: 100%; padding: 1rem; overflow-y: auto; }
       .content { margin-left: 240px; padding: 1rem; }
       .section { margin-bottom: 2rem; }
-      .navbar { background: linear-gradient(135deg, #6f42c1 0%, #8b5cf6 100%); }
-      .nav-link { color: #555 !important; }
-      .nav-link:hover { color: #6f42c1 !important; font-weight: 600; }
-      .section h3 { color: #6f42c1; border-bottom: 3px solid #8b5cf6; padding-bottom: 0.5rem; }
-      .card-header { background-color: #f3f0ff; border-bottom: 2px solid #8b5cf6; }
-      a { color: #6f42c1; }
-      a:hover { color: #8b5cf6; }
     </style>
   </head>
   <body>
-    <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
       <div class="container-fluid">
         <a class="navbar-brand" href="#">CUT&RUN Report</a>
       </div>
@@ -39,8 +32,6 @@
         <li class="nav-item"><a class="nav-link ms-3" href="#diffbind_data">Top 1000 Data</a></li>
         <li class="nav-item"><a class="nav-link ms-3" href="#diffbind_pval">Raw p-value Analysis</a></li>
         <li class="nav-item"><a class="nav-link ms-3" href="#diffbind_plots">Volcano / MA</a></li>
-        <li class="nav-item"><a class="nav-link" href="#deseq2">DESeq2 Differential Analysis</a></li>
-        <li class="nav-item"><a class="nav-link ms-3" href="#deseq2_results">Results & Plots</a></li>
         <li class="nav-item"><a class="nav-link" href="#peaks">Peak Visualizations</a></li>
         <li class="nav-item"><a class="nav-link" href="#annotations">Motifs & Annotations</a></li>
         <li class="nav-item"><a class="nav-link ms-3" href="#homer_reports">HOMER Reports</a></li>
@@ -136,8 +127,8 @@
             <p>No top-1000 data files found.</p>
           {% endif %}
 
-          <div style="border-top: 3px solid #6f42c1; padding-top: 2rem; margin-top: 2rem;">
-            <h5 id="diffbind_pval" style="color: #6f42c1;">Raw p-value Analysis (p ≤ 0.05)</h5>
+          <div style="border-top: 3px solid #17a2b8; padding-top: 2rem; margin-top: 2rem;">
+            <h5 id="diffbind_pval" style="color: #17a2b8;">Raw p-value Analysis (p ≤ 0.05)</h5>
             <p><em><strong>Note:</strong> This section shows results using raw p-values (p ≤ 0.05) instead of FDR-adjusted p-values for comparison. Use with caution for small sample numbers.</em></p>
             
             {% if ctx.diffbind_plots_pval_rel or ctx.diffbind_data_pval_rel %}
@@ -207,67 +198,7 @@
           </div>
         </div>
 
-        <div id="deseq2" class="section">
-          <h3>DESeq2 Differential Peak Analysis</h3>
-          <p><strong>Question:</strong> Which peaks show significant differential binding between treatment and control groups?</p>
-          
-          {% if ctx.deseq2_significant_rel or ctx.deseq2_results_rel %}
-            <h5 id="deseq2_results">Results & Plots</h5>
-            
-            {% if ctx.deseq2_significant_rel %}
-              <div class="card mb-3">
-                <div class="card-header"><strong>Significant Peaks (FDR ≤ 0.05)</strong></div>
-                <div class="card-body">
-                  <p><a href="{{ ctx.deseq2_significant_rel }}" class="btn btn-sm btn-outline-primary" download><strong>📊 Download Significant Results CSV</strong></a></p>
-                  {% if ctx.previews.deseq2_significant %}
-                    <div class="table-responsive mt-3" style="max-height: 500px; overflow-y: auto;">
-                      {{ ctx.previews.deseq2_significant|safe }}
-                    </div>
-                  {% endif %}
-                </div>
-              </div>
-            {% endif %}
-            
-            {% if ctx.deseq2_results_rel %}
-              <div class="card mb-3">
-                <div class="card-header"><strong>All Peak Results</strong></div>
-                <div class="card-body">
-                  <p><a href="{{ ctx.deseq2_results_rel }}" class="btn btn-sm btn-outline-primary" download><strong>📊 Download All Results CSV</strong></a></p>
-                </div>
-              </div>
-            {% endif %}
-            
-            <div class="row mt-4">
-              {% if ctx.deseq2_volcano_rel %}
-                <div class="col-md-6 mb-3">
-                  <div class="card">
-                    <div class="card-header"><strong>Volcano Plot</strong></div>
-                    <div class="card-body">
-                      <p><a href="{{ ctx.deseq2_volcano_rel }}" class="btn btn-sm btn-outline-primary" download>📥 Download PDF</a></p>
-                      <img src="{{ ctx.deseq2_volcano_rel }}" alt="Volcano Plot" class="img-fluid" style="max-width: 100%;">
-                    </div>
-                  </div>
-                </div>
-              {% endif %}
-              {% if ctx.deseq2_ma_rel %}
-                <div class="col-md-6 mb-3">
-                  <div class="card">
-                    <div class="card-header"><strong>MA Plot</strong></div>
-                    <div class="card-body">
-                      <p><a href="{{ ctx.deseq2_ma_rel }}" class="btn btn-sm btn-outline-primary" download>📥 Download PDF</a></p>
-                      <img src="{{ ctx.deseq2_ma_rel }}" alt="MA Plot" class="img-fluid" style="max-width: 100%;">
-                    </div>
-                  </div>
-                </div>
-              {% endif %}
-            </div>
-          {% else %}
-            <p><em>No DESeq2 results found in staging directory.</em></p>
-          {% endif %}
-        </div>
-
         <div id="peaks" class="section">
-          <h3>Peak Visualizations</h3>        <div id="peaks" class="section">
           <h3>Peak Visualizations</h3>
           <p><strong>Question:</strong> What do the top peaks look like across samples? (pyGenomeTracks snapshots)</p>
           {% if ctx.pygenometracks_rel %}
