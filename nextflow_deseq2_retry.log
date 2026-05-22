@@ -1,0 +1,181 @@
+[33mNextflow 26.04.2 is available - Please consider updating your version to it(B[m
+
+ N E X T F L O W   ~  version 25.10.3
+
+Launching `main.nf` [romantic_bassi] DSL2 - revision: c365bb28a0
+
+WARN: =============================================================================
+  When using UCSC assemblies the 'gene_biotype' field is absent from the GTF file.
+  Biotype QC will be skipped to circumvent the issue below:
+  https://github.com/nf-core/rnaseq/issues/460
+
+  If you would like to use the soft-masked Ensembl assembly instead please see:
+  https://github.com/nf-core/rnaseq/issues/159#issuecomment-501184312
+===================================================================================
+WARN: =========================================================================================================
+  dt_calc_all_matrix is switched on which will calculate a deeptools matrix for all samples. 
+  If you have a large sample count, this may affect pipeline performance and result in errors. 
+  Set this option to false to disable this feature and only calculate deeptools heatmaps for single samples
+===============================================================================================================
+
+
+------------------------------------------------------
+                                        ,--./,-.
+        ___     __   __   __   ___     /,-._.--~'
+  |\ | |__  __ /  ` /  \ |__) |__         }  {
+  | \| |       \__, \__/ |  \ |___     \`-._,-`-,
+                                        `._,._,'
+  nf-core/cutandrun v3.2.2
+------------------------------------------------------
+Core Nextflow options
+  runName                   : romantic_bassi
+  containerEngine           : singularity
+  launchDir                 : /mnt/isilon/weitzman_lab/user/hayerk/nextflow_cut_and_run/cutandrun
+  workDir                   : /mnt/isilon/weitzman_lab/user/hayerk/nextflow_cut_and_run/cutandrun/work_human_33K_final
+  projectDir                : /mnt/isilon/weitzman_lab/user/hayerk/nextflow_cut_and_run/cutandrun
+  userName                  : hayerk
+  profile                   : singularity,slurm
+  configFiles               : 
+
+Input/output options
+  input                     : samplesheet_33K.csv
+  outdir                    : results_human_33K_final
+
+Reference data options
+  genome                    : hg38
+  bowtie2                   : s3://ngi-igenomes/igenomes//Homo_sapiens/UCSC/hg38/Sequence/Bowtie2Index/
+  gtf                       : s3://ngi-igenomes/igenomes//Homo_sapiens/UCSC/hg38/Annotation/Genes/genes.gtf
+  blacklist                 : assets/blacklists/hg38-blacklist.bed
+  spikein_bowtie2           : s3://ngi-igenomes/igenomes//Escherichia_coli_K_12_MG1655/NCBI/2001-10-15/Sequence/Bowtie2Index/
+  spikein_fasta             : s3://ngi-igenomes/igenomes//Escherichia_coli_K_12_MG1655/NCBI/2001-10-15/Sequence/WholeGenomeFasta/genome.fa
+  fasta                     : s3://ngi-igenomes/igenomes//Homo_sapiens/UCSC/hg38/Sequence/WholeGenomeFasta/genome.fa
+
+Pipeline Options
+  peakcaller                : macs2
+  macs_gsize                : 2700000000.0
+  replicate_threshold       : 1.0
+
+Reporting Options
+  run_homer_motifs          : true
+  run_homer_peak_annotation : true
+  run_chipseeker            : true
+  run_pygenometracks_top10  : true
+  pygt_peak_flank           : 5000
+  pygt_feature_anchor_window: 5000
+  run_deseq2_peak_analysis  : true
+  deseq2_contrasts          : assets/promoter_gc_contrasts.example_33K.tsv
+
+!! Only displaying parameters that differ from the pipeline defaults !!
+------------------------------------------------------
+If you use nf-core/cutandrun for your analysis please cite:
+
+  https://doi.org/10.5281/zenodo.5653535
+
+* The nf-core framework
+  https://doi.org/10.1038/s41587-020-0439-x
+
+* Software dependencies
+  https://github.com/nf-core/cutandrun/blob/master/CITATIONS.md
+
+[-        ] NFC…RUN:PREPARE_GENOME:GTF2BED -
+[-        ] NFC…E:ANNOTATION_BEDTOOLS_SORT -
+[-        ] NFC…RE_GENOME:TABIX_BGZIPTABIX -
+[-        ] NFC…PARE_GENOME:SAMTOOLS_FAIDX -
+[-        ] NFC…E_GENOME:TARGET_CHROMSIZES -
+
+[-        ] NFC…RUN:PREPARE_GENOME:GTF2BED -
+[-        ] NFC…E:ANNOTATION_BEDTOOLS_SORT -
+[-        ] NFC…RE_GENOME:TABIX_BGZIPTABIX -
+[-        ] NFC…PARE_GENOME:SAMTOOLS_FAIDX -
+[-        ] NFC…E_GENOME:TARGET_CHROMSIZES -
+[-        ] NFC…_GENOME:SPIKEIN_CHROMSIZES -
+[-        ] NFC…EPARE_GENOME:BLACKLIST_AWK -
+[-        ] NFC…ACKLIST_BEDTOOLS_INTERSECT -
+[-        ] NFC…ME:BLACKLIST_BEDTOOLS_SORT -
+
+[-        ] NFC…RUN:PREPARE_GENOME:GTF2BED -
+[-        ] NFC…E:ANNOTATION_BEDTOOLS_SORT -
+[-        ] NFC…RE_GENOME:TABIX_BGZIPTABIX -
+[-        ] NFC…PARE_GENOME:SAMTOOLS_FAIDX -
+[-        ] NFC…E_GENOME:TARGET_CHROMSIZES -
+[-        ] NFC…_GENOME:SPIKEIN_CHROMSIZES -
+[-        ] NFC…EPARE_GENOME:BLACKLIST_AWK -
+[-        ] NFC…ACKLIST_BEDTOOLS_INTERSECT -
+[-        ] NFC…ME:BLACKLIST_BEDTOOLS_SORT -
+[-        ] NFC…CKLIST_BEDTOOLS_COMPLEMENT -
+[-        ] NFC…UT_CHECK:SAMPLESHEET_CHECK -
+
+[-        ] NFC…RUN:PREPARE_GENOME:GTF2BED -
+[-        ] NFC…E:ANNOTATION_BEDTOOLS_SORT -
+[-        ] NFC…RE_GENOME:TABIX_BGZIPTABIX -
+[-        ] NFC…PARE_GENOME:SAMTOOLS_FAIDX -
+[-        ] NFC…E_GENOME:TARGET_CHROMSIZES -
+[-        ] NFC…_GENOME:SPIKEIN_CHROMSIZES -
+[-        ] NFC…EPARE_GENOME:BLACKLIST_AWK -
+[-        ] NFC…ACKLIST_BEDTOOLS_INTERSECT -
+[-        ] NFC…ME:BLACKLIST_BEDTOOLS_SORT -
+[-        ] NFC…CKLIST_BEDTOOLS_COMPLEMENT -
+[-        ] NFC…UT_CHECK:SAMPLESHEET_CHECK -
+[-        ] NFC…ANDRUN:CUTANDRUN:CAT_FASTQ -
+[-        ] NFC…N:FASTQC_TRIMGALORE:FASTQC -
+[-        ] NFC…STQC_TRIMGALORE:TRIMGALORE -
+[-        ] NFC…WTIE2:BOWTIE2_TARGET_ALIGN -
+[-        ] NFC…TIE2:BOWTIE2_SPIKEIN_ALIGN -
+[-        ] NFC…ATS_SAMTOOLS:SAMTOOLS_SORT -
+
+[-        ] NFC…RUN:PREPARE_GENOME:GTF2BED -
+[-        ] NFC…E:ANNOTATION_BEDTOOLS_SORT -
+[-        ] NFC…RE_GENOME:TABIX_BGZIPTABIX -
+[-        ] NFC…PARE_GENOME:SAMTOOLS_FAIDX -
+[-        ] NFC…E_GENOME:TARGET_CHROMSIZES -
+[-        ] NFC…_GENOME:SPIKEIN_CHROMSIZES -
+[-        ] NFC…EPARE_GENOME:BLACKLIST_AWK -
+[-        ] NFC…ACKLIST_BEDTOOLS_INTERSECT -
+[-        ] NFC…ME:BLACKLIST_BEDTOOLS_SORT -
+[-        ] NFC…CKLIST_BEDTOOLS_COMPLEMENT -
+[-        ] NFC…UT_CHECK:SAMPLESHEET_CHECK -
+[-        ] NFC…ANDRUN:CUTANDRUN:CAT_FASTQ -
+[-        ] NFC…N:FASTQC_TRIMGALORE:FASTQC -
+[-        ] NFC…STQC_TRIMGALORE:TRIMGALORE -
+[-        ] NFC…WTIE2:BOWTIE2_TARGET_ALIGN -
+[-        ] NFC…TIE2:BOWTIE2_SPIKEIN_ALIGN -
+[-        ] NFC…ATS_SAMTOOLS:SAMTOOLS_SORT -
+[-        ] NFC…TS_SAMTOOLS:SAMTOOLS_INDEX -
+[-        ] NFC…TS_SAMTOOLS:SAMTOOLS_STATS -
+[-        ] NFC…SAMTOOLS:SAMTOOLS_FLAGSTAT -
+
+[-        ] NFC…RUN:PREPARE_GENOME:GTF2BED -
+[-        ] NFC…E:ANNOTATION_BEDTOOLS_SORT -
+[-        ] NFC…RE_GENOME:TABIX_BGZIPTABIX -
+[-        ] NFC…PARE_GENOME:SAMTOOLS_FAIDX -
+[-        ] NFC…E_GENOME:TARGET_CHROMSIZES -
+[-        ] NFC…_GENOME:SPIKEIN_CHROMSIZES -
+[-        ] NFC…EPARE_GENOME:BLACKLIST_AWK -
+[-        ] NFC…ACKLIST_BEDTOOLS_INTERSECT -
+[-        ] NFC…ME:BLACKLIST_BEDTOOLS_SORT -
+[-        ] NFC…CKLIST_BEDTOOLS_COMPLEMENT -
+[-        ] NFC…UT_CHECK:SAMPLESHEET_CHECK -
+[-        ] NFC…ANDRUN:CUTANDRUN:CAT_FASTQ -
+[-        ] NFC…N:FASTQC_TRIMGALORE:FASTQC -
+[-        ] NFC…STQC_TRIMGALORE:TRIMGALORE -
+[-        ] NFC…WTIE2:BOWTIE2_TARGET_ALIGN -
+[-        ] NFC…TIE2:BOWTIE2_SPIKEIN_ALIGN -
+[-        ] NFC…ATS_SAMTOOLS:SAMTOOLS_SORT -
+[-        ] NFC…TS_SAMTOOLS:SAMTOOLS_INDEX -
+[-        ] NFC…TS_SAMTOOLS:SAMTOOLS_STATS -
+[-        ] NFC…SAMTOOLS:SAMTOOLS_FLAGSTAT -
+Plus 3 more processes waiting for tasks…
+-[nf-core/cutandrun] Pipeline completed with errors-
+Checking bigwig subtract: use_control=true, run_bigwig_subtract=true
+DESeq2: Processing 1 contrast(s)
+WARN: There's no process matching config selector: PEAK_SIGNAL_PROFILER:PEAKSIGNALPROFILER_RUN
+WARN: There's no process matching config selector: NFCORE_CUTANDRUN:CUTANDRUN:PREPARE_GENOME:UNTAR_.*
+WARN: There's no process matching config selector: .*PREPARE_GENOME:GUNZIP_.*
+WARN: There's no process matching config selector: NFCORE_CUTANDRUN:CUTANDRUN:DOWNSAMPLE_BAM
+WARN: There's no process matching config selector: NFCORE_CUTANDRUN:CUTANDRUN:PREPARE_PEAKCALLING_VIS:UCSC_BEDGRAPHTOBIGWIG -- Did you mean: NFCORE_CUTANDRUN:CUTANDRUN:PREPARE_PEAKCALLING:UCSC_BEDGRAPHTOBIGWIG?
+WARN: There's no process matching config selector: NFCORE_CUTANDRUN:CUTANDRUN:IGV_SESSION_DOWNSAMPLED
+[c5/310907] Cached process > NFCORE_CUTANDRUN:CUTANDRUN:INPUT_CHECK:SAMPLESHEET_CHECK (samplesheet_33K.csv)
+WARN: Failed to render execution report -- see the log file for details
+WARN: Failed to render execution timeline -- see the log file for details
+WARN: [NFCORE_CUTANDRUN:CUTANDRUN:PREPARE_GENOME:GTF2BED (1)] Unable to resume cached task -- See log file for details
+

@@ -5,7 +5,8 @@ process DESEQ2_PEAK_ANALYSIS {
     tag "${meta.treatment}_vs_${meta.control}"
     label 'process_medium'
 
-    conda "bioconda::deseq2=1.44.0 bioconda::bioconductor-genomicranges=1.56.1 bioconda::bioconductor-rtracklayer=1.62.0 conda-forge::r-tidyverse=2.0.0 conda-forge::r-optparse=1.7.3"
+    conda "bioconda::deseq2=1.44.0 bioconda::bioconductor-genomicranges=1.56.1 bioconda::bioconductor-rtracklayer=1.62.0 conda-forge::r-base=4.4.0 conda-forge::r-tidyverse=2.0.0 conda-forge::r-optparse=1.7.3"
+    container "docker://rocker/verse:4.3"
 
     publishDir "${params.outdir}/03_peak_calling/09_deseq2_analysis/${meta.treatment}_vs_${meta.control}", mode: 'copy'
 

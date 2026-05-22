@@ -4,6 +4,54 @@
 # For use in Nextflow pipeline
 # Requires: DESeq2, GenomicRanges, tidyverse, rtracklayer, optparse
 
+# Attempt to install system dependencies if running in container with apt
+system_cmd <- "apt-get update -qq && apt-get install -y -qq libcurl4-openssl-dev libxml2-dev libssl-dev zlib1g-dev 2>/dev/null || true"
+system(system_cmd)
+
+# Create a writable temporary library directory for package installation
+tmplib <- file.path(tempdir(), "r_packages")
+if (!dir.exists(tmplib)) {
+    dir.create(tmplib, recursive = TRUE, showWarnings = FALSE)
+}
+
+# Set environment variables to force installation to temp library
+Sys.setenv(R_LIBS_USER = tmplib)
+Sys.setenv(R_LIBS = tmplib)
+
+# Prepend temp library to library search path
+.libPaths(c(tmplib, .libPaths()))
+
+cat("R library paths:\n")
+for (path in .libPaths()) cat("  ", path, "\n")
+cat("Temp library directory:", tmplib, "\n\n")
+
+# Auto-install missing packages from Bioconductor or CRAN
+required_packages <- c("DESeq2", "tidyverse", "GenomicRanges", "rtracklayer", "optparse")
+
+for (pkg in required_packages) {
+    if (!require(pkg, quietly = TRUE, character.only = TRUE)) {
+        cat("Installing missing package:", pkg, "\n")
+        tryCatch({
+            if (pkg %in% c("DESeq2", "GenomicRanges", "rtracklayer")) {
+                # Load BiocManager first
+                if (!require("BiocManager", quietly = TRUE, character.only = TRUE)) {
+                    install.packages("BiocManager", lib = tmplib, repos = "http://cran.r-project.org", quiet = TRUE)
+                    library(BiocManager)
+                }
+                # Use BiocManager with explicit library path
+                BiocManager::install(pkg, site_repository = NULL, ask = FALSE, update = FALSE, 
+                                   lib = tmplib, force = TRUE, quiet = TRUE)
+            } else {
+                install.packages(pkg, lib = tmplib, repos = "http://cran.r-project.org", quiet = TRUE)
+            }
+            cat("Successfully installed:", pkg, "\n")
+        }, error = function(e) {
+            cat("ERROR installing", pkg, ":", conditionMessage(e), "\n")
+            stop("Failed to install required package: ", pkg)
+        })
+    }
+}
+
 suppressPackageStartupMessages({
     library(DESeq2)
     library(tidyverse)
@@ -50,6 +98,8 @@ cat("Control samples found:", paste(control_samples, collapse=", "), "\n")
 # Read all_samples.tab header to find column indices
 counts_header <- readLines(args$`counts-table`, n = 1)
 header_cols <- strsplit(counts_header, "\t")[[1]]
+header_cols <- gsub("'", "", header_cols) # remove single quotes added by deeptools
+header_cols <- gsub("\"", "", header_cols) # remove double quotes just in case
 
 # Find column indices for our samples (columns 1-3 are chr, start, end)
 treatment_indices <- which(header_cols %in% treatment_samples)
@@ -80,12 +130,10 @@ read_narrowpeak <- function(sample_name, peak_dir) {
 
 # Read peak union for a set of samples
 read_peak_union <- function(sample_names, peak_dir) {
-  # Extract base sample name (remove _R{replicate})
-  base_names <- gsub("_R[0-9]+$", "", sample_names)
-  peak_list <- lapply(unique(base_names), function(x) read_narrowpeak(x, peak_dir))
+  peak_list <- lapply(sample_names, function(x) read_narrowpeak(x, peak_dir))
   peak_list <- peak_list[!sapply(peak_list, is.null)]
   if (length(peak_list) == 0) {
-    stop("No narrowPeak files were loaded for: ", paste(unique(base_names), collapse = ", "))
+    stop(paste("No narrowPeak files were loaded for:", paste(sample_names, collapse=", ")))
   }
   IRanges::reduce(Reduce(c, peak_list))
 }
@@ -115,12 +163,48 @@ annotate_peaks_with_genes <- function(res_df, chrom_filt, start_filt, end_filt, 
   )
 
   gtf <- rtracklayer::import(gtf_file)
-  gene_features <- gtf[mcols(gtf)$type == "gene"]
-  gene_label <- get_gene_label(gene_features)
+  
+  # If no "gene" type entries exist, use exons and group by gene_id
+  if (sum(mcols(gtf)$type == "gene") == 0) {
+    cat("No 'gene' type features found. Using exons grouped by gene_id...\n")
+    exons <- gtf[mcols(gtf)$type == "exon"]
+    
+    if (length(exons) == 0) {
+      stop("No exon features found in GTF file")
+    }
+    
+    # Extract gene_id and gene_name from exons
+    exon_metadata <- as.data.frame(mcols(exons))
+    
+    # Get unique genes by taking first exon per gene_id
+    unique_gene_ids <- !duplicated(exon_metadata$gene_id)
+    gene_features <- exons[unique_gene_ids]
+    
+    # Create gene_name vector, using gene_name if available, otherwise gene_id
+    if ("gene_name" %in% colnames(exon_metadata)) {
+      gene_label <- exon_metadata$gene_name[unique_gene_ids]
+    } else {
+      gene_label <- exon_metadata$gene_id[unique_gene_ids]
+    }
+    gene_label[is.na(gene_label) | gene_label == ""] <- exon_metadata$gene_id[unique_gene_ids][is.na(gene_label) | gene_label == ""]
+  } else {
+    # Original behavior if gene entries exist
+    gene_features <- gtf[mcols(gtf)$type == "gene"]
+    gene_label <- get_gene_label(gene_features)
+  }
 
   nearest_gene_idx <- GenomicRanges::nearest(peak_ranges, gene_features)
-  nearest_gene <- gene_label[nearest_gene_idx]
-  nearest_distance <- GenomicRanges::distance(peak_ranges, gene_features[nearest_gene_idx])
+  
+  # Handle NAs (peaks on contigs with no genes)
+  nearest_gene <- rep(NA_character_, length(peak_ranges))
+  nearest_distance <- rep(NA_integer_, length(peak_ranges))
+  
+  valid_idx <- !is.na(nearest_gene_idx)
+  
+  if (any(valid_idx)) {
+    nearest_gene[valid_idx] <- gene_label[nearest_gene_idx[valid_idx]]
+    nearest_distance[valid_idx] <- GenomicRanges::distance(peak_ranges[valid_idx], gene_features[nearest_gene_idx[valid_idx]])
+  }
 
   res_df$chrom <- chrom_filt
   res_df$start <- start_filt
