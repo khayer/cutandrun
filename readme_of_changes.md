@@ -866,5 +866,97 @@ Downsampling is applied only to visualization bigWigs and does not affect peak c
   - `03_peak_calling/03_bed_to_bigwig_visual/`
   - `03_peak_calling/07_bigwig_minus_igg_visual/`
 
+## Comprehensive HTML Report Generation
+
+A Python-based HTML report generator creates a unified summary of all analysis results with PNG-only visualizations for instant web loading.
+
+### Usage
+
+Enable report generation by adding the `--with-report` flag to your pipeline command:
+
+```bash
+./nextflow run main.nf \
+  --input samplesheet.csv \
+  --outdir results \
+  --with-report \
+  -profile singularity \
+  -resume
+```
+
+### Parameters
+
+- `--with-report` (default: `false`)
+  - When enabled, generates a comprehensive HTML report after all pipeline tasks complete.
+  - Report is saved to `results/report/CUT_and_RUN_report.html`.
+  - Example: `--with-report true`
+
+### Report Contents
+
+The HTML report includes:
+
+**QC Metrics**
+- FRiP scores (Fragment in Peaks) for all samples
+- Peak counts and reproducibility statistics
+- Fragment length distributions
+- Read quality metrics from FastQC
+
+**Peak Analysis**
+- Consensus peaks and sample overlap
+- ChIPseeker peak annotations by genomic region
+- Peak signal distributions and reproducibility heatmaps
+- IGV session generation for peak visualization
+
+**DESeq2 Results** (when differential analysis is run)
+- Volcano plots showing fold-change vs. p-value
+- MA plots showing average expression vs. fold-change
+- Gene annotations with nearest peak distances
+- Significant peak tables with gene names and genomic coordinates
+- All plots in PNG format (50-60x smaller than PDFs, instant loading)
+
+**HTML Report Features**
+- **Purple gradient theme** with Bootstrap 5 responsive design
+- **PNG-only images** for optimal web performance
+- **Interactive navigation** with direct links between sections
+- **Sortable tables** with gene names, p-values, and fold-changes
+- **Standalone HTML** (no external dependencies required for viewing)
+
+### Output Files
+
+```
+results/report/
+├── CUT_and_RUN_report.html           # Main HTML report (standalone)
+├── report/
+│   ├── images/                        # All PNG image files
+│   │   ├── volcano_plot.png
+│   │   ├── ma_plot.png
+│   │   ├── chipseeker_*.png
+│   │   └── ...
+│   └── data/                          # TSV/CSV data tables
+│       ├── peak_annotations.tsv
+│       ├── deseq2_results.tsv
+│       └── ...
+```
+
+### Viewing the Report
+
+1. Open `results/report/CUT_and_RUN_report.html` in any web browser
+2. Navigate sections using the purple navbar at the top
+3. Explore plots, tables, and annotations using interactive elements
+4. Download individual files or export tables as needed
+
+### Performance Notes
+
+- PNG format reduces image file sizes from ~500KB (PDF vectors) to ~10KB (rasterized PNG)
+- Report generation typically completes in 30-60 seconds after pipeline finishes
+- Total report including images typically <10 MB for single run
+- Compatible with all modern browsers (Chrome, Firefox, Safari, Edge)
+
+### Implementation Details
+
+- **Python 3.10** with Jinja2 templating engine
+- **Data discovery** scans all pipeline results directories for analysis outputs
+- **Image optimization** prioritizes PNG format and automatically selects available visualizations
+- **Responsive design** adapts to desktop, tablet, and mobile viewing
+
 
 

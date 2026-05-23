@@ -521,6 +521,13 @@
                     "description": "Publish per-sample FRiP score TSVs",
                     "fa_icon": "fas fa-align-justify"
                 },
+                "with_report": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Generate comprehensive HTML report of analysis results",
+                    "help_text": "When enabled, generates CUT&RUN analysis report with PNG visualizations, DESeq2 results, peak annotations, and QC metrics",
+                    "fa_icon": "fas fa-file-alt"
+                },
                 "downsample_target_coverage": {
                     "type": "number",
                     "default": 0,

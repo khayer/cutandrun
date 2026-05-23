@@ -1,11 +1,9 @@
 process REPORT {
     label 'process_medium'
     container 'python:3.10-slim'
-    publishDir "${params.outdir}/report", mode: 'copy'
 
     input:
     val staging_dir_path
-    val promoter_gc_complete
 
     output:
     path "CUT_and_RUN_report.html", emit: html

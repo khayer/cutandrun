@@ -323,11 +323,18 @@ write.csv(res_sig, file = paste0(prefix, "_significant.csv"), row.names = FALSE)
 
 write_significant_bedgraph(res_df, prefix)
 
-# Generate plots
+# Generate plots (both PDF and PNG for faster web display)
+
+# MA Plot
 pdf(paste0(prefix, "_ma_plot.pdf"), width = 8, height = 6)
 plotMA(res, ylim = c(-3, 3))
 dev.off()
 
+png(paste0(prefix, "_ma_plot.png"), width = 800, height = 600, res = 100)
+plotMA(res, ylim = c(-3, 3))
+dev.off()
+
+# Volcano Plot
 pdf(paste0(prefix, "_volcano_plot.pdf"), width = 8, height = 6)
 volcano_y <- -log10(res_df$pvalue + 1e-300)
 plot(
@@ -351,6 +358,40 @@ negative_df <- negative_df[order(negative_df$pvalue), ]
 negative_df <- head(negative_df, min(5, nrow(negative_df)))
 
 label_df <- unique(rbind(positive_df, negative_df))
+if (nrow(label_df) > 0) {
+  for (i in seq_len(nrow(label_df))) {
+    point_x <- label_df$log2FoldChange[i]
+    point_y <- -log10(label_df$pvalue[i] + 1e-300)
+    point_label <- paste0(label_df$display_label[i], "\n", label_df$peak_id[i])
+    text(
+      point_x,
+      point_y,
+      labels = point_label,
+      pos = ifelse(point_x >= 0, 4, 2),
+      cex = 0.65,
+      offset = 0.4
+    )
+  }
+}
+
+legend("topright", legend = "padj < 0.05", col = "red", pch = 19, bty = "n")
+dev.off()
+
+# Generate PNG version of volcano plot
+png(paste0(prefix, "_volcano_plot.png"), width = 800, height = 600, res = 100)
+volcano_y <- -log10(res_df$pvalue + 1e-300)
+plot(
+  res_df$log2FoldChange,
+  volcano_y,
+  main = paste0("Volcano Plot: ", args$`treatment-group`, " vs ", args$`control-group`),
+  xlab = "log2 Fold Change",
+  ylab = "-log10(p-value)",
+  pch = 19,
+  cex = 0.7,
+  col = ifelse(!is.na(res_df$padj) & res_df$padj < 0.05, "red", "black")
+)
+abline(v = c(-1, 1), h = -log10(0.05), lty = 2, col = "blue")
+
 if (nrow(label_df) > 0) {
   for (i in seq_len(nrow(label_df))) {
     point_x <- label_df$log2FoldChange[i]

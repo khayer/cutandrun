@@ -114,12 +114,12 @@ def build_context(staging_dir):
     deseq2_sig_files = [f for f in deseq2_sig_files if not is_report_artifact(f)]
     ctx['deseq2_significant'] = deseq2_sig_files[0] if deseq2_sig_files else None  # Take first if multiple
     
-    # DESeq2 plots (PDF format)
-    deseq2_volcano_files = sorted(glob.glob(os.path.join(staging_dir, '**', '*_volcano_plot.pdf'), recursive=True))
+    # DESeq2 plots - PNG only for fast loading
+    deseq2_volcano_files = sorted(glob.glob(os.path.join(staging_dir, '**', '*_volcano_plot.png'), recursive=True))
     deseq2_volcano_files = [f for f in deseq2_volcano_files if not is_report_artifact(f)]
     ctx['deseq2_volcano'] = deseq2_volcano_files[0] if deseq2_volcano_files else None
     
-    deseq2_ma_files = sorted(glob.glob(os.path.join(staging_dir, '**', '*_ma_plot.pdf'), recursive=True))
+    deseq2_ma_files = sorted(glob.glob(os.path.join(staging_dir, '**', '*_ma_plot.png'), recursive=True))
     deseq2_ma_files = [f for f in deseq2_ma_files if not is_report_artifact(f)]
     ctx['deseq2_ma'] = deseq2_ma_files[0] if deseq2_ma_files else None
     
@@ -152,7 +152,8 @@ def build_context(staging_dir):
                         ctx['pygenometracks'][condition_name] = feature_groups
     ctx['chipseeker'] = find_first(["*_chipseeker_annotation.tsv", "**/*_chipseeker_annotation.tsv"], staging_dir)
     ctx['homer_html'] = find_first(["**/homerResults.html", "homerResults.html"], staging_dir)
-    ctx['homer_tables'] = sorted(glob.glob(os.path.join(staging_dir, '**', '*Motifs_Table.pdf'), recursive=True))
+    # PNG-only mode: skip Homer table PDFs
+    ctx['homer_tables'] = []
     ctx['diffbind_plots'] = {}
     ctx['diffbind_plots_pval'] = {}  # Raw p-value version plots
     ctx['diffbind_data'] = {}  # Store gain/loss/gc_test files per contrast
@@ -231,8 +232,9 @@ def build_context(staging_dir):
                     pval_plots.append(image_path)
         if pval_plots:
             ctx['diffbind_plots_pval'][contrast_name] = pval_plots
+    # Prefer PNG for faster loading, fall back to PDF/JPG
     chp_plots = []
-    for pattern in ["**/*chipseeker*pdf", "**/*chipseeker*png", "**/*chipseeker*jpg"]:
+    for pattern in ["**/*chipseeker*png", "**/*chipseeker*jpg", "**/*chipseeker*pdf"]:
         chp_plots.extend(path for path in glob.glob(os.path.join(staging_dir, pattern), recursive=True) if not is_report_artifact(path))
     ctx['chipseeker_plots'] = sorted(set(chp_plots))
     ctx['frip'] = find_first(["*_mqc.tsv", "**/*_mqc.tsv"], staging_dir)
@@ -298,8 +300,12 @@ def render_template(staging_dir, out_html):
     ctx['deseq2_rel'] = [copy_artifact(p) for p in (ctx.get('deseq2') or [])]
     ctx['deseq2_results_rel'] = copy_artifact(ctx.get('deseq2_results')) if ctx.get('deseq2_results') else None
     ctx['deseq2_significant_rel'] = copy_artifact(ctx.get('deseq2_significant')) if ctx.get('deseq2_significant') else None
+    
+    # PNG-only mode for all plots
     ctx['deseq2_volcano_rel'] = copy_artifact(ctx.get('deseq2_volcano')) if ctx.get('deseq2_volcano') else None
     ctx['deseq2_ma_rel'] = copy_artifact(ctx.get('deseq2_ma')) if ctx.get('deseq2_ma') else None
+    ctx['deseq2_volcano_is_png'] = True  # PNG-only mode
+    ctx['deseq2_ma_is_png'] = True      # PNG-only mode
     ctx['volcano_rel'] = [copy_artifact(p) for p in (ctx.get('volcano') or [])]
     ctx['ma_rel'] = [copy_artifact(p) for p in (ctx.get('ma') or [])]
     ctx['chipseeker_rel'] = [copy_artifact(p) for p in (ctx.get('chipseeker') or [])]
@@ -307,7 +313,8 @@ def render_template(staging_dir, out_html):
     for p in (ctx.get('homer_html') or []):
         label = os.path.basename(os.path.dirname(p))
         ctx['homer_reports'].append({'label': label, 'link': copy_artifact(p)})
-    ctx['homer_tables_rel'] = [ {'label': os.path.basename(p), 'link': copy_artifact(p)} for p in (ctx.get('homer_tables') or []) ]
+    # PNG-only mode: skip Homer table PDF artifacts
+    ctx['homer_tables_rel'] = []
     ctx['chipseeker_comparison_plots_rel'] = [
         copy_artifact(p)
         for p in (ctx.get('chipseeker_plots') or [])
@@ -347,10 +354,10 @@ def render_template(staging_dir, out_html):
         for feature, img_list in feats.items():
             items = []
             for img in img_list:
-                pdf = os.path.splitext(img)[0] + '.pdf'
+                # PNG-only mode: skip PDF alternatives
                 items.append({
                     'png': copy_artifact(img),
-                    'pdf': copy_artifact(pdf) if os.path.exists(pdf) else None,
+                    'pdf': None,  # Removed PDF alternatives for PNG-only report
                 })
             ctx['pygenometracks_rel'][condition][feature] = items
     
