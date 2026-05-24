@@ -941,22 +941,96 @@ results/report/
 
 1. Open `results/report/CUT_and_RUN_report.html` in any web browser
 2. Navigate sections using the purple navbar at the top
-3. Explore plots, tables, and annotations using interactive elements
-4. Download individual files or export tables as needed
+3. Expand collapsible sections to explore detailed per-replicate quality metrics
+4. Explore plots, tables, and annotations using interactive elements
+5. Download individual files or export tables as needed
+
+### Report Sections (Tier 3 Enhanced)
+
+**QC Metrics** (expanded with new visualizations):
+- **FRiP Scores** - Fragment in Peaks for each sample
+- **Peak Feature GC Content** - GC% distribution across replicates and conditions (NEW)
+  - Boxplot and violin plot variants
+  - Identifies potential quality issues if GC% varies significantly
+- **ChIP Coverage Comparison** - Normalized read coverage at peaks (NEW)
+  - Overall comparison and condition-averaged views
+  - Helps spot samples with poor ChIP efficiency or aberrant normalization
+- **Per-Replicate Quality Control** - Detailed breakdown of individual replicates (NEW)
+  - Collapsible accordion organized by condition
+  - Shows ChIPseeker annotation, coverage, and TSS distance plots for each replicate
+  - Essential for identifying problematic replicates before final analysis
+
+**Peak Analysis**:
+- Consensus peaks and sample overlap
+- ChIPseeker peak annotations by genomic region
+- Peak signal distributions and reproducibility heatmaps
+- IGV session generation for peak visualization
+
+**Peak Annotations**:
+- HOMER motif discovery results
+- ChIPseeker annotation tables and visualizations
+- **ChIPseeker Per-Replicate Analysis** - Detailed view of each replicate (NEW, collapsible)
+  - Annotation pie charts, bar charts, upset plots
+  - Coverage and TSS distance distributions
+  - Quality assessment tool for identifying failing replicates
+- **ChIPseeker Alternative Comparison Plots** - Additional perspectives (NEW)
+  - Slim versions for simplified views
+  - Condition-grouped annotations
+  - Condition-specific pie charts for different analysis angles
+
+**DESeq2 Results** (when differential analysis is run):
+- Volcano plots showing fold-change vs. p-value (PNG format)
+- MA plots showing average expression vs. fold-change (PNG format)
+- Gene annotations with nearest peak distances
+- Significant peak tables with gene names and genomic coordinates
+
+**Genome Browser Views**:
+- Top 10 peak regions by feature type (PyGenomeTracks)
+- Organized by condition and feature (promoter, TES, UTR, exon, intron, intergenic)
 
 ### Performance Notes
 
 - PNG format reduces image file sizes from ~500KB (PDF vectors) to ~10KB (rasterized PNG)
 - Report generation typically completes in 30-60 seconds after pipeline finishes
-- Total report including images typically <10 MB for single run
+- Total report including images typically <20 MB with Tier 3 enhancements
 - Compatible with all modern browsers (Chrome, Firefox, Safari, Edge)
+- Collapsible sections reduce initial page load time while keeping all data accessible
 
 ### Implementation Details
 
+**Architecture**:
 - **Python 3.10** with Jinja2 templating engine
-- **Data discovery** scans all pipeline results directories for analysis outputs
+- **Data discovery** scans all pipeline results directories for 290+ available PNG visualizations
 - **Image optimization** prioritizes PNG format and automatically selects available visualizations
 - **Responsive design** adapts to desktop, tablet, and mobile viewing
+- **Interactive components** with Bootstrap 5 collapse/accordion for organized display of large datasets
+
+**Tier 3 Enhancements**:
+- **GC Content Analysis** (4 PNGs): Sample and condition-level GC% metrics
+- **Coverage Comparison** (2 PNGs): Normalized read distribution validation  
+- **Per-Replicate QC** (42 PNGs): Individual replicate quality assessment in collapsible accordion
+- **Alternative Comparisons** (5 PNGs): Multiple perspectives on peak annotations
+- **Smart Grouping**: Per-replicate plots automatically organized by condition and replicate ID
+- **Total visualizations**: ~100-150 PNG images discovered and included from 291 available
+
+### Advanced Features
+
+**Accordion Sections**: 
+- Per-replicate ChIPseeker plots collapsible by condition
+- Reduces visual clutter while keeping comprehensive data accessible
+- Single-click expansion to compare individual replicates
+
+**Automatic Artifact Discovery**:
+- Generator automatically detects and includes new visualization types
+- Scales dynamically with pipeline output (works with 1 or 20+ replicates)
+- Falls back gracefully if specific analysis modules are not run
+
+**Quality Assessment Workflow**:
+1. Start with high-level QC metrics (FRiP, GC content, coverage)
+2. Drill down to condition-level summaries via ChIPseeker comparison
+3. Expand per-replicate accordion to identify problematic samples
+4. Review individual replicate GC distributions and coverage profiles
+5. Cross-reference with PyGenomeTracks for genomic context
 
 
 

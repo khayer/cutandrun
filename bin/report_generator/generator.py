@@ -154,6 +154,76 @@ def build_context(staging_dir):
     ctx['homer_html'] = find_first(["**/homerResults.html", "homerResults.html"], staging_dir)
     # PNG-only mode: skip Homer table PDFs
     ctx['homer_tables'] = []
+    
+    # Peak Feature Annotation GC Content Plots
+    gc_plot_patterns = [
+        "homer_peak_annotation.gc_by_sample.png",
+        "homer_peak_annotation.gc_by_sample_violin.png",
+        "homer_peak_annotation.gc_by_condition.png",
+        "homer_peak_annotation.gc_by_condition_violin.png",
+    ]
+    ctx['gc_plots'] = {}
+    for pattern in gc_plot_patterns:
+        files = find_first([f"*/{pattern}", f"**/{pattern}"], staging_dir)
+        if files:
+            ctx['gc_plots'][pattern.replace('homer_peak_annotation.', '').replace('.png', '')] = files[0]
+    
+    # ChIPseeker Coverage Comparison Plots
+    coverage_patterns = [
+        "chipseeker_comparison_coverage.png",
+        "chipseeker_comparison_coverage_condition_average.png",
+    ]
+    ctx['coverage_plots'] = {}
+    for pattern in coverage_patterns:
+        files = find_first([f"*/{pattern}", f"**/{pattern}"], staging_dir)
+        if files:
+            label = pattern.replace('chipseeker_comparison_coverage', '').replace('_condition_average', ' (by condition)').replace('.png', '').lstrip('_') or 'all samples'
+            ctx['coverage_plots'][label] = files[0]
+    
+    # Per-Replicate ChIPseeker Plots - Group by condition and type
+    ctx['per_replicate_chipseeker'] = {}
+    all_chipseeker_pngs = []
+    for pattern in ["**/*_R1_chipseeker*.png", "**/*_R2_chipseeker*.png", "**/*_R3_chipseeker*.png"]:
+        all_chipseeker_pngs.extend(glob.glob(os.path.join(staging_dir, pattern), recursive=True))
+    all_chipseeker_pngs = [p for p in all_chipseeker_pngs if not is_report_artifact(p)]
+    
+    for png_path in sorted(all_chipseeker_pngs):
+        basename = os.path.basename(png_path)
+        # Extract condition and replicate: e.g., "33K_Ad5_R1_chipseeker_annotation_pie.png"
+        # becomes condition="33K_Ad5", replicate="R1", plot_type="annotation_pie"
+        parts = basename.replace('.png', '').split('_')
+        if '_R' in basename:
+            r_idx = -1
+            for i, p in enumerate(parts):
+                if p.startswith('R') and p[1:].isdigit():
+                    r_idx = i
+                    break
+            if r_idx >= 0:
+                condition = '_'.join(parts[:r_idx])
+                replicate = parts[r_idx]
+                plot_type = '_'.join(parts[r_idx+2:])  # Skip 'chipseeker' part
+                
+                if condition not in ctx['per_replicate_chipseeker']:
+                    ctx['per_replicate_chipseeker'][condition] = {}
+                if replicate not in ctx['per_replicate_chipseeker'][condition]:
+                    ctx['per_replicate_chipseeker'][condition][replicate] = {}
+                ctx['per_replicate_chipseeker'][condition][replicate][plot_type] = png_path
+    
+    # Alternative ChIPseeker Comparison Plots (non-standard variants)
+    ctx['alternative_chipseeker_plots'] = {}
+    alternative_patterns = [
+        'chipseeker_comparison_annotation_bar_slim_version',
+        'chipseeker_comparison_annotation_bar_condition',
+        'chipseeker_comparison_annotation_bar_condition_slim_version',
+        'chipseeker_condition_.*_pie',
+    ]
+    for pattern in alternative_patterns:
+        files = sorted(glob.glob(os.path.join(staging_dir, '**', f'{pattern}.png'), recursive=True))
+        files = [f for f in files if not is_report_artifact(f)]
+        if files:
+            label = pattern.replace('chipseeker_', '').replace('_', ' ').title()
+            for f in files:
+                ctx['alternative_chipseeker_plots'][f"{label} ({os.path.basename(f)})"] = f
     ctx['diffbind_plots'] = {}
     ctx['diffbind_plots_pval'] = {}  # Raw p-value version plots
     ctx['diffbind_data'] = {}  # Store gain/loss/gc_test files per contrast
@@ -315,6 +385,30 @@ def render_template(staging_dir, out_html):
         ctx['homer_reports'].append({'label': label, 'link': copy_artifact(p)})
     # PNG-only mode: skip Homer table PDF artifacts
     ctx['homer_tables_rel'] = []
+    
+    # GC Content Plots
+    ctx['gc_plots_rel'] = {}
+    for label, path in ctx.get('gc_plots', {}).items():
+        ctx['gc_plots_rel'][label] = copy_artifact(path)
+    
+    # Coverage Comparison Plots
+    ctx['coverage_plots_rel'] = {}
+    for label, path in ctx.get('coverage_plots', {}).items():
+        ctx['coverage_plots_rel'][label] = copy_artifact(path)
+    
+    # Per-Replicate ChIPseeker Plots
+    ctx['per_replicate_chipseeker_rel'] = {}
+    for condition, replicates in ctx.get('per_replicate_chipseeker', {}).items():
+        ctx['per_replicate_chipseeker_rel'][condition] = {}
+        for replicate, plots in replicates.items():
+            ctx['per_replicate_chipseeker_rel'][condition][replicate] = {}
+            for plot_type, path in plots.items():
+                ctx['per_replicate_chipseeker_rel'][condition][replicate][plot_type] = copy_artifact(path)
+    
+    # Alternative ChIPseeker Comparison Plots
+    ctx['alternative_chipseeker_plots_rel'] = {}
+    for label, path in ctx.get('alternative_chipseeker_plots', {}).items():
+        ctx['alternative_chipseeker_plots_rel'][label] = copy_artifact(path)
     ctx['chipseeker_comparison_plots_rel'] = [
         copy_artifact(p)
         for p in (ctx.get('chipseeker_plots') or [])

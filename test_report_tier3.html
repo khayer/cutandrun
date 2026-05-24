@@ -1,0 +1,2766 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CUT_and_RUN_report</title>
+    <link href="static/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="static/css/dataTables.bootstrap5.min.css">
+    <style>
+      body { padding-top: 3.5rem; }
+      .nav-sidebar { position: fixed; top: 56px; left: 0; width: 220px; height: 100%; padding: 1rem; overflow-y: auto; }
+      .content { margin-left: 240px; padding: 1rem; }
+      .section { margin-bottom: 2rem; }
+      .navbar { background: linear-gradient(135deg, #6f42c1 0%, #8b5cf6 100%); }
+      .nav-link { color: #555 !important; }
+      .nav-link:hover { color: #6f42c1 !important; font-weight: 600; }
+      .section h3 { color: #6f42c1; border-bottom: 3px solid #8b5cf6; padding-bottom: 0.5rem; }
+      .card-header { background-color: #f3f0ff; border-bottom: 2px solid #8b5cf6; }
+      a { color: #6f42c1; }
+      a:hover { color: #8b5cf6; }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="#">CUT&RUN Report</a>
+      </div>
+    </nav>
+
+    <div class="nav-sidebar bg-light">
+      <h6>Sections</h6>
+      <ul class="nav flex-column">
+        <li class="nav-item"><a class="nav-link" href="#qc">QC</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#qc-frip">FRiP Scores</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#qc-peak-feature">Peak Feature GC</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#qc-coverage">ChIP Coverage</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#qc-per-replicate">Per-Replicate QC</a></li>
+        <li class="nav-item"><a class="nav-link" href="#promoter_gc">Promoter GC / Differential Binding</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#promoter_gain">Promoter Gain</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#promoter_loss">Promoter Loss</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#diffbind_top1000">Top 1000 PNGs</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#diffbind_data">Top 1000 Data</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#diffbind_pval">Raw p-value Analysis</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#diffbind_plots">Volcano / MA</a></li>
+        <li class="nav-item"><a class="nav-link" href="#deseq2">DESeq2 Differential Analysis</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#deseq2_results">Results & Plots</a></li>
+        <li class="nav-item"><a class="nav-link" href="#peaks">Peak Visualizations</a></li>
+        <li class="nav-item"><a class="nav-link" href="#annotations">Motifs & Annotations</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#homer_reports">HOMER Reports</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#homer_tables">HOMER Tables</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#chipseeker_preview">ChIPseeker Preview</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#chipseeker_comparison_plots">ChIPseeker Comparison PNGs</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#chipseeker_per_replicate">ChIPseeker Per-Replicate</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#chipseeker_alternative">ChIPseeker Alternatives</a></li>
+      </ul>
+    </div>
+
+    <main class="content">
+      <div class="container-fluid">
+        <div id="qc" class="section">
+          <h3>QC</h3>
+          <p><strong>Question:</strong> Are sample-level QC metrics within expected ranges? (FRiP, fragment length, mapping quality)</p>
+          
+          <h5 id="qc-frip">FRiP Scores</h5>
+          <div class=\"table-responsive\"><table border="1" class="dataframe table table-sm table-striped">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Sample</th>
+      <th>FRiP Score</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>33K_Ad5_R1</td>
+      <td>0.0253085</td>
+    </tr>
+    <tr>
+      <td>33K_Ad5_R3</td>
+      <td>0.0218575</td>
+    </tr>
+    <tr>
+      <td>33K_Mock_R1</td>
+      <td>0.0432963</td>
+    </tr>
+    <tr>
+      <td>33K_Mock_R2</td>
+      <td>0.0548116</td>
+    </tr>
+    <tr>
+      <td>33K_Mock_R3</td>
+      <td>0.0474939</td>
+    </tr>
+    <tr>
+      <td>H3_control_R1</td>
+      <td>0.49382</td>
+    </tr>
+  </tbody>
+</table></div>
+          
+
+          <h5 id="qc-peak-feature">Peak Feature GC Content Analysis</h5>
+          
+            <div class="row">
+              
+                <div class="col-md-6 mb-4">
+                  
+                    <div class="card">
+                      <div class="card-body p-2">
+                        <img src="artifacts/03_peak_calling/10_peak_feature_annotation/homer_peak_annotation.gc_by_sample.png" alt="gc_by_sample" class="img-fluid">
+                        <div class="small text-muted mt-2"><strong>Gc By Sample</strong></div>
+                      </div>
+                    </div>
+                  
+                </div>
+              
+                <div class="col-md-6 mb-4">
+                  
+                    <div class="card">
+                      <div class="card-body p-2">
+                        <img src="artifacts/03_peak_calling/10_peak_feature_annotation/homer_peak_annotation.gc_by_sample_violin.png" alt="gc_by_sample_violin" class="img-fluid">
+                        <div class="small text-muted mt-2"><strong>Gc By Sample Violin</strong></div>
+                      </div>
+                    </div>
+                  
+                </div>
+              
+                <div class="col-md-6 mb-4">
+                  
+                    <div class="card">
+                      <div class="card-body p-2">
+                        <img src="artifacts/03_peak_calling/10_peak_feature_annotation/homer_peak_annotation.gc_by_condition.png" alt="gc_by_condition" class="img-fluid">
+                        <div class="small text-muted mt-2"><strong>Gc By Condition</strong></div>
+                      </div>
+                    </div>
+                  
+                </div>
+              
+                <div class="col-md-6 mb-4">
+                  
+                    <div class="card">
+                      <div class="card-body p-2">
+                        <img src="artifacts/03_peak_calling/10_peak_feature_annotation/homer_peak_annotation.gc_by_condition_violin.png" alt="gc_by_condition_violin" class="img-fluid">
+                        <div class="small text-muted mt-2"><strong>Gc By Condition Violin</strong></div>
+                      </div>
+                    </div>
+                  
+                </div>
+              
+            </div>
+            <p class="small text-muted mt-2"><em>Shows GC% distribution of peaks across replicates and conditions. Consistency indicates good peak quality.</em></p>
+          
+
+          <h5 id="qc-coverage">ChIP Coverage Comparison</h5>
+          
+            <div class="row">
+              
+                <div class="col-md-6 mb-4">
+                  
+                    <div class="card">
+                      <div class="card-body p-2">
+                        <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/chipseeker_comparison_coverage.png" alt="all samples" class="img-fluid">
+                        <div class="small text-muted mt-2"><strong>all samples</strong></div>
+                      </div>
+                    </div>
+                  
+                </div>
+              
+                <div class="col-md-6 mb-4">
+                  
+                    <div class="card">
+                      <div class="card-body p-2">
+                        <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/chipseeker_comparison_coverage_condition_average.png" alt=" (by condition)" class="img-fluid">
+                        <div class="small text-muted mt-2"><strong> (by condition)</strong></div>
+                      </div>
+                    </div>
+                  
+                </div>
+              
+            </div>
+            <p class="small text-muted mt-2"><em>Normalized read coverage at peaks. Helps identify samples with poor ChIP efficiency or outlier normalization.</em></p>
+          
+
+          <h5 id="qc-per-replicate">Per-Replicate Quality Control</h5>
+          
+            <p class="small"><em>Expand each condition to inspect individual replicate peak annotations and coverage.</em></p>
+            
+              <div class="card mb-3">
+                <div class="card-header" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#collapse-33K_Ad5">
+                  <strong>33K_Ad5</strong> <span class="float-end">▼</span>
+                </div>
+                <div id="collapse-33K_Ad5" class="collapse">
+                  <div class="card-body">
+                    
+                      <div class="mb-4">
+                        <h6 class="text-muted">R1</h6>
+                        <div class="row">
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R1_chipseeker_annotation_bar.png" alt="R1 annotation_bar" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Annotation Bar</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R1_chipseeker_annotation_pie.png" alt="R1 annotation_pie" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Annotation Pie</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R1_chipseeker_annotation_upset.png" alt="R1 annotation_upset" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Annotation Upset</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R1_chipseeker_coverage.png" alt="R1 coverage" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Coverage</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R1_chipseeker_dist_to_tss.png" alt="R1 dist_to_tss" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Dist To Tss</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R1_chipseeker_vennpie.png" alt="R1 vennpie" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Vennpie</div>
+                              
+                            </div>
+                          
+                        </div>
+                      </div>
+                    
+                      <div class="mb-4">
+                        <h6 class="text-muted">R2</h6>
+                        <div class="row">
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R2_chipseeker_annotation_bar.png" alt="R2 annotation_bar" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Annotation Bar</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R2_chipseeker_annotation_pie.png" alt="R2 annotation_pie" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Annotation Pie</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R2_chipseeker_annotation_upset.png" alt="R2 annotation_upset" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Annotation Upset</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R2_chipseeker_coverage.png" alt="R2 coverage" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Coverage</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R2_chipseeker_dist_to_tss.png" alt="R2 dist_to_tss" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Dist To Tss</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R2_chipseeker_vennpie.png" alt="R2 vennpie" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Vennpie</div>
+                              
+                            </div>
+                          
+                        </div>
+                      </div>
+                    
+                      <div class="mb-4">
+                        <h6 class="text-muted">R3</h6>
+                        <div class="row">
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R3_chipseeker_annotation_bar.png" alt="R3 annotation_bar" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Annotation Bar</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R3_chipseeker_annotation_pie.png" alt="R3 annotation_pie" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Annotation Pie</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R3_chipseeker_annotation_upset.png" alt="R3 annotation_upset" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Annotation Upset</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R3_chipseeker_coverage.png" alt="R3 coverage" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Coverage</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R3_chipseeker_dist_to_tss.png" alt="R3 dist_to_tss" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Dist To Tss</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R3_chipseeker_vennpie.png" alt="R3 vennpie" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Vennpie</div>
+                              
+                            </div>
+                          
+                        </div>
+                      </div>
+                    
+                  </div>
+                </div>
+              </div>
+            
+              <div class="card mb-3">
+                <div class="card-header" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#collapse-33K_Mock">
+                  <strong>33K_Mock</strong> <span class="float-end">▼</span>
+                </div>
+                <div id="collapse-33K_Mock" class="collapse">
+                  <div class="card-body">
+                    
+                      <div class="mb-4">
+                        <h6 class="text-muted">R1</h6>
+                        <div class="row">
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R1_chipseeker_annotation_bar.png" alt="R1 annotation_bar" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Annotation Bar</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R1_chipseeker_annotation_pie.png" alt="R1 annotation_pie" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Annotation Pie</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R1_chipseeker_annotation_upset.png" alt="R1 annotation_upset" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Annotation Upset</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R1_chipseeker_coverage.png" alt="R1 coverage" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Coverage</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R1_chipseeker_dist_to_tss.png" alt="R1 dist_to_tss" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Dist To Tss</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R1_chipseeker_vennpie.png" alt="R1 vennpie" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Vennpie</div>
+                              
+                            </div>
+                          
+                        </div>
+                      </div>
+                    
+                      <div class="mb-4">
+                        <h6 class="text-muted">R2</h6>
+                        <div class="row">
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R2_chipseeker_annotation_bar.png" alt="R2 annotation_bar" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Annotation Bar</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R2_chipseeker_annotation_pie.png" alt="R2 annotation_pie" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Annotation Pie</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R2_chipseeker_annotation_upset.png" alt="R2 annotation_upset" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Annotation Upset</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R2_chipseeker_coverage.png" alt="R2 coverage" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Coverage</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R2_chipseeker_dist_to_tss.png" alt="R2 dist_to_tss" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Dist To Tss</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R2_chipseeker_vennpie.png" alt="R2 vennpie" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Vennpie</div>
+                              
+                            </div>
+                          
+                        </div>
+                      </div>
+                    
+                      <div class="mb-4">
+                        <h6 class="text-muted">R3</h6>
+                        <div class="row">
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R3_chipseeker_annotation_bar.png" alt="R3 annotation_bar" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Annotation Bar</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R3_chipseeker_annotation_pie.png" alt="R3 annotation_pie" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Annotation Pie</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R3_chipseeker_annotation_upset.png" alt="R3 annotation_upset" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Annotation Upset</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R3_chipseeker_coverage.png" alt="R3 coverage" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Coverage</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R3_chipseeker_dist_to_tss.png" alt="R3 dist_to_tss" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Dist To Tss</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R3_chipseeker_vennpie.png" alt="R3 vennpie" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Vennpie</div>
+                              
+                            </div>
+                          
+                        </div>
+                      </div>
+                    
+                  </div>
+                </div>
+              </div>
+            
+              <div class="card mb-3">
+                <div class="card-header" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#collapse-H3_control">
+                  <strong>H3_control</strong> <span class="float-end">▼</span>
+                </div>
+                <div id="collapse-H3_control" class="collapse">
+                  <div class="card-body">
+                    
+                      <div class="mb-4">
+                        <h6 class="text-muted">R1</h6>
+                        <div class="row">
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/H3_control_R1_chipseeker_annotation_bar.png" alt="R1 annotation_bar" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Annotation Bar</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/H3_control_R1_chipseeker_annotation_pie.png" alt="R1 annotation_pie" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Annotation Pie</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/H3_control_R1_chipseeker_annotation_upset.png" alt="R1 annotation_upset" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Annotation Upset</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/H3_control_R1_chipseeker_coverage.png" alt="R1 coverage" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Coverage</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/H3_control_R1_chipseeker_dist_to_tss.png" alt="R1 dist_to_tss" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Dist To Tss</div>
+                              
+                            </div>
+                          
+                            <div class="col-md-4 mb-3">
+                              
+                                <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/H3_control_R1_chipseeker_vennpie.png" alt="R1 vennpie" class="img-fluid" style="border: 1px solid #ddd; padding: 3px;">
+                                <div class="small text-muted mt-1">Vennpie</div>
+                              
+                            </div>
+                          
+                        </div>
+                      </div>
+                    
+                  </div>
+                </div>
+              </div>
+            
+          
+        </div>
+
+        <div id="promoter_gc" class="section">
+          <h3>Promoter GC / Differential Binding</h3>
+          <p><strong>Question:</strong> Which promoter regions show gain or loss of binding between groups?</p>
+
+          <h5 id="promoter_gain">Promoter Gain (preview)</h5>
+          
+          <div class="table-responsive"><table border="1" class="dataframe table table-sm table-striped">
+  <thead>
+    <tr style="text-align: right;">
+      <th>peak_id</th>
+      <th>PeakID</th>
+      <th>Chr</th>
+      <th>Start</th>
+      <th>End</th>
+      <th>Strand</th>
+      <th>PeakScore</th>
+      <th>FocusRatio</th>
+      <th>Annotation</th>
+      <th>DetailedAnnotation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>chr1:109484384:109484972</td>
+      <td>peak_4011</td>
+      <td>chr1</td>
+      <td>109484384</td>
+      <td>109484972</td>
+      <td>+</td>
+      <td>0</td>
+      <td>NA</td>
+      <td>intron (NM_153340, intron 1 of 10)</td>
+      <td>-intron (NM_153340, intron 1 of 10)</td>
+    </tr>
+    <tr>
+      <td>chr1:1178834:1179371</td>
+      <td>peak_61</td>
+      <td>chr1</td>
+      <td>1178834</td>
+      <td>1179371</td>
+      <td>+</td>
+      <td>0</td>
+      <td>NA</td>
+      <td>promoter-TSS (NM_153254)</td>
+      <td>-promoter-TSS (NM_153254)</td>
+    </tr>
+    <tr>
+      <td>chr1:1204670:1204916</td>
+      <td>peak_63</td>
+      <td>chr1</td>
+      <td>1204670</td>
+      <td>1204916</td>
+      <td>+</td>
+      <td>0</td>
+      <td>NA</td>
+      <td>intron (NM_148902, intron 2 of 4)</td>
+      <td>-intron (NM_004195, intron 2 of 4)</td>
+    </tr>
+    <tr>
+      <td>chr1:1304550:1305682</td>
+      <td>peak_86</td>
+      <td>chr1</td>
+      <td>1304550</td>
+      <td>1305682</td>
+      <td>+</td>
+      <td>0</td>
+      <td>NA</td>
+      <td>intron (NM_030649, intron 1 of 23)</td>
+      <td>-intron (NM_030649, intron 1 of 23)</td>
+    </tr>
+    <tr>
+      <td>chr1:1374432:1374777</td>
+      <td>peak_104</td>
+      <td>chr1</td>
+      <td>1374432</td>
+      <td>1374777</td>
+      <td>+</td>
+      <td>0</td>
+      <td>NA</td>
+      <td>intron (NM_017900, intron 2 of 3)</td>
+      <td>-intron (NM_001127229, intron 2 of 3)</td>
+    </tr>
+    <tr>
+      <td>chr1:154993574:154993788</td>
+      <td>peak_4620</td>
+      <td>chr1</td>
+      <td>154993574</td>
+      <td>154993788</td>
+      <td>+</td>
+      <td>0</td>
+      <td>NA</td>
+      <td>promoter-TSS (NM_018655)</td>
+      <td>-promoter-TSS (NM_018655)</td>
+    </tr>
+    <tr>
+      <td>chr1:155173951:155174257</td>
+      <td>peak_4660</td>
+      <td>chr1</td>
+      <td>155173951</td>
+      <td>155174257</td>
+      <td>+</td>
+      <td>0</td>
+      <td>NA</td>
+      <td>promoter-TSS (NM_001256601)</td>
+      <td>-promoter-TSS (NM_001256601)</td>
+    </tr>
+    <tr>
+      <td>chr1:155254774:155255464</td>
+      <td>peak_4674</td>
+      <td>chr1</td>
+      <td>155254774</td>
+      <td>155255464</td>
+      <td>+</td>
+      <td>0</td>
+      <td>NA</td>
+      <td>TTS (NM_005698)</td>
+      <td>-TTS (NM_005698)</td>
+    </tr>
+    <tr>
+      <td>chr1:156113577:156114216</td>
+      <td>peak_4731</td>
+      <td>chr1</td>
+      <td>156113577</td>
+      <td>156114216</td>
+      <td>+</td>
+      <td>0</td>
+      <td>NA</td>
+      <td>promoter-TSS (NM_001282626)</td>
+      <td>-promoter-TSS (NM_001282626)</td>
+    </tr>
+    <tr>
+      <td>chr1:156581631:156581808</td>
+      <td>peak_4795</td>
+      <td>chr1</td>
+      <td>156581631</td>
+      <td>156581808</td>
+      <td>+</td>
+      <td>0</td>
+      <td>NA</td>
+      <td>exon (NM_001105669, exon 2 of 11)</td>
+      <td>-exon (NM_001105669, exon 2 of 11)</td>
+    </tr>
+  </tbody>
+</table></div>
+          <p><a href="artifacts/03_peak_calling/11_differential_binding/33K_Ad5_vs_33K_Mock/33K_Ad5_vs_33K_Mock.promoter_gain.tsv">Download full promoter_gain.tsv</a></p>
+          
+
+          <h5 id="promoter_loss">Promoter Loss (preview)</h5>
+          
+          <div class="table-responsive"><table border="1" class="dataframe table table-sm table-striped">
+  <thead>
+    <tr style="text-align: right;">
+      <th>peak_id</th>
+      <th>PeakID</th>
+      <th>Chr</th>
+      <th>Start</th>
+      <th>End</th>
+      <th>Strand</th>
+      <th>PeakScore</th>
+      <th>FocusRatio</th>
+      <th>Annotation</th>
+      <th>DetailedAnnotation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>chr1:100249340:100250249</td>
+      <td>peak_3936</td>
+      <td>chr1</td>
+      <td>100249340</td>
+      <td>100250249</td>
+      <td>+</td>
+      <td>0</td>
+      <td>NA</td>
+      <td>promoter-TSS (NM_001918)</td>
+      <td>-promoter-TSS (NM_001918)</td>
+    </tr>
+    <tr>
+      <td>chr1:121184482:121185267</td>
+      <td>peak_4223</td>
+      <td>chr1</td>
+      <td>121184482</td>
+      <td>121185267</td>
+      <td>+</td>
+      <td>0</td>
+      <td>NA</td>
+      <td>promoter-TSS (NM_001100910)</td>
+      <td>-promoter-TSS (NM_001100910)</td>
+    </tr>
+    <tr>
+      <td>chr1:169794260:169795365</td>
+      <td>peak_5159</td>
+      <td>chr1</td>
+      <td>169794260</td>
+      <td>169795365</td>
+      <td>+</td>
+      <td>0</td>
+      <td>NA</td>
+      <td>promoter-TSS (NM_018186)</td>
+      <td>-promoter-TSS (NM_018186)</td>
+    </tr>
+    <tr>
+      <td>chr1:170531702:170532597</td>
+      <td>peak_5169</td>
+      <td>chr1</td>
+      <td>170531702</td>
+      <td>170532597</td>
+      <td>+</td>
+      <td>0</td>
+      <td>NA</td>
+      <td>promoter-TSS (NM_001146039)</td>
+      <td>-promoter-TSS (NM_001146039)</td>
+    </tr>
+    <tr>
+      <td>chr1:171313759:171314274</td>
+      <td>peak_5177</td>
+      <td>chr1</td>
+      <td>171313759</td>
+      <td>171314274</td>
+      <td>+</td>
+      <td>0</td>
+      <td>NA</td>
+      <td>promoter-TSS (NM_002022)</td>
+      <td>-promoter-TSS (NM_002022)</td>
+    </tr>
+    <tr>
+      <td>chr1:172532208:172534081</td>
+      <td>peak_5201</td>
+      <td>chr1</td>
+      <td>172532208</td>
+      <td>172534081</td>
+      <td>+</td>
+      <td>0</td>
+      <td>NA</td>
+      <td>promoter-TSS (NM_001282750)</td>
+      <td>-promoter-TSS (NM_001282750)</td>
+    </tr>
+    <tr>
+      <td>chr1:17441570:17441820</td>
+      <td>peak_1068</td>
+      <td>chr1</td>
+      <td>17441570</td>
+      <td>17441820</td>
+      <td>+</td>
+      <td>0</td>
+      <td>NA</td>
+      <td>Intergenic</td>
+      <td>Intergenic</td>
+    </tr>
+    <tr>
+      <td>chr1:178341417:178341796</td>
+      <td>peak_5273</td>
+      <td>chr1</td>
+      <td>178341417</td>
+      <td>178341796</td>
+      <td>+</td>
+      <td>0</td>
+      <td>NA</td>
+      <td>exon (NM_004841, exon 1 of 16)</td>
+      <td>-exon (NM_004841, exon 1 of 16)</td>
+    </tr>
+    <tr>
+      <td>chr1:184387698:184388487</td>
+      <td>peak_5456</td>
+      <td>chr1</td>
+      <td>184387698</td>
+      <td>184388487</td>
+      <td>+</td>
+      <td>0</td>
+      <td>NA</td>
+      <td>intron (NM_030806, intron 1 of 5)</td>
+      <td>-intron (NM_030806, intron 1 of 5)</td>
+    </tr>
+    <tr>
+      <td>chr1:203626134:203627376</td>
+      <td>peak_5827</td>
+      <td>chr1</td>
+      <td>203626134</td>
+      <td>203627376</td>
+      <td>+</td>
+      <td>0</td>
+      <td>NA</td>
+      <td>promoter-TSS (NM_001001396)</td>
+      <td>-promoter-TSS (NM_001001396)</td>
+    </tr>
+  </tbody>
+</table></div>
+          <p><a href="artifacts/03_peak_calling/11_differential_binding/33K_Ad5_vs_33K_Mock/33K_Ad5_vs_33K_Mock.promoter_loss.tsv">Download full promoter_loss.tsv</a></p>
+          
+
+          <h5 id="diffbind_top1000">Top 1000 differential-binding PNGs</h5>
+          
+            
+              <div class="card mb-3">
+                <div class="card-header"><strong>33K_Ad5_vs_33K_Mock</strong></div>
+                <div class="card-body">
+                  <div class="row">
+                    
+                      <div class="col-md-6" style="margin-bottom: 1rem;">
+                        <img src="artifacts/03_peak_calling/11_differential_binding/33K_Ad5_vs_33K_Mock/33K_Ad5_vs_33K_Mock.top1000_promoter_gc_boxplot.png" alt="33K_Ad5_vs_33K_Mock.top1000_promoter_gc_boxplot.png" class="img-fluid">
+                        <div class="small text-muted mt-1">33K_Ad5_vs_33K_Mock.top1000_promoter_gc_boxplot.png</div>
+                      </div>
+                    
+                      <div class="col-md-6" style="margin-bottom: 1rem;">
+                        <img src="artifacts/03_peak_calling/11_differential_binding/33K_Ad5_vs_33K_Mock/33K_Ad5_vs_33K_Mock.top1000_promoter_gc_violin.png" alt="33K_Ad5_vs_33K_Mock.top1000_promoter_gc_violin.png" class="img-fluid">
+                        <div class="small text-muted mt-1">33K_Ad5_vs_33K_Mock.top1000_promoter_gc_violin.png</div>
+                      </div>
+                    
+                      <div class="col-md-6" style="margin-bottom: 1rem;">
+                        <img src="artifacts/03_peak_calling/11_differential_binding/33K_Ad5_vs_33K_Mock/33K_Ad5_vs_33K_Mock.top1000_volcano_raw_pvalue.png" alt="33K_Ad5_vs_33K_Mock.top1000_volcano_raw_pvalue.png" class="img-fluid">
+                        <div class="small text-muted mt-1">33K_Ad5_vs_33K_Mock.top1000_volcano_raw_pvalue.png</div>
+                      </div>
+                    
+                      <div class="col-md-6" style="margin-bottom: 1rem;">
+                        <img src="artifacts/03_peak_calling/11_differential_binding/33K_Ad5_vs_33K_Mock/33K_Ad5_vs_33K_Mock.promoter_gc_boxplot.png" alt="33K_Ad5_vs_33K_Mock.promoter_gc_boxplot.png" class="img-fluid">
+                        <div class="small text-muted mt-1">33K_Ad5_vs_33K_Mock.promoter_gc_boxplot.png</div>
+                      </div>
+                    
+                      <div class="col-md-6" style="margin-bottom: 1rem;">
+                        <img src="artifacts/03_peak_calling/11_differential_binding/33K_Ad5_vs_33K_Mock/33K_Ad5_vs_33K_Mock.promoter_gc_violin.png" alt="33K_Ad5_vs_33K_Mock.promoter_gc_violin.png" class="img-fluid">
+                        <div class="small text-muted mt-1">33K_Ad5_vs_33K_Mock.promoter_gc_violin.png</div>
+                      </div>
+                    
+                      <div class="col-md-6" style="margin-bottom: 1rem;">
+                        <img src="artifacts/03_peak_calling/11_differential_binding/33K_Ad5_vs_33K_Mock/33K_Ad5_vs_33K_Mock.volcano.png" alt="33K_Ad5_vs_33K_Mock.volcano.png" class="img-fluid">
+                        <div class="small text-muted mt-1">33K_Ad5_vs_33K_Mock.volcano.png</div>
+                      </div>
+                    
+                      <div class="col-md-6" style="margin-bottom: 1rem;">
+                        <img src="artifacts/03_peak_calling/11_differential_binding/33K_Ad5_vs_33K_Mock/33K_Ad5_vs_33K_Mock.ma_plot.png" alt="33K_Ad5_vs_33K_Mock.ma_plot.png" class="img-fluid">
+                        <div class="small text-muted mt-1">33K_Ad5_vs_33K_Mock.ma_plot.png</div>
+                      </div>
+                    
+                      <div class="col-md-6" style="margin-bottom: 1rem;">
+                        <img src="artifacts/03_peak_calling/11_differential_binding/33K_Ad5_vs_33K_Mock/33K_Ad5_vs_33K_Mock.promoter_gc_boxplot_raw_pval.png" alt="33K_Ad5_vs_33K_Mock.promoter_gc_boxplot_raw_pval.png" class="img-fluid">
+                        <div class="small text-muted mt-1">33K_Ad5_vs_33K_Mock.promoter_gc_boxplot_raw_pval.png</div>
+                      </div>
+                    
+                      <div class="col-md-6" style="margin-bottom: 1rem;">
+                        <img src="artifacts/03_peak_calling/11_differential_binding/33K_Ad5_vs_33K_Mock/33K_Ad5_vs_33K_Mock.promoter_gc_violin_raw_pval.png" alt="33K_Ad5_vs_33K_Mock.promoter_gc_violin_raw_pval.png" class="img-fluid">
+                        <div class="small text-muted mt-1">33K_Ad5_vs_33K_Mock.promoter_gc_violin_raw_pval.png</div>
+                      </div>
+                    
+                  </div>
+                </div>
+              </div>
+            
+          
+
+          <h5 id="diffbind_data">Top 1000 data files and GC statistics</h5>
+          
+            
+              <div class="card mb-3">
+                <div class="card-header"><strong>33K_Ad5_vs_33K_Mock</strong></div>
+                <div class="card-body">
+                  <h6>Download data files:</h6>
+                  <ul>
+                    
+                      <li><a href="artifacts/03_peak_calling/11_differential_binding/33K_Ad5_vs_33K_Mock/33K_Ad5_vs_33K_Mock.top1000_gain.tsv" download>33K_Ad5_vs_33K_Mock.top1000_gain.tsv</a> (Top 1000 Gain)</li>
+                    
+                    
+                      <li><a href="artifacts/03_peak_calling/11_differential_binding/33K_Ad5_vs_33K_Mock/33K_Ad5_vs_33K_Mock.top1000_loss.tsv" download>33K_Ad5_vs_33K_Mock.top1000_loss.tsv</a> (Top 1000 Loss)</li>
+                    
+                    
+                      <li><a href="artifacts/03_peak_calling/11_differential_binding/33K_Ad5_vs_33K_Mock/33K_Ad5_vs_33K_Mock.top1000_promoter_gc_test.tsv" download>33K_Ad5_vs_33K_Mock.top1000_promoter_gc_test.tsv</a> (GC Test Stats)</li>
+                    
+                  </ul>
+                  
+                  
+                    <h6 class="mt-3">GC Content Statistics:</h6>
+                    <div class="table-responsive">
+                      <table border="1" class="dataframe table table-sm table-striped">
+  <thead>
+    <tr style="text-align: right;">
+      <th>comparison</th>
+      <th>top_n</th>
+      <th>n_loss</th>
+      <th>n_gain</th>
+      <th>statistic</th>
+      <th>p_value</th>
+      <th>median_gc_loss</th>
+      <th>median_gc_gain</th>
+      <th>median_difference</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>top1000 raw p-value ranked loss vs gain</td>
+      <td>1000</td>
+      <td>1000</td>
+      <td>1000</td>
+      <td>211624.50</td>
+      <td>1.81e-110</td>
+      <td>0.5678</td>
+      <td>0.6479</td>
+      <td>-0.0801</td>
+    </tr>
+  </tbody>
+</table>
+                    </div>
+                  
+                </div>
+              </div>
+            
+          
+
+          <div style="border-top: 3px solid #6f42c1; padding-top: 2rem; margin-top: 2rem;">
+            <h5 id="diffbind_pval" style="color: #6f42c1;">Raw p-value Analysis (p ≤ 0.05)</h5>
+            <p><em><strong>Note:</strong> This section shows results using raw p-values (p ≤ 0.05) instead of FDR-adjusted p-values for comparison. Use with caution for small sample numbers.</em></p>
+            
+            
+              <h6>GC Content Plots</h6>
+              
+                
+                  <div class="card mb-3">
+                    <div class="card-header"><strong>33K_Ad5_vs_33K_Mock</strong></div>
+                    <div class="card-body">
+                      <div class="row">
+                        
+                          <div class="col-md-6" style="margin-bottom: 1rem;">
+                            <img src="artifacts/03_peak_calling/11_differential_binding/33K_Ad5_vs_33K_Mock/33K_Ad5_vs_33K_Mock.promoter_gc_boxplot_raw_pval.png" alt="33K_Ad5_vs_33K_Mock.promoter_gc_boxplot_raw_pval.png" class="img-fluid">
+                            <div class="small text-muted mt-1">33K_Ad5_vs_33K_Mock.promoter_gc_boxplot_raw_pval.png</div>
+                          </div>
+                        
+                          <div class="col-md-6" style="margin-bottom: 1rem;">
+                            <img src="artifacts/03_peak_calling/11_differential_binding/33K_Ad5_vs_33K_Mock/33K_Ad5_vs_33K_Mock.promoter_gc_violin_raw_pval.png" alt="33K_Ad5_vs_33K_Mock.promoter_gc_violin_raw_pval.png" class="img-fluid">
+                            <div class="small text-muted mt-1">33K_Ad5_vs_33K_Mock.promoter_gc_violin_raw_pval.png</div>
+                          </div>
+                        
+                      </div>
+                    </div>
+                  </div>
+                
+              
+
+              <h6>GC Content Statistics (Raw p-value)</h6>
+              
+                
+                  <div class="card mb-3">
+                    <div class="card-header"><strong>33K_Ad5_vs_33K_Mock</strong></div>
+                    <div class="card-body">
+                      
+                        <p><a href="artifacts/03_peak_calling/11_differential_binding/33K_Ad5_vs_33K_Mock/33K_Ad5_vs_33K_Mock.promoter_gc_test_raw_pval.tsv" download>33K_Ad5_vs_33K_Mock.promoter_gc_test_raw_pval.tsv</a></p>
+                      
+                      
+                      
+                        <div class="table-responsive">
+                          <table border="1" class="dataframe table table-sm table-striped">
+  <thead>
+    <tr style="text-align: right;">
+      <th>comparison</th>
+      <th>promoter_window_bp</th>
+      <th>pvalue_cutoff</th>
+      <th>log2fc_cutoff</th>
+      <th>n_loss</th>
+      <th>n_unchanged</th>
+      <th>n_gain</th>
+      <th>statistic</th>
+      <th>p_value</th>
+      <th>median_gc_loss</th>
+      <th>median_gc_unchanged</th>
+      <th>median_gc_gain</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>33K_Ad5 vs 33K_Mock</td>
+      <td>3000</td>
+      <td>0.05</td>
+      <td>1</td>
+      <td>740</td>
+      <td>17118</td>
+      <td>1646</td>
+      <td>629.52</td>
+      <td>2.00e-137</td>
+      <td>0.5149</td>
+      <td>0.594332</td>
+      <td>0.6336</td>
+    </tr>
+  </tbody>
+</table>
+                        </div>
+                      
+                    </div>
+                  </div>
+                
+              
+            
+          </div>
+
+          <h5 id="diffbind_plots">Volcano / MA plots</h5>
+          <div class="row">
+            <div class="col-md-6">
+              
+                <img src="artifacts/03_peak_calling/11_differential_binding/33K_Ad5_vs_33K_Mock/33K_Ad5_vs_33K_Mock.volcano.png" alt="volcano" class="img-fluid">
+              
+            </div>
+            <div class="col-md-6">
+              
+                <img src="artifacts/03_peak_calling/11_differential_binding/33K_Ad5_vs_33K_Mock/33K_Ad5_vs_33K_Mock.ma_plot.png" alt="MA plot" class="img-fluid">
+              
+            </div>
+          </div>
+        </div>
+
+        <div id="deseq2" class="section">
+          <h3>DESeq2 Differential Peak Analysis</h3>
+          <p><strong>Question:</strong> Which peaks show significant differential binding between treatment and control groups?</p>
+          
+          
+            <h5 id="deseq2_results">Results & Plots</h5>
+            
+            
+              <div class="card mb-3">
+                <div class="card-header"><strong>Significant Peaks (FDR ≤ 0.05)</strong></div>
+                <div class="card-body">
+                  <p><a href="artifacts/03_peak_calling/09_deseq2_analysis/33K_Ad5_vs_33K_Mock/33K_Ad5_vs_33K_Mock_significant.csv" class="btn btn-sm btn-outline-primary" download><strong>📊 Download Significant Results CSV</strong></a></p>
+                  
+                    <div class="table-responsive mt-3" style="max-height: 500px; overflow-y: auto;">
+                      <table border="1" class="dataframe table table-sm table-striped">
+  <thead>
+    <tr style="text-align: right;">
+      <th>peak_id</th>
+      <th>chrom</th>
+      <th>start</th>
+      <th>end</th>
+      <th>nearest_gene</th>
+      <th>nearest_gene_distance</th>
+      <th>display_label</th>
+      <th>log2FoldChange</th>
+      <th>lfcSE</th>
+      <th>stat</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>chrX:45765333:45771518</td>
+      <td>chrX</td>
+      <td>45765333</td>
+      <td>45771518</td>
+      <td>MIR222</td>
+      <td>18209</td>
+      <td>MIR222</td>
+      <td>-0.701806115878219</td>
+      <td>0.208865156423494</td>
+      <td>-3.36009187887348</td>
+    </tr>
+    <tr>
+      <td>chr12:26114032:26115047</td>
+      <td>chr12</td>
+      <td>26114032</td>
+      <td>26115047</td>
+      <td>BHLHE41</td>
+      <td>4978</td>
+      <td>BHLHE41</td>
+      <td>-0.897480525473899</td>
+      <td>0.30173591117637</td>
+      <td>-2.97439082399876</td>
+    </tr>
+    <tr>
+      <td>chr19:10701151:10702435</td>
+      <td>chr19</td>
+      <td>10701151</td>
+      <td>10702435</td>
+      <td>QTRT1</td>
+      <td>0</td>
+      <td>QTRT1</td>
+      <td>0.955356052725938</td>
+      <td>0.237555632083317</td>
+      <td>4.02160977766619</td>
+    </tr>
+    <tr>
+      <td>chr19:10724315:10724698</td>
+      <td>chr19</td>
+      <td>10724315</td>
+      <td>10724698</td>
+      <td>MIR638</td>
+      <td>5812</td>
+      <td>MIR638</td>
+      <td>2.58614854171843</td>
+      <td>0.817120324382624</td>
+      <td>3.16495437030329</td>
+    </tr>
+    <tr>
+      <td>chr19:10762386:10762660</td>
+      <td>chr19</td>
+      <td>10762386</td>
+      <td>10762660</td>
+      <td>MIR4748</td>
+      <td>17593</td>
+      <td>MIR4748</td>
+      <td>3.13359390770889</td>
+      <td>0.866147492842085</td>
+      <td>3.6178525408261</td>
+    </tr>
+    <tr>
+      <td>chr19:10780410:10780601</td>
+      <td>chr19</td>
+      <td>10780410</td>
+      <td>10780601</td>
+      <td>MIR4748</td>
+      <td>75</td>
+      <td>MIR4748</td>
+      <td>3.21625566963069</td>
+      <td>0.981395324479319</td>
+      <td>3.27722742243252</td>
+    </tr>
+    <tr>
+      <td>chr3:52238367:52239798</td>
+      <td>chr3</td>
+      <td>52238367</td>
+      <td>52239798</td>
+      <td>PPM1M</td>
+      <td>5994</td>
+      <td>PPM1M</td>
+      <td>1.09850065198134</td>
+      <td>0.309535958356923</td>
+      <td>3.54886281326538</td>
+    </tr>
+    <tr>
+      <td>chr6:33312234:33314880</td>
+      <td>chr6</td>
+      <td>33312234</td>
+      <td>33314880</td>
+      <td>ZBTB22</td>
+      <td>0</td>
+      <td>ZBTB22</td>
+      <td>0.743690496566465</td>
+      <td>0.200096828631871</td>
+      <td>3.71665309066278</td>
+    </tr>
+    <tr>
+      <td>chr6:33317122:33318514</td>
+      <td>chr6</td>
+      <td>33317122</td>
+      <td>33318514</td>
+      <td>DAXX</td>
+      <td>43</td>
+      <td>DAXX</td>
+      <td>-0.869995661330081</td>
+      <td>0.23043076702428</td>
+      <td>-3.77551866256824</td>
+    </tr>
+    <tr>
+      <td>chr6:43838781:43839098</td>
+      <td>chr6</td>
+      <td>43838781</td>
+      <td>43839098</td>
+      <td>LINC01512</td>
+      <td>51929</td>
+      <td>LINC01512</td>
+      <td>2.2422514796389</td>
+      <td>0.69970433417819</td>
+      <td>3.20456994492173</td>
+    </tr>
+  </tbody>
+</table>
+                    </div>
+                  
+                </div>
+              </div>
+            
+            
+            
+              <div class="card mb-3">
+                <div class="card-header"><strong>All Peak Results</strong></div>
+                <div class="card-body">
+                  <p><a href="artifacts/03_peak_calling/09_deseq2_analysis/33K_Ad5_vs_33K_Mock/33K_Ad5_vs_33K_Mock_results.csv" class="btn btn-sm btn-outline-primary" download><strong>📊 Download All Results CSV</strong></a></p>
+                </div>
+              </div>
+            
+            
+            <div class="row mt-4">
+              
+                <div class="col-md-6 mb-3">
+                  <div class="card">
+                    <div class="card-header"><strong>Volcano Plot</strong></div>
+                    <div class="card-body">
+                      <p><small class="text-muted">PNG (fast loading)</small></p>
+                      <img src="artifacts/03_peak_calling/09_deseq2_analysis/33K_Ad5_vs_33K_Mock_volcano_plot.png" alt="Volcano Plot" class="img-fluid" style="max-width: 100%;">
+                    </div>
+                  </div>
+                </div>
+              
+              
+                <div class="col-md-6 mb-3">
+                  <div class="card">
+                    <div class="card-header"><strong>MA Plot</strong></div>
+                    <div class="card-body">
+                      <p><small class="text-muted">PNG (fast loading)</small></p>
+                      <img src="artifacts/03_peak_calling/09_deseq2_analysis/33K_Ad5_vs_33K_Mock_ma_plot.png" alt="MA Plot" class="img-fluid" style="max-width: 100%;">
+                    </div>
+                  </div>
+                </div>
+              
+            </div>
+          
+        </div>
+
+        <div id="peaks" class="section">
+          <h3>Peak Visualizations</h3>        <div id="peaks" class="section">
+          <h3>Peak Visualizations</h3>
+          <p><strong>Question:</strong> What do the top peaks look like across samples? (pyGenomeTracks snapshots)</p>
+          
+            
+              <div class="card mb-3">
+                <div class="card-header"><strong>33K_Ad5</strong></div>
+                <div class="card-body">
+                  
+                    <h6>TES</h6>
+                    <div class="row">
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_TES_top01_RNA5S1.png" alt="33K_Ad5_TES_top01_RNA5S1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_TES_top02_AP2A1.png" alt="33K_Ad5_TES_top02_AP2A1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_TES_top03_MIR4638.png" alt="33K_Ad5_TES_top03_MIR4638.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_TES_top04_KATNB1.png" alt="33K_Ad5_TES_top04_KATNB1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_TES_top05_KIF18B.png" alt="33K_Ad5_TES_top05_KIF18B.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_TES_top06_KLC2.png" alt="33K_Ad5_TES_top06_KLC2.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_TES_top07_C16orf72.png" alt="33K_Ad5_TES_top07_C16orf72.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_TES_top08_XRCC6BP1.png" alt="33K_Ad5_TES_top08_XRCC6BP1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_TES_top09_ATP8A1.png" alt="33K_Ad5_TES_top09_ATP8A1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_TES_top10_COL16A1.png" alt="33K_Ad5_TES_top10_COL16A1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                    </div>
+                  
+                    <h6>Exon</h6>
+                    <div class="row">
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_exon_top01_HIST2H2AB.png" alt="33K_Ad5_exon_top01_HIST2H2AB.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_exon_top02_PICALM.png" alt="33K_Ad5_exon_top02_PICALM.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_exon_top03_GRIN1.png" alt="33K_Ad5_exon_top03_GRIN1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_exon_top04_ALKBH5.png" alt="33K_Ad5_exon_top04_ALKBH5.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_exon_top05_MYO9A.png" alt="33K_Ad5_exon_top05_MYO9A.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_exon_top06_GATAD2B.png" alt="33K_Ad5_exon_top06_GATAD2B.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_exon_top07_EFCAB2.png" alt="33K_Ad5_exon_top07_EFCAB2.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_exon_top08_APC2.png" alt="33K_Ad5_exon_top08_APC2.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_exon_top09_ADO.png" alt="33K_Ad5_exon_top09_ADO.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_exon_top10_NIPBL.png" alt="33K_Ad5_exon_top10_NIPBL.png" class="img-fluid">
+                          
+                        </div>
+                      
+                    </div>
+                  
+                    <h6>Intergenic</h6>
+                    <div class="row">
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_intergenic_top01_SIN3A.png" alt="33K_Ad5_intergenic_top01_SIN3A.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_intergenic_top02_PIEZO1.png" alt="33K_Ad5_intergenic_top02_PIEZO1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_intergenic_top03_AVPI1.png" alt="33K_Ad5_intergenic_top03_AVPI1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_intergenic_top04_PRCC.png" alt="33K_Ad5_intergenic_top04_PRCC.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_intergenic_top05_LAMTOR2.png" alt="33K_Ad5_intergenic_top05_LAMTOR2.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_intergenic_top06_PRR36.png" alt="33K_Ad5_intergenic_top06_PRR36.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_intergenic_top07_BAZ2A.png" alt="33K_Ad5_intergenic_top07_BAZ2A.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_intergenic_top08_CD3EAP.png" alt="33K_Ad5_intergenic_top08_CD3EAP.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_intergenic_top09_SHC1.png" alt="33K_Ad5_intergenic_top09_SHC1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_intergenic_top10_KAZALD1.png" alt="33K_Ad5_intergenic_top10_KAZALD1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                    </div>
+                  
+                    <h6>Intron</h6>
+                    <div class="row">
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_intron_top01_PAQR4.png" alt="33K_Ad5_intron_top01_PAQR4.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_intron_top02_FLYWCH2.png" alt="33K_Ad5_intron_top02_FLYWCH2.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_intron_top03_TFAP4.png" alt="33K_Ad5_intron_top03_TFAP4.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_intron_top04_HIST3H2BB.png" alt="33K_Ad5_intron_top04_HIST3H2BB.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_intron_top05_AKT1S1.png" alt="33K_Ad5_intron_top05_AKT1S1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_intron_top06_DCAF7.png" alt="33K_Ad5_intron_top06_DCAF7.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_intron_top07_USP5.png" alt="33K_Ad5_intron_top07_USP5.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_intron_top08_CEP170.png" alt="33K_Ad5_intron_top08_CEP170.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_intron_top09_GRK6.png" alt="33K_Ad5_intron_top09_GRK6.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_intron_top10_ETV2.png" alt="33K_Ad5_intron_top10_ETV2.png" class="img-fluid">
+                          
+                        </div>
+                      
+                    </div>
+                  
+                    <h6>Promoter</h6>
+                    <div class="row">
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_promoter_top01_LZTS2.png" alt="33K_Ad5_promoter_top01_LZTS2.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_promoter_top02_PLS3.png" alt="33K_Ad5_promoter_top02_PLS3.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_promoter_top03_KDM6B.png" alt="33K_Ad5_promoter_top03_KDM6B.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_promoter_top04_XXYLT1.png" alt="33K_Ad5_promoter_top04_XXYLT1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_promoter_top05_GFOD1.png" alt="33K_Ad5_promoter_top05_GFOD1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_promoter_top06_EGR1.png" alt="33K_Ad5_promoter_top06_EGR1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_promoter_top07_ATXN2L.png" alt="33K_Ad5_promoter_top07_ATXN2L.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_promoter_top08_CYHR1.png" alt="33K_Ad5_promoter_top08_CYHR1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_promoter_top09_ARHGAP27.png" alt="33K_Ad5_promoter_top09_ARHGAP27.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Ad5/33K_Ad5_promoter_top10_DBP.png" alt="33K_Ad5_promoter_top10_DBP.png" class="img-fluid">
+                          
+                        </div>
+                      
+                    </div>
+                  
+                </div>
+              </div>
+            
+              <div class="card mb-3">
+                <div class="card-header"><strong>33K_Mock</strong></div>
+                <div class="card-body">
+                  
+                    <h6>TES</h6>
+                    <div class="row">
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_TES_top01_HIST1H1E.png" alt="33K_Mock_TES_top01_HIST1H1E.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_TES_top02_TARBP2.png" alt="33K_Mock_TES_top02_TARBP2.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_TES_top03_HYAL3.png" alt="33K_Mock_TES_top03_HYAL3.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_TES_top04_F2RL1.png" alt="33K_Mock_TES_top04_F2RL1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_TES_top05_CBX8.png" alt="33K_Mock_TES_top05_CBX8.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_TES_top06_CDCA3.png" alt="33K_Mock_TES_top06_CDCA3.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_TES_top07_MED22.png" alt="33K_Mock_TES_top07_MED22.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_TES_top08_LBX1.png" alt="33K_Mock_TES_top08_LBX1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_TES_top09_TTC9C.png" alt="33K_Mock_TES_top09_TTC9C.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_TES_top10_TNRC18.png" alt="33K_Mock_TES_top10_TNRC18.png" class="img-fluid">
+                          
+                        </div>
+                      
+                    </div>
+                  
+                    <h6>Exon</h6>
+                    <div class="row">
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_exon_top01_PTMS.png" alt="33K_Mock_exon_top01_PTMS.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_exon_top02_LMNB1.png" alt="33K_Mock_exon_top02_LMNB1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_exon_top03_TNFRSF12A.png" alt="33K_Mock_exon_top03_TNFRSF12A.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_exon_top04_CACFD1.png" alt="33K_Mock_exon_top04_CACFD1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_exon_top05_VCAN.png" alt="33K_Mock_exon_top05_VCAN.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_exon_top06_GOLIM4.png" alt="33K_Mock_exon_top06_GOLIM4.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_exon_top07_LOC100132356.png" alt="33K_Mock_exon_top07_LOC100132356.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_exon_top08_ETV2.png" alt="33K_Mock_exon_top08_ETV2.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_exon_top09_ALG3.png" alt="33K_Mock_exon_top09_ALG3.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_exon_top10_GPR137C.png" alt="33K_Mock_exon_top10_GPR137C.png" class="img-fluid">
+                          
+                        </div>
+                      
+                    </div>
+                  
+                    <h6>Intergenic</h6>
+                    <div class="row">
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_intergenic_top01_TLCD1.png" alt="33K_Mock_intergenic_top01_TLCD1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_intergenic_top02_PRR36.png" alt="33K_Mock_intergenic_top02_PRR36.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_intergenic_top03_DNAH2.png" alt="33K_Mock_intergenic_top03_DNAH2.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_intergenic_top04_IRF2BP2.png" alt="33K_Mock_intergenic_top04_IRF2BP2.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_intergenic_top05_HOXD11.png" alt="33K_Mock_intergenic_top05_HOXD11.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_intergenic_top06_LINC01089.png" alt="33K_Mock_intergenic_top06_LINC01089.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_intergenic_top07_BCL6.png" alt="33K_Mock_intergenic_top07_BCL6.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_intergenic_top08_PHPT1.png" alt="33K_Mock_intergenic_top08_PHPT1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_intergenic_top09_ZBTB7B.png" alt="33K_Mock_intergenic_top09_ZBTB7B.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_intergenic_top10_HCFC1.png" alt="33K_Mock_intergenic_top10_HCFC1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                    </div>
+                  
+                    <h6>Intron</h6>
+                    <div class="row">
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_intron_top01_SIN3A.png" alt="33K_Mock_intron_top01_SIN3A.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_intron_top02_GGPS1.png" alt="33K_Mock_intron_top02_GGPS1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_intron_top03_TRIB1.png" alt="33K_Mock_intron_top03_TRIB1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_intron_top04_TFAP4.png" alt="33K_Mock_intron_top04_TFAP4.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_intron_top05_EPOR.png" alt="33K_Mock_intron_top05_EPOR.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_intron_top06_KCTD2.png" alt="33K_Mock_intron_top06_KCTD2.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_intron_top07_P3H1.png" alt="33K_Mock_intron_top07_P3H1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_intron_top08_FAM35A.png" alt="33K_Mock_intron_top08_FAM35A.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_intron_top09_ELF2.png" alt="33K_Mock_intron_top09_ELF2.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_intron_top10_COX20.png" alt="33K_Mock_intron_top10_COX20.png" class="img-fluid">
+                          
+                        </div>
+                      
+                    </div>
+                  
+                    <h6>Promoter</h6>
+                    <div class="row">
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_promoter_top01_MYC.png" alt="33K_Mock_promoter_top01_MYC.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_promoter_top02_ERGIC1.png" alt="33K_Mock_promoter_top02_ERGIC1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_promoter_top03_ZNF34.png" alt="33K_Mock_promoter_top03_ZNF34.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_promoter_top04_LOC100129203.png" alt="33K_Mock_promoter_top04_LOC100129203.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_promoter_top05_FBXW11.png" alt="33K_Mock_promoter_top05_FBXW11.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_promoter_top06_ENC1.png" alt="33K_Mock_promoter_top06_ENC1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_promoter_top07_NBR1.png" alt="33K_Mock_promoter_top07_NBR1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_promoter_top08_ZNF608.png" alt="33K_Mock_promoter_top08_ZNF608.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_promoter_top09_REEP3.png" alt="33K_Mock_promoter_top09_REEP3.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/33K_Mock/33K_Mock_promoter_top10_MAN2A1.png" alt="33K_Mock_promoter_top10_MAN2A1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                    </div>
+                  
+                </div>
+              </div>
+            
+              <div class="card mb-3">
+                <div class="card-header"><strong>H3_control</strong></div>
+                <div class="card-body">
+                  
+                    <h6>TES</h6>
+                    <div class="row">
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_TES_top01_IER2.png" alt="H3_control_TES_top01_IER2.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_TES_top02_MSL2.png" alt="H3_control_TES_top02_MSL2.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_TES_top03_SATB2.png" alt="H3_control_TES_top03_SATB2.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_TES_top04_C6orf62.png" alt="H3_control_TES_top04_C6orf62.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_TES_top05_SQLE.png" alt="H3_control_TES_top05_SQLE.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_TES_top06_LHX1.png" alt="H3_control_TES_top06_LHX1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_TES_top07_CUL4B.png" alt="H3_control_TES_top07_CUL4B.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_TES_top08_NFIB.png" alt="H3_control_TES_top08_NFIB.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_TES_top09_RAB10.png" alt="H3_control_TES_top09_RAB10.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_TES_top10_TRIP12.png" alt="H3_control_TES_top10_TRIP12.png" class="img-fluid">
+                          
+                        </div>
+                      
+                    </div>
+                  
+                    <h6>Exon</h6>
+                    <div class="row">
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_exon_top01_BCL11A.png" alt="H3_control_exon_top01_BCL11A.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_exon_top02_NEAT1.png" alt="H3_control_exon_top02_NEAT1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_exon_top03_IRF2BP2.png" alt="H3_control_exon_top03_IRF2BP2.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_exon_top04_HNRNPA1.png" alt="H3_control_exon_top04_HNRNPA1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_exon_top05_IGF2BP1.png" alt="H3_control_exon_top05_IGF2BP1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_exon_top06_PTCH1.png" alt="H3_control_exon_top06_PTCH1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_exon_top07_PTMA.png" alt="H3_control_exon_top07_PTMA.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_exon_top08_RBM15.png" alt="H3_control_exon_top08_RBM15.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_exon_top09_CDKN2A.png" alt="H3_control_exon_top09_CDKN2A.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_exon_top10_PCDH7.png" alt="H3_control_exon_top10_PCDH7.png" class="img-fluid">
+                          
+                        </div>
+                      
+                    </div>
+                  
+                    <h6>Intergenic</h6>
+                    <div class="row">
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_intergenic_top01_EXOC8.png" alt="H3_control_intergenic_top01_EXOC8.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_intergenic_top02_TSC22D2.png" alt="H3_control_intergenic_top02_TSC22D2.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_intergenic_top03_BCOR.png" alt="H3_control_intergenic_top03_BCOR.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_intergenic_top04_IRAIN.png" alt="H3_control_intergenic_top04_IRAIN.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_intergenic_top05_ID3.png" alt="H3_control_intergenic_top05_ID3.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_intergenic_top06_PTGES3.png" alt="H3_control_intergenic_top06_PTGES3.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_intergenic_top07_LINC01556.png" alt="H3_control_intergenic_top07_LINC01556.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_intergenic_top08_SRSF2.png" alt="H3_control_intergenic_top08_SRSF2.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_intergenic_top09_ZNF536.png" alt="H3_control_intergenic_top09_ZNF536.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_intergenic_top10_HNRNPUL1.png" alt="H3_control_intergenic_top10_HNRNPUL1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                    </div>
+                  
+                    <h6>Intron</h6>
+                    <div class="row">
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_intron_top01_TNRC18.png" alt="H3_control_intron_top01_TNRC18.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_intron_top02_BRD2.png" alt="H3_control_intron_top02_BRD2.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_intron_top03_SLIT2.png" alt="H3_control_intron_top03_SLIT2.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_intron_top04_MGME1.png" alt="H3_control_intron_top04_MGME1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_intron_top05_CBX3.png" alt="H3_control_intron_top05_CBX3.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_intron_top06_HES7.png" alt="H3_control_intron_top06_HES7.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_intron_top07_KMT2E-AS1.png" alt="H3_control_intron_top07_KMT2E-AS1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_intron_top08_RPS2.png" alt="H3_control_intron_top08_RPS2.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_intron_top09_LINC00938.png" alt="H3_control_intron_top09_LINC00938.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_intron_top10_ACTG1.png" alt="H3_control_intron_top10_ACTG1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                    </div>
+                  
+                    <h6>Promoter</h6>
+                    <div class="row">
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_promoter_top01_ZIC2.png" alt="H3_control_promoter_top01_ZIC2.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_promoter_top02_SIN3A.png" alt="H3_control_promoter_top02_SIN3A.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_promoter_top03_GPBP1.png" alt="H3_control_promoter_top03_GPBP1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_promoter_top04_GIT1.png" alt="H3_control_promoter_top04_GIT1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_promoter_top05_NIPBL.png" alt="H3_control_promoter_top05_NIPBL.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_promoter_top06_MALAT1.png" alt="H3_control_promoter_top06_MALAT1.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_promoter_top07_MIR222.png" alt="H3_control_promoter_top07_MIR222.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_promoter_top08_TFAP2A.png" alt="H3_control_promoter_top08_TFAP2A.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_promoter_top09_ZNF703.png" alt="H3_control_promoter_top09_ZNF703.png" class="img-fluid">
+                          
+                        </div>
+                      
+                        <div class="col-md-6" style="margin-bottom: 1rem;">
+                          <img src="artifacts/04_reporting/pygenometracks_top10/H3_control/H3_control_promoter_top10_GNAS.png" alt="H3_control_promoter_top10_GNAS.png" class="img-fluid">
+                          
+                        </div>
+                      
+                    </div>
+                  
+                </div>
+              </div>
+            
+          
+        </div>
+
+        <div id="annotations" class="section">
+          <h3>Motifs & Annotations</h3>
+          <p><strong>Question:</strong> What motifs and genomic annotations are enriched in peaks?</p>
+          
+            <h5 id="homer_reports">HOMER Motif Reports</h5>
+            <ul>
+              
+                <li><a href="artifacts/03_peak_calling/09_homer_motifs/consensus_peaks/33K_Ad5_motifs/homerResults.html">33K_Ad5_motifs HOMER report</a></li>
+              
+                <li><a href="artifacts/03_peak_calling/09_homer_motifs/consensus_peaks/33K_Mock_motifs/homerResults.html">33K_Mock_motifs HOMER report</a></li>
+              
+                <li><a href="artifacts/03_peak_calling/09_homer_motifs/consensus_peaks/H3_control_motifs/homerResults.html">H3_control_motifs HOMER report</a></li>
+              
+                <li><a href="artifacts/report/artifacts/03_peak_calling/09_homer_motifs/consensus_peaks/33K_Ad5_motifs/homerResults.html">33K_Ad5_motifs HOMER report</a></li>
+              
+                <li><a href="artifacts/report/artifacts/03_peak_calling/09_homer_motifs/consensus_peaks/33K_Mock_motifs/homerResults.html">33K_Mock_motifs HOMER report</a></li>
+              
+                <li><a href="artifacts/report/artifacts/03_peak_calling/09_homer_motifs/consensus_peaks/H3_control_motifs/homerResults.html">H3_control_motifs HOMER report</a></li>
+              
+                <li><a href="artifacts/report/artifacts/report/artifacts/03_peak_calling/09_homer_motifs/consensus_peaks/33K_Ad5_motifs/homerResults.html">33K_Ad5_motifs HOMER report</a></li>
+              
+                <li><a href="artifacts/report/artifacts/report/artifacts/03_peak_calling/09_homer_motifs/consensus_peaks/33K_Mock_motifs/homerResults.html">33K_Mock_motifs HOMER report</a></li>
+              
+                <li><a href="artifacts/report/artifacts/report/artifacts/03_peak_calling/09_homer_motifs/consensus_peaks/H3_control_motifs/homerResults.html">H3_control_motifs HOMER report</a></li>
+              
+            </ul>
+          
+          
+          
+
+          
+            <h5 id="chipseeker_preview">ChIPseeker annotation (preview)</h5>
+            <div class="table-responsive"><table border="1" class="dataframe table table-sm table-striped">
+  <thead>
+    <tr style="text-align: right;">
+      <th>seqnames</th>
+      <th>start</th>
+      <th>end</th>
+      <th>width</th>
+      <th>strand</th>
+      <th>peakID</th>
+      <th>V5</th>
+      <th>annotation</th>
+      <th>geneChr</th>
+      <th>geneStart</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>chr15</td>
+      <td>67840104</td>
+      <td>67840308</td>
+      <td>205</td>
+      <td>+</td>
+      <td>33K_Ad5_R1.macs2_peak_4641</td>
+      <td>493</td>
+      <td>Promoter (<=1kb)</td>
+      <td>15</td>
+      <td>67839939</td>
+    </tr>
+    <tr>
+      <td>chr2</td>
+      <td>88627848</td>
+      <td>88628179</td>
+      <td>332</td>
+      <td>+</td>
+      <td>33K_Ad5_R1.macs2_peak_8360</td>
+      <td>326</td>
+      <td>Promoter (<=1kb)</td>
+      <td>2</td>
+      <td>88627883</td>
+    </tr>
+    <tr>
+      <td>chr19</td>
+      <td>11374661</td>
+      <td>11375015</td>
+      <td>355</td>
+      <td>+</td>
+      <td>33K_Ad5_R1.macs2_peak_7156</td>
+      <td>301</td>
+      <td>Promoter (<=1kb)</td>
+      <td>19</td>
+      <td>11374666</td>
+    </tr>
+    <tr>
+      <td>chr22</td>
+      <td>28799202</td>
+      <td>28800918</td>
+      <td>1717</td>
+      <td>+</td>
+      <td>33K_Ad5_R1.macs2_peak_9453</td>
+      <td>286</td>
+      <td>Promoter (<=1kb)</td>
+      <td>22</td>
+      <td>28800683</td>
+    </tr>
+    <tr>
+      <td>chr19</td>
+      <td>3285029</td>
+      <td>3285634</td>
+      <td>606</td>
+      <td>+</td>
+      <td>33K_Ad5_R1.macs2_peak_6949</td>
+      <td>274</td>
+      <td>Promoter (<=1kb)</td>
+      <td>19</td>
+      <td>3284762</td>
+    </tr>
+    <tr>
+      <td>chr12</td>
+      <td>6851419</td>
+      <td>6853193</td>
+      <td>1775</td>
+      <td>+</td>
+      <td>33K_Ad5_R1.macs2_peak_3175</td>
+      <td>264</td>
+      <td>Promoter (<=1kb)</td>
+      <td>12</td>
+      <td>6852148</td>
+    </tr>
+    <tr>
+      <td>chr14</td>
+      <td>24146808</td>
+      <td>24147601</td>
+      <td>794</td>
+      <td>+</td>
+      <td>33K_Ad5_R1.macs2_peak_4208</td>
+      <td>261</td>
+      <td>Promoter (<=1kb)</td>
+      <td>14</td>
+      <td>24146875</td>
+    </tr>
+    <tr>
+      <td>chr9</td>
+      <td>133459435</td>
+      <td>133460187</td>
+      <td>753</td>
+      <td>+</td>
+      <td>33K_Ad5_R1.macs2_peak_14278</td>
+      <td>260</td>
+      <td>Promoter (<=1kb)</td>
+      <td>9</td>
+      <td>133459965</td>
+    </tr>
+    <tr>
+      <td>chr19</td>
+      <td>21082151</td>
+      <td>21082591</td>
+      <td>441</td>
+      <td>+</td>
+      <td>33K_Ad5_R1.macs2_peak_7384</td>
+      <td>253</td>
+      <td>Promoter (<=1kb)</td>
+      <td>19</td>
+      <td>21082159</td>
+    </tr>
+    <tr>
+      <td>chr19</td>
+      <td>48399921</td>
+      <td>48400587</td>
+      <td>667</td>
+      <td>+</td>
+      <td>33K_Ad5_R1.macs2_peak_7698</td>
+      <td>237</td>
+      <td>Intron (ENST00000263269.4/2906, intron 3 of 13)</td>
+      <td>19</td>
+      <td>48393668</td>
+    </tr>
+  </tbody>
+</table></div>
+            <p><a href="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R1_chipseeker_annotation.tsv">Download full ChIPseeker annotation TSV</a></p>
+            
+              <h6 id="chipseeker_comparison_plots">ChIPseeker comparison plots</h6>
+              <div class="row">
+                
+                  <div class="col-md-6" style="margin-bottom: 1rem;">
+                    <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/chipseeker_comparison_annotation_bar.png" alt="chipseeker_comparison_annotation_bar.png" class="img-fluid">
+                    <div class="small text-muted mt-1">chipseeker_comparison_annotation_bar.png</div>
+                  </div>
+                
+                  <div class="col-md-6" style="margin-bottom: 1rem;">
+                    <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/chipseeker_comparison_annotation_bar_condition.png" alt="chipseeker_comparison_annotation_bar_condition.png" class="img-fluid">
+                    <div class="small text-muted mt-1">chipseeker_comparison_annotation_bar_condition.png</div>
+                  </div>
+                
+                  <div class="col-md-6" style="margin-bottom: 1rem;">
+                    <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/chipseeker_comparison_annotation_bar_condition_slim_version.png" alt="chipseeker_comparison_annotation_bar_condition_slim_version.png" class="img-fluid">
+                    <div class="small text-muted mt-1">chipseeker_comparison_annotation_bar_condition_slim_version.png</div>
+                  </div>
+                
+                  <div class="col-md-6" style="margin-bottom: 1rem;">
+                    <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/chipseeker_comparison_annotation_bar_slim_version.png" alt="chipseeker_comparison_annotation_bar_slim_version.png" class="img-fluid">
+                    <div class="small text-muted mt-1">chipseeker_comparison_annotation_bar_slim_version.png</div>
+                  </div>
+                
+                  <div class="col-md-6" style="margin-bottom: 1rem;">
+                    <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/chipseeker_comparison_coverage.png" alt="chipseeker_comparison_coverage.png" class="img-fluid">
+                    <div class="small text-muted mt-1">chipseeker_comparison_coverage.png</div>
+                  </div>
+                
+                  <div class="col-md-6" style="margin-bottom: 1rem;">
+                    <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/chipseeker_comparison_coverage_condition_average.png" alt="chipseeker_comparison_coverage_condition_average.png" class="img-fluid">
+                    <div class="small text-muted mt-1">chipseeker_comparison_coverage_condition_average.png</div>
+                  </div>
+                
+                  <div class="col-md-6" style="margin-bottom: 1rem;">
+                    <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/chipseeker_comparison_dist_to_tss.png" alt="chipseeker_comparison_dist_to_tss.png" class="img-fluid">
+                    <div class="small text-muted mt-1">chipseeker_comparison_dist_to_tss.png</div>
+                  </div>
+                
+              </div>
+            
+
+            
+              <h6 id="chipseeker_per_replicate">Per-Replicate ChIPseeker Plots</h6>
+              <p class="small text-muted"><em>Detailed view of each replicate's peak annotations and quality metrics. Use to identify problematic replicates.</em></p>
+              
+                <div class="card mb-3">
+                  <div class="card-header" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#chipseeker-33K_Ad5">
+                    <strong>33K_Ad5</strong> <span class="float-end">▼</span>
+                  </div>
+                  <div id="chipseeker-33K_Ad5" class="collapse">
+                    <div class="card-body">
+                      
+                        <div class="mb-4 pb-3 border-bottom">
+                          <h6 class="text-secondary">R1</h6>
+                          <div class="row">
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R1_chipseeker_annotation_bar.png" alt="R1 annotation_bar" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Annotation Bar</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R1_chipseeker_annotation_pie.png" alt="R1 annotation_pie" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Annotation Pie</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R1_chipseeker_annotation_upset.png" alt="R1 annotation_upset" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Annotation Upset</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R1_chipseeker_coverage.png" alt="R1 coverage" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Coverage</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R1_chipseeker_dist_to_tss.png" alt="R1 dist_to_tss" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Dist To Tss</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R1_chipseeker_vennpie.png" alt="R1 vennpie" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Vennpie</div>
+                                
+                              </div>
+                            
+                          </div>
+                        </div>
+                      
+                        <div class="mb-4 pb-3 border-bottom">
+                          <h6 class="text-secondary">R2</h6>
+                          <div class="row">
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R2_chipseeker_annotation_bar.png" alt="R2 annotation_bar" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Annotation Bar</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R2_chipseeker_annotation_pie.png" alt="R2 annotation_pie" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Annotation Pie</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R2_chipseeker_annotation_upset.png" alt="R2 annotation_upset" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Annotation Upset</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R2_chipseeker_coverage.png" alt="R2 coverage" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Coverage</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R2_chipseeker_dist_to_tss.png" alt="R2 dist_to_tss" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Dist To Tss</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R2_chipseeker_vennpie.png" alt="R2 vennpie" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Vennpie</div>
+                                
+                              </div>
+                            
+                          </div>
+                        </div>
+                      
+                        <div class="mb-4 pb-3 border-bottom">
+                          <h6 class="text-secondary">R3</h6>
+                          <div class="row">
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R3_chipseeker_annotation_bar.png" alt="R3 annotation_bar" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Annotation Bar</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R3_chipseeker_annotation_pie.png" alt="R3 annotation_pie" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Annotation Pie</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R3_chipseeker_annotation_upset.png" alt="R3 annotation_upset" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Annotation Upset</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R3_chipseeker_coverage.png" alt="R3 coverage" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Coverage</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R3_chipseeker_dist_to_tss.png" alt="R3 dist_to_tss" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Dist To Tss</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Ad5_R3_chipseeker_vennpie.png" alt="R3 vennpie" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Vennpie</div>
+                                
+                              </div>
+                            
+                          </div>
+                        </div>
+                      
+                    </div>
+                  </div>
+                </div>
+              
+                <div class="card mb-3">
+                  <div class="card-header" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#chipseeker-33K_Mock">
+                    <strong>33K_Mock</strong> <span class="float-end">▼</span>
+                  </div>
+                  <div id="chipseeker-33K_Mock" class="collapse">
+                    <div class="card-body">
+                      
+                        <div class="mb-4 pb-3 border-bottom">
+                          <h6 class="text-secondary">R1</h6>
+                          <div class="row">
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R1_chipseeker_annotation_bar.png" alt="R1 annotation_bar" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Annotation Bar</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R1_chipseeker_annotation_pie.png" alt="R1 annotation_pie" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Annotation Pie</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R1_chipseeker_annotation_upset.png" alt="R1 annotation_upset" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Annotation Upset</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R1_chipseeker_coverage.png" alt="R1 coverage" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Coverage</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R1_chipseeker_dist_to_tss.png" alt="R1 dist_to_tss" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Dist To Tss</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R1_chipseeker_vennpie.png" alt="R1 vennpie" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Vennpie</div>
+                                
+                              </div>
+                            
+                          </div>
+                        </div>
+                      
+                        <div class="mb-4 pb-3 border-bottom">
+                          <h6 class="text-secondary">R2</h6>
+                          <div class="row">
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R2_chipseeker_annotation_bar.png" alt="R2 annotation_bar" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Annotation Bar</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R2_chipseeker_annotation_pie.png" alt="R2 annotation_pie" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Annotation Pie</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R2_chipseeker_annotation_upset.png" alt="R2 annotation_upset" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Annotation Upset</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R2_chipseeker_coverage.png" alt="R2 coverage" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Coverage</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R2_chipseeker_dist_to_tss.png" alt="R2 dist_to_tss" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Dist To Tss</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R2_chipseeker_vennpie.png" alt="R2 vennpie" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Vennpie</div>
+                                
+                              </div>
+                            
+                          </div>
+                        </div>
+                      
+                        <div class="mb-4 pb-3 border-bottom">
+                          <h6 class="text-secondary">R3</h6>
+                          <div class="row">
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R3_chipseeker_annotation_bar.png" alt="R3 annotation_bar" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Annotation Bar</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R3_chipseeker_annotation_pie.png" alt="R3 annotation_pie" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Annotation Pie</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R3_chipseeker_annotation_upset.png" alt="R3 annotation_upset" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Annotation Upset</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R3_chipseeker_coverage.png" alt="R3 coverage" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Coverage</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R3_chipseeker_dist_to_tss.png" alt="R3 dist_to_tss" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Dist To Tss</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/33K_Mock_R3_chipseeker_vennpie.png" alt="R3 vennpie" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Vennpie</div>
+                                
+                              </div>
+                            
+                          </div>
+                        </div>
+                      
+                    </div>
+                  </div>
+                </div>
+              
+                <div class="card mb-3">
+                  <div class="card-header" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#chipseeker-H3_control">
+                    <strong>H3_control</strong> <span class="float-end">▼</span>
+                  </div>
+                  <div id="chipseeker-H3_control" class="collapse">
+                    <div class="card-body">
+                      
+                        <div class="mb-4 pb-3 border-bottom">
+                          <h6 class="text-secondary">R1</h6>
+                          <div class="row">
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/H3_control_R1_chipseeker_annotation_bar.png" alt="R1 annotation_bar" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Annotation Bar</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/H3_control_R1_chipseeker_annotation_pie.png" alt="R1 annotation_pie" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Annotation Pie</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/H3_control_R1_chipseeker_annotation_upset.png" alt="R1 annotation_upset" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Annotation Upset</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/H3_control_R1_chipseeker_coverage.png" alt="R1 coverage" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Coverage</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/H3_control_R1_chipseeker_dist_to_tss.png" alt="R1 dist_to_tss" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Dist To Tss</div>
+                                
+                              </div>
+                            
+                              <div class="col-md-3 mb-3">
+                                
+                                  <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/H3_control_R1_chipseeker_vennpie.png" alt="R1 vennpie" class="img-fluid" style="border: 1px solid #eee; padding: 2px;">
+                                  <div class="small text-muted mt-1">Vennpie</div>
+                                
+                              </div>
+                            
+                          </div>
+                        </div>
+                      
+                    </div>
+                  </div>
+                </div>
+              
+            
+
+            
+              <h6 id="chipseeker_alternative">Alternative ChIPseeker Comparison Plots</h6>
+              <p class="small text-muted"><em>Additional perspectives on peak annotations: slim versions, condition-grouped views, and condition-specific distributions.</em></p>
+              <div class="row">
+                
+                  
+                    <div class="col-md-6 mb-4">
+                      <div class="card">
+                        <div class="card-body p-2">
+                          <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/chipseeker_comparison_annotation_bar_slim_version.png" alt="Comparison Annotation Bar Slim Version (chipseeker_comparison_annotation_bar_slim_version.png)" class="img-fluid">
+                          <div class="small text-muted mt-2">Comparison Annotation Bar Slim Version (chipseeker_comparison_annotation_bar_slim_version.png)</div>
+                        </div>
+                      </div>
+                    </div>
+                  
+                
+                  
+                    <div class="col-md-6 mb-4">
+                      <div class="card">
+                        <div class="card-body p-2">
+                          <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/chipseeker_comparison_annotation_bar_condition.png" alt="Comparison Annotation Bar Condition (chipseeker_comparison_annotation_bar_condition.png)" class="img-fluid">
+                          <div class="small text-muted mt-2">Comparison Annotation Bar Condition (chipseeker_comparison_annotation_bar_condition.png)</div>
+                        </div>
+                      </div>
+                    </div>
+                  
+                
+                  
+                    <div class="col-md-6 mb-4">
+                      <div class="card">
+                        <div class="card-body p-2">
+                          <img src="artifacts/03_peak_calling/10_peak_feature_annotation/chipseeker/chipseeker_comparison_annotation_bar_condition_slim_version.png" alt="Comparison Annotation Bar Condition Slim Version (chipseeker_comparison_annotation_bar_condition_slim_version.png)" class="img-fluid">
+                          <div class="small text-muted mt-2">Comparison Annotation Bar Condition Slim Version (chipseeker_comparison_annotation_bar_condition_slim_version.png)</div>
+                        </div>
+                      </div>
+                    </div>
+                  
+                
+              </div>
+            
+          
+        </div>
+
+      </div>
+    </main>
+
+    <script src="static/js/jquery.min.js"></script>
+    <script src="static/js/bootstrap.bundle.min.js"></script>
+    <script src="static/js/jquery.dataTables.min.js"></script>
+    <script src="static/js/dataTables.bootstrap5.min.js"></script>
+  </body>
+</html>
