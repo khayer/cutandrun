@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CUT_and_RUN_report</title>
+    <link href="static/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="static/css/dataTables.bootstrap5.min.css">
+    <style>
+      body { padding-top: 3.5rem; }
+      .nav-sidebar { position: fixed; top: 56px; left: 0; width: 220px; height: 100%; padding: 1rem; overflow-y: auto; }
+      .content { margin-left: 240px; padding: 1rem; }
+      .section { margin-bottom: 2rem; }
+      .navbar { background: linear-gradient(135deg, #6f42c1 0%, #8b5cf6 100%); }
+      .nav-link { color: #555 !important; }
+      .nav-link:hover { color: #6f42c1 !important; font-weight: 600; }
+      .section h3 { color: #6f42c1; border-bottom: 3px solid #8b5cf6; padding-bottom: 0.5rem; }
+      .card-header { background-color: #f3f0ff; border-bottom: 2px solid #8b5cf6; }
+      a { color: #6f42c1; }
+      a:hover { color: #8b5cf6; }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="#">CUT&RUN Report</a>
+      </div>
+    </nav>
+
+    <div class="nav-sidebar bg-light">
+      <h6>Sections</h6>
+      <ul class="nav flex-column">
+        <li class="nav-item"><a class="nav-link" href="#qc">QC</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#qc-frip">FRiP Scores</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#qc-peak-feature">Peak Feature GC</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#qc-coverage">ChIP Coverage</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#qc-per-replicate">Per-Replicate QC</a></li>
+        <li class="nav-item"><a class="nav-link" href="#promoter_gc">Promoter GC / Differential Binding</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#promoter_gain">Promoter Gain</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#promoter_loss">Promoter Loss</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#diffbind_top1000">Top 1000 PNGs</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#diffbind_data">Top 1000 Data</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#diffbind_pval">Raw p-value Analysis</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#diffbind_plots">Volcano / MA</a></li>
+        <li class="nav-item"><a class="nav-link" href="#deseq2">DESeq2 Differential Analysis</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#deseq2_results">Results & Plots</a></li>
+        <li class="nav-item"><a class="nav-link" href="#peaks">Peak Visualizations</a></li>
+        <li class="nav-item"><a class="nav-link" href="#annotations">Motifs & Annotations</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#homer_reports">HOMER Reports</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#homer_tables">HOMER Tables</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#chipseeker_preview">ChIPseeker Preview</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#chipseeker_comparison_plots">ChIPseeker Comparison PNGs</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#chipseeker_per_replicate">ChIPseeker Per-Replicate</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#chipseeker_alternative">ChIPseeker Alternatives</a></li>
+      </ul>
+    </div>
+
+    <main class="content">
+      <div class="container-fluid">
+        <div id="qc" class="section">
+          <h3>QC</h3>
+          <p><strong>Question:</strong> Are sample-level QC metrics within expected ranges? (FRiP, fragment length, mapping quality)</p>
+          
+          <p>No FRiP metrics found in staging directory.</p>
+          
+
+          <h5 id="qc-peak-feature">Peak Feature GC Content Analysis</h5>
+          
+            <p class="text-muted">No GC content analysis plots found.</p>
+          
+
+          <h5 id="qc-coverage">ChIP Coverage Comparison</h5>
+          
+            <p class="text-muted">No coverage comparison plots found.</p>
+          
+
+          <h5 id="qc-per-replicate">Per-Replicate Quality Control</h5>
+          
+            <p class="text-muted">No per-replicate ChIPseeker plots found.</p>
+          
+        </div>
+
+        <div id="promoter_gc" class="section">
+          <h3>Promoter GC / Differential Binding</h3>
+          <p><strong>Question:</strong> Which promoter regions show gain or loss of binding between groups?</p>
+
+          <h5 id="promoter_gain">Promoter Gain (preview)</h5>
+          
+          <p>No promoter_gain.tsv found.</p>
+          
+
+          <h5 id="promoter_loss">Promoter Loss (preview)</h5>
+          
+          <p>No promoter_loss.tsv found.</p>
+          
+
+          <h5 id="diffbind_top1000">Top 1000 differential-binding PNGs</h5>
+          
+            <p>No top-1000 differential-binding PNGs found.</p>
+          
+
+          <h5 id="diffbind_data">Top 1000 data files and GC statistics</h5>
+          
+            <p>No top-1000 data files found.</p>
+          
+
+          <div style="border-top: 3px solid #6f42c1; padding-top: 2rem; margin-top: 2rem;">
+            <h5 id="diffbind_pval" style="color: #6f42c1;">Raw p-value Analysis (p ≤ 0.05)</h5>
+            <p><em><strong>Note:</strong> This section shows results using raw p-values (p ≤ 0.05) instead of FDR-adjusted p-values for comparison. Use with caution for small sample numbers.</em></p>
+            
+            
+              <p><em>No raw p-value results available. This is normal if the workflow did not run with promoter GC analysis enabled.</em></p>
+            
+          </div>
+
+          <h5 id="diffbind_plots">Volcano / MA plots</h5>
+          <div class="row">
+            <div class="col-md-6">
+              
+                <p>No volcano plot found.</p>
+              
+            </div>
+            <div class="col-md-6">
+              
+                <p>No MA plot found.</p>
+              
+            </div>
+          </div>
+        </div>
+
+        <div id="deseq2" class="section">
+          <h3>DESeq2 Differential Peak Analysis</h3>
+          <p><strong>Question:</strong> Which peaks show significant differential binding between treatment and control groups?</p>
+          
+          
+            <p><em>No DESeq2 results found in staging directory.</em></p>
+          
+        </div>
+
+        <div id="peaks" class="section">
+          <h3>Peak Visualizations</h3>        <div id="peaks" class="section">
+          <h3>Peak Visualizations</h3>
+          <p><strong>Question:</strong> What do the top peaks look like across samples? (pyGenomeTracks snapshots)</p>
+          
+            <p>No peak visualizations found.</p>
+          
+        </div>
+
+        <div id="annotations" class="section">
+          <h3>Motifs & Annotations</h3>
+          <p><strong>Question:</strong> What motifs and genomic annotations are enriched in peaks?</p>
+          
+          
+          
+            <p>No HOMER results found.</p>
+          
+
+          
+            <p>No ChIPseeker annotation found.</p>
+          
+        </div>
+
+      </div>
+    </main>
+
+    <script src="static/js/jquery.min.js"></script>
+    <script src="static/js/bootstrap.bundle.min.js"></script>
+    <script src="static/js/jquery.dataTables.min.js"></script>
+    <script src="static/js/dataTables.bootstrap5.min.js"></script>
+  </body>
+</html>

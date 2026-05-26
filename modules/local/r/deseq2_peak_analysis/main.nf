@@ -21,6 +21,8 @@ process DESEQ2_PEAK_ANALYSIS {
     tuple val(meta), path("*_significant_log2fc.bedGraph"), emit: bedgraph
     tuple val(meta), path("*_volcano_plot.pdf"), emit: volcano_plot
     tuple val(meta), path("*_ma_plot.pdf"), emit: ma_plot
+    tuple val(meta), path("*_volcano_plot.png"), emit: volcano_plot_png
+    tuple val(meta), path("*_ma_plot.png"), emit: ma_plot_png
     path "versions.yml", emit: versions
 
     when:

@@ -114,14 +114,22 @@ def build_context(staging_dir):
     deseq2_sig_files = [f for f in deseq2_sig_files if not is_report_artifact(f)]
     ctx['deseq2_significant'] = deseq2_sig_files[0] if deseq2_sig_files else None  # Take first if multiple
     
-    # DESeq2 plots - PNG only for fast loading
+    # DESeq2 plots - PNG preferred, fallback to PDF
     deseq2_volcano_files = sorted(glob.glob(os.path.join(staging_dir, '**', '*_volcano_plot.png'), recursive=True))
     deseq2_volcano_files = [f for f in deseq2_volcano_files if not is_report_artifact(f)]
+    if not deseq2_volcano_files:
+        deseq2_volcano_files = sorted(glob.glob(os.path.join(staging_dir, '**', '*_volcano_plot.pdf'), recursive=True))
+        deseq2_volcano_files = [f for f in deseq2_volcano_files if not is_report_artifact(f)]
     ctx['deseq2_volcano'] = deseq2_volcano_files[0] if deseq2_volcano_files else None
+    ctx['deseq2_volcano_is_png'] = ctx['deseq2_volcano'].endswith('.png') if ctx['deseq2_volcano'] else False
     
     deseq2_ma_files = sorted(glob.glob(os.path.join(staging_dir, '**', '*_ma_plot.png'), recursive=True))
     deseq2_ma_files = [f for f in deseq2_ma_files if not is_report_artifact(f)]
+    if not deseq2_ma_files:
+        deseq2_ma_files = sorted(glob.glob(os.path.join(staging_dir, '**', '*_ma_plot.pdf'), recursive=True))
+        deseq2_ma_files = [f for f in deseq2_ma_files if not is_report_artifact(f)]
     ctx['deseq2_ma'] = deseq2_ma_files[0] if deseq2_ma_files else None
+    ctx['deseq2_ma_is_png'] = ctx['deseq2_ma'].endswith('.png') if ctx['deseq2_ma'] else False
     
     ctx['volcano'] = find_first(["*.volcano.png", "**/*.volcano.png"], staging_dir)
     ctx['ma'] = find_first(["*.ma_plot.png", "**/*.ma_plot.png"], staging_dir)
@@ -332,12 +340,22 @@ def build_context(staging_dir):
 
 
 def render_template(staging_dir, out_html):
+    print(f"[DEBUG] render_template called with staging_dir={staging_dir}", flush=True)
+    print(f"[DEBUG] Checking staging directory exists...", flush=True)
+    if not os.path.exists(staging_dir):
+        raise ValueError(f"Staging directory does not exist: {staging_dir}")
+    print(f"[DEBUG] Staging directory OK", flush=True)
+    
     here = os.path.dirname(__file__)
     templates_dir = os.path.join(here, 'templates')
+    print(f"[DEBUG] Loading Jinja2 templates from: {templates_dir}", flush=True)
+    
     env = Environment(loader=FileSystemLoader(templates_dir))
     env.filters['basename'] = os.path.basename
     env.filters['dirname'] = os.path.dirname
     tpl = env.get_template('CUT_and_RUN_report.html.j2')
+    
+    print(f"[DEBUG] Building context from staging_dir...", flush=True)
     ctx = build_context(staging_dir)
     
     # Setup output directory and artifacts folder
@@ -374,8 +392,7 @@ def render_template(staging_dir, out_html):
     # PNG-only mode for all plots
     ctx['deseq2_volcano_rel'] = copy_artifact(ctx.get('deseq2_volcano')) if ctx.get('deseq2_volcano') else None
     ctx['deseq2_ma_rel'] = copy_artifact(ctx.get('deseq2_ma')) if ctx.get('deseq2_ma') else None
-    ctx['deseq2_volcano_is_png'] = True  # PNG-only mode
-    ctx['deseq2_ma_is_png'] = True      # PNG-only mode
+    # Note: is_png flags already set in build_context, preserve them here
     ctx['volcano_rel'] = [copy_artifact(p) for p in (ctx.get('volcano') or [])]
     ctx['ma_rel'] = [copy_artifact(p) for p in (ctx.get('ma') or [])]
     ctx['chipseeker_rel'] = [copy_artifact(p) for p in (ctx.get('chipseeker') or [])]
@@ -479,9 +496,17 @@ def parse_args():
 
 
 if __name__ == '__main__':
-    args = parse_args()
-    staging = os.path.abspath(args.staging_dir)
-    out = os.path.abspath(args.out)
-    if not os.path.isdir(staging):
-        raise SystemExit(f"Staging dir not found: {staging}")
-    render_template(staging, out)
+    try:
+        args = parse_args()
+        staging = os.path.abspath(args.staging_dir)
+        out = os.path.abspath(args.out)
+        if not os.path.isdir(staging):
+            raise SystemExit(f"Staging dir not found: {staging}")
+        print(f"[INFO] Generating report from: {staging}", flush=True)
+        render_template(staging, out)
+        print(f"[SUCCESS] Report written to: {out}", flush=True)
+    except Exception as e:
+        import traceback
+        print(f"[ERROR] Report generation failed: {e}", flush=True)
+        print(traceback.format_exc(), flush=True)
+        raise SystemExit(f"Report generation failed: {e}")

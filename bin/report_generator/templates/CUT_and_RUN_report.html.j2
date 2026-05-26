@@ -323,7 +323,11 @@
                   <div class="card">
                     <div class="card-header"><strong>Volcano Plot</strong></div>
                     <div class="card-body">
-                      <p><small class="text-muted">PNG (fast loading)</small></p>
+                      {% if ctx.deseq2_volcano_is_png %}
+                        <p><small class="text-success">✓ PNG (fast loading)</small></p>
+                      {% else %}
+                        <p><small class="text-warning">⚠ PDF (vector format)</small></p>
+                      {% endif %}
                       <img src="{{ ctx.deseq2_volcano_rel }}" alt="Volcano Plot" class="img-fluid" style="max-width: 100%;">
                     </div>
                   </div>
@@ -334,7 +338,11 @@
                   <div class="card">
                     <div class="card-header"><strong>MA Plot</strong></div>
                     <div class="card-body">
-                      <p><small class="text-muted">PNG (fast loading)</small></p>
+                      {% if ctx.deseq2_ma_is_png %}
+                        <p><small class="text-success">✓ PNG (fast loading)</small></p>
+                      {% else %}
+                        <p><small class="text-warning">⚠ PDF (vector format)</small></p>
+                      {% endif %}
                       <img src="{{ ctx.deseq2_ma_rel }}" alt="MA Plot" class="img-fluid" style="max-width: 100%;">
                     </div>
                   </div>
