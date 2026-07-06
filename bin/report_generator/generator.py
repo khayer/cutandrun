@@ -9,6 +9,10 @@ import pathlib
 import shutil
 import pandas as pd
 from jinja2 import Environment, FileSystemLoader
+import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive backend
+from scipy import stats
 
 
 def find_first(glob_patterns, base):
@@ -78,6 +82,60 @@ def parse_frip_scores(frip_files):
     return None
 
 
+def plot_frip_scores(frip_files, output_path):
+    """Generate a bar plot of FRiP scores from MultiQC TSV files."""
+    if not frip_files:
+        return None
+    
+    data = []
+    for fpath in frip_files:
+        try:
+            sample_name = os.path.basename(fpath).replace('_mqc.tsv', '')
+            with open(fpath, 'r') as f:
+                for line in f:
+                    if line.startswith('Peak FRiP Score'):
+                        parts = line.strip().split()
+                        score = float(parts[-1])
+                        data.append({'Sample': sample_name, 'FRiP Score': score})
+                        break
+        except Exception as e:
+            pass
+    
+    if not data:
+        return None
+    
+    try:
+        df = pd.DataFrame(data)
+        fig, ax = plt.subplots(figsize=(10, 6))
+        
+        # Sort by FRiP score for better visualization
+        df = df.sort_values('FRiP Score', ascending=False)
+        
+        # Create bar plot
+        bars = ax.bar(range(len(df)), df['FRiP Score'], color='steelblue', edgecolor='navy', alpha=0.7)
+        
+        # Add value labels on bars
+        for i, (idx, row) in enumerate(df.iterrows()):
+            ax.text(i, row['FRiP Score'] + 0.01, f"{row['FRiP Score']:.3f}", 
+                   ha='center', va='bottom', fontsize=9)
+        
+        ax.set_xticks(range(len(df)))
+        ax.set_xticklabels(df['Sample'], rotation=45, ha='right')
+        ax.set_ylabel('FRiP Score', fontsize=12)
+        ax.set_title('Fragment in Peaks (FRiP) Scores by Sample', fontsize=14, fontweight='bold')
+        ax.set_ylim(0, max(df['FRiP Score']) * 1.15)
+        ax.grid(axis='y', alpha=0.3, linestyle='--')
+        
+        plt.tight_layout()
+        plt.savefig(output_path, dpi=100, bbox_inches='tight')
+        plt.close()
+        
+        return output_path
+    except Exception as e:
+        print(f"Warning: Could not generate FRiP plot: {e}", flush=True)
+        return None
+
+
 def parse_gc_test(gc_test_path):
     """Parse gc_test.tsv file and return as HTML table."""
     try:
@@ -93,6 +151,75 @@ def parse_gc_test(gc_test_path):
         return df.to_html(classes='table table-sm table-striped', index=False, na_rep='NA', escape=False)
     except Exception as e:
         return f"<pre>Error loading gc_test.tsv: {e}</pre>"
+
+
+def parse_gc_stats(gc_stats_path):
+    """Parse GC content statistics TSV file and return as formatted HTML table."""
+    try:
+        df = pd.read_csv(gc_stats_path, sep="\t")
+        # Format numeric columns for better readability
+        numeric_cols = ['n_peaks_with_gc', 'n_peaks', 'mean_gc_percent', 'median_gc_percent', 'sd_gc_percent']
+        for col in numeric_cols:
+            if col in df.columns:
+                # Format as appropriate
+                if col.startswith('n_peaks'):
+                    df[col] = df[col].apply(lambda x: f"{int(x):,}" if pd.notna(x) else x)
+                elif col.endswith('_percent'):
+                    df[col] = df[col].apply(lambda x: f"{x:.2f}" if pd.notna(x) else x)
+        return df.to_html(classes='table table-sm table-striped', index=False, na_rep='NA', escape=False)
+    except Exception as e:
+        return f"<pre>Error loading GC stats file: {e}</pre>"
+
+
+def compute_gc_ttest(gc_per_peak_path):
+    """
+    Compute t-tests comparing GC content between conditions.
+    Returns HTML formatted results.
+    """
+    try:
+        df = pd.read_csv(gc_per_peak_path, sep="\t")
+        
+        # Extract condition from sample name (e.g., "33K_Ad5_R1" -> "33K_Ad5")
+        df['condition'] = df['sample'].str.rsplit('_R', 1).str[0]
+        
+        conditions = sorted(df['condition'].unique())
+        
+        if len(conditions) < 2:
+            return None  # Need at least 2 conditions for t-test
+        
+        # Perform pairwise t-tests
+        results = []
+        for i, cond1 in enumerate(conditions):
+            for cond2 in conditions[i+1:]:
+                data1 = df[df['condition'] == cond1]['gc_percent'].values
+                data2 = df[df['condition'] == cond2]['gc_percent'].values
+                
+                # Perform independent samples t-test
+                t_stat, p_value = stats.ttest_ind(data1, data2)
+                mean_diff = data1.mean() - data2.mean()
+                
+                results.append({
+                    'Condition 1': cond1,
+                    'Condition 2': cond2,
+                    'n1': f"{len(data1):,}",
+                    'n2': f"{len(data2):,}",
+                    'Mean GC 1': f"{data1.mean():.2f}%",
+                    'Mean GC 2': f"{data2.mean():.2f}%",
+                    'Mean Diff': f"{mean_diff:.2f}%",
+                    't-statistic': f"{t_stat:.4f}",
+                    'p-value': f"{p_value:.2e}",
+                    'Significant': '***' if p_value < 0.001 else '**' if p_value < 0.01 else '*' if p_value < 0.05 else 'ns'
+                })
+        
+        if not results:
+            return None
+        
+        result_df = pd.DataFrame(results)
+        html = result_df.to_html(classes='table table-sm table-striped', index=False, na_rep='NA', escape=False)
+        html += '<br><small class="text-muted"><em>*** p&lt;0.001, ** p&lt;0.01, * p&lt;0.05, ns=not significant</em></small>'
+        return html
+    except Exception as e:
+        return f"<pre>Error computing GC t-tests: {e}</pre>"
 
 
 def build_context(staging_dir):
@@ -176,6 +303,20 @@ def build_context(staging_dir):
         if files:
             ctx['gc_plots'][pattern.replace('homer_peak_annotation.', '').replace('.png', '')] = files[0]
     
+    # Peak Feature GC Statistics
+    ctx['gc_by_sample_stats'] = None
+    ctx['gc_by_condition_stats'] = None
+    ctx['gc_ttest_results'] = None
+    gc_sample_files = find_first(["*/homer_peak_annotation.gc_by_sample.tsv", "**/homer_peak_annotation.gc_by_sample.tsv"], staging_dir)
+    if gc_sample_files:
+        ctx['gc_by_sample_stats'] = parse_gc_stats(gc_sample_files[0])
+    gc_condition_files = find_first(["*/homer_peak_annotation.gc_by_condition.tsv", "**/homer_peak_annotation.gc_by_condition.tsv"], staging_dir)
+    if gc_condition_files:
+        ctx['gc_by_condition_stats'] = parse_gc_stats(gc_condition_files[0])
+    gc_per_peak_files = find_first(["*/homer_peak_annotation.gc_per_peak.tsv", "**/homer_peak_annotation.gc_per_peak.tsv"], staging_dir)
+    if gc_per_peak_files:
+        ctx['gc_ttest_results'] = compute_gc_ttest(gc_per_peak_files[0])
+    
     # ChIPseeker Coverage Comparison Plots
     coverage_patterns = [
         "chipseeker_comparison_coverage.png",
@@ -187,6 +328,18 @@ def build_context(staging_dir):
         if files:
             label = pattern.replace('chipseeker_comparison_coverage', '').replace('_condition_average', ' (by condition)').replace('.png', '').lstrip('_') or 'all samples'
             ctx['coverage_plots'][label] = files[0]
+    
+    # ChIPseeker Peak Density Plots
+    ctx['peak_density_plots'] = {}
+    peak_density_patterns = [
+        "chipseeker_peak_density_by_condition.png",
+        "chipseeker_peak_density_logfc.png",
+    ]
+    for pattern in peak_density_patterns:
+        files = find_first([f"*/{pattern}", f"**/{pattern}"], staging_dir)
+        if files:
+            label = pattern.replace('chipseeker_peak_density_', '').replace('.png', '').replace('_', ' ').title()
+            ctx['peak_density_plots'][label] = files[0]
     
     # Per-Replicate ChIPseeker Plots - Group by condition and type
     ctx['per_replicate_chipseeker'] = {}
@@ -333,6 +486,12 @@ def build_context(staging_dir):
     # FRiP scores table
     if ctx['frip']:
         ctx['previews']['frip'] = parse_frip_scores(ctx['frip'])
+    
+    # FRiP scores plot
+    ctx['frip_plot'] = None
+    if ctx['frip']:
+        temp_plot_path = os.path.join(staging_dir, '.frip_plot_temp.png')
+        ctx['frip_plot'] = plot_frip_scores(ctx['frip'], temp_plot_path)
 
     # Convert absolute paths to relative paths from output location (we'll assume output in staging parent)
     ctx['staging_dir'] = staging_dir
@@ -396,6 +555,7 @@ def render_template(staging_dir, out_html):
     ctx['volcano_rel'] = [copy_artifact(p) for p in (ctx.get('volcano') or [])]
     ctx['ma_rel'] = [copy_artifact(p) for p in (ctx.get('ma') or [])]
     ctx['chipseeker_rel'] = [copy_artifact(p) for p in (ctx.get('chipseeker') or [])]
+    ctx['frip_plot_rel'] = copy_artifact(ctx.get('frip_plot')) if ctx.get('frip_plot') else None
     ctx['homer_reports'] = []
     for p in (ctx.get('homer_html') or []):
         label = os.path.basename(os.path.dirname(p))
@@ -412,6 +572,11 @@ def render_template(staging_dir, out_html):
     ctx['coverage_plots_rel'] = {}
     for label, path in ctx.get('coverage_plots', {}).items():
         ctx['coverage_plots_rel'][label] = copy_artifact(path)
+    
+    # Peak Density Plots
+    ctx['peak_density_plots_rel'] = {}
+    for label, path in ctx.get('peak_density_plots', {}).items():
+        ctx['peak_density_plots_rel'][label] = copy_artifact(path)
     
     # Per-Replicate ChIPseeker Plots
     ctx['per_replicate_chipseeker_rel'] = {}

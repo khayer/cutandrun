@@ -34,6 +34,7 @@
         <li class="nav-item"><a class="nav-link ms-3" href="#qc-frip">FRiP Scores</a></li>
         <li class="nav-item"><a class="nav-link ms-3" href="#qc-peak-feature">Peak Feature GC</a></li>
         <li class="nav-item"><a class="nav-link ms-3" href="#qc-coverage">ChIP Coverage</a></li>
+        <li class="nav-item"><a class="nav-link ms-3" href="#qc-peak-density">Peak Density</a></li>
         <li class="nav-item"><a class="nav-link ms-3" href="#qc-per-replicate">Per-Replicate QC</a></li>
         <li class="nav-item"><a class="nav-link" href="#promoter_gc">Promoter GC / Differential Binding</a></li>
         <li class="nav-item"><a class="nav-link ms-3" href="#promoter_gain">Promoter Gain</a></li>
@@ -62,6 +63,16 @@
           <p><strong>Question:</strong> Are sample-level QC metrics within expected ranges? (FRiP, fragment length, mapping quality)</p>
           {% if ctx.previews.frip %}
           <h5 id="qc-frip">FRiP Scores</h5>
+          {% if ctx.frip_plot_rel %}
+          <div class="mb-4">
+            <div class="card">
+              <div class="card-body p-2">
+                <img src="{{ ctx.frip_plot_rel }}" alt="FRiP Scores Plot" class="img-fluid">
+                <div class="small text-muted mt-2"><em>FRiP (Fragment in Peaks) scores indicate the proportion of fragments falling within called peaks. Higher values (>0.3) generally indicate good ChIP efficiency.</em></div>
+              </div>
+            </div>
+          </div>
+          {% endif %}
           <div class=\"table-responsive\">{{ ctx.previews.frip|safe }}</div>
           {% else %}
           <p>No FRiP metrics found in staging directory.</p>
@@ -84,6 +95,45 @@
               {% endfor %}
             </div>
             <p class="small text-muted mt-2"><em>Shows GC% distribution of peaks across replicates and conditions. Consistency indicates good peak quality.</em></p>
+            
+            <div class="row mt-4">
+              {% if ctx.gc_by_sample_stats %}
+              <div class="col-md-6">
+                <div class="card">
+                  <div class="card-header">
+                    <strong>GC Content by Sample</strong>
+                  </div>
+                  <div class="card-body p-2">
+                    <div class="table-responsive small">{{ ctx.gc_by_sample_stats|safe }}</div>
+                  </div>
+                </div>
+              </div>
+              {% endif %}
+              {% if ctx.gc_by_condition_stats %}
+              <div class="col-md-6">
+                <div class="card">
+                  <div class="card-header">
+                    <strong>GC Content by Condition</strong>
+                  </div>
+                  <div class="card-body p-2">
+                    <div class="table-responsive small">{{ ctx.gc_by_condition_stats|safe }}</div>
+                  </div>
+                </div>
+              </div>
+              {% endif %}
+            </div>
+            
+            {% if ctx.gc_ttest_results %}
+            <div class="card mt-4">
+              <div class="card-header">
+                <strong>Statistical Comparison (Independent Samples t-test)</strong>
+              </div>
+              <div class="card-body p-2">
+                <div class="table-responsive small">{{ ctx.gc_ttest_results|safe }}</div>
+                <small class="text-muted d-block mt-2"><em>Tests whether GC content differs significantly between conditions. Each row compares two groups.</em></small>
+              </div>
+            </div>
+            {% endif %}
           {% else %}
             <p class="text-muted">No GC content analysis plots found.</p>
           {% endif %}
@@ -107,6 +157,27 @@
             <p class="small text-muted mt-2"><em>Normalized read coverage at peaks. Helps identify samples with poor ChIP efficiency or outlier normalization.</em></p>
           {% else %}
             <p class="text-muted">No coverage comparison plots found.</p>
+          {% endif %}
+
+          <h5 id="qc-peak-density">Peak Density Across Chromosomes</h5>
+          {% if ctx.peak_density_plots_rel %}
+            <div class="row">
+              {% for label, rel_path in ctx.peak_density_plots_rel.items() %}
+                <div class="col-md-6 mb-4">
+                  {% if rel_path %}
+                    <div class="card">
+                      <div class="card-body p-2">
+                        <img src="{{ rel_path }}" alt="{{ label }}" class="img-fluid">
+                        <div class="small text-muted mt-2"><strong>{{ label }}</strong></div>
+                      </div>
+                    </div>
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+            <p class="small text-muted mt-2"><em>Peak density comparison across chromosomes. Left panel shows counts by condition; right panel (if present) shows log2 fold change between conditions.</em></p>
+          {% else %}
+            <p class="text-muted">No peak density plots found.</p>
           {% endif %}
 
           <h5 id="qc-per-replicate">Per-Replicate Quality Control</h5>

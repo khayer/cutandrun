@@ -406,6 +406,10 @@ process CHIPSEEKER_COMPARE {
     path("chipseeker_comparison_coverage.png"), emit: cov_png
     path("chipseeker_comparison_coverage_condition_average.pdf"), emit: cov_avg_pdf
     path("chipseeker_comparison_coverage_condition_average.png"), emit: cov_avg_png
+    path("chipseeker_peak_density_by_condition.pdf"), optional: true, emit: peak_density_pdf
+    path("chipseeker_peak_density_by_condition.png"), optional: true, emit: peak_density_png
+    path("chipseeker_peak_density_logfc.pdf"), optional: true, emit: peak_density_logfc_pdf
+    path("chipseeker_peak_density_logfc.png"), optional: true, emit: peak_density_logfc_png
     path("chipseeker_condition_*_pie.pdf"), optional: true, emit: cond_pie_pdf
     path("chipseeker_condition_*_pie.png"), optional: true, emit: cond_pie_png
     path("versions.yml"), emit: versions
@@ -1077,6 +1081,95 @@ if (length(anno_files) > 0) {
                 make_placeholder_pdf("chipseeker_comparison_coverage_condition_average.pdf", "Condition-average coverage unavailable")
                 make_placeholder_png("chipseeker_comparison_coverage_condition_average.png", "Condition-average coverage unavailable")
             })
+            
+            # Peak density by condition (count of peaks per chr per condition)
+            tryCatch({
+                cat("Generating peak density by condition plot...\\n")
+                cov_all_copy <- cov_all
+                cov_all_copy\$condition <- sub('_R[0-9]+\$', '', cov_all_copy\$sample)
+                
+                # Count peaks per condition per chromosome
+                peak_counts <- aggregate(sample ~ chr + condition, data = cov_all_copy, FUN = function(x) length(unique(x)))
+                names(peak_counts) <- c('chr', 'condition', 'peak_count')
+                
+                # Ensure chromosomes are ordered logically
+                peak_counts\$chr <- factor(peak_counts\$chr, levels = cov_chrs)
+                
+                p_density <- ggplot2::ggplot(peak_counts, ggplot2::aes(x = chr, y = peak_count, fill = condition)) +
+                    ggplot2::geom_col(position = 'dodge', width = 0.7) +
+                    ggplot2::xlab('Chromosome') +
+                    ggplot2::ylab('Number of Peaks') +
+                    ggplot2::ggtitle('Peak Density by Condition Across Main Chromosomes') +
+                    ggplot2::theme_bw() +
+                    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+                                   legend.position = 'right')
+                
+                pdf('chipseeker_peak_density_by_condition.pdf', width = 10, height = 6)
+                print(p_density)
+                dev.off()
+                
+                png('chipseeker_peak_density_by_condition.png', width = 1200, height = 800, res = 130)
+                print(p_density)
+                dev.off()
+            }, error = function(e) {
+                cat('Note: Peak density by condition plot generation skipped -', conditionMessage(e), '\\n')
+            })
+            
+            # Peak density logFC (fold change between conditions across chromosomes)
+            tryCatch({
+                cat('Generating peak density logFC plot...\\n')
+                cov_all_copy <- cov_all
+                cov_all_copy\$condition <- sub('_R[0-9]+\$', '', cov_all_copy\$sample)
+                
+                # Count peaks per condition per chromosome
+                peak_counts <- aggregate(sample ~ chr + condition, data = cov_all_copy, FUN = function(x) length(unique(x)))
+                names(peak_counts) <- c('chr', 'condition', 'peak_count')
+                
+                # Get unique conditions
+                conditions_list <- sort(unique(peak_counts\$condition))
+                
+                # Only create logFC plot if there are exactly 2 conditions
+                if (length(conditions_list) == 2) {
+                    cond1 <- conditions_list[1]
+                    cond2 <- conditions_list[2]
+                    
+                    counts1 <- peak_counts[peak_counts\$condition == cond1, c('chr', 'peak_count')]
+                    counts2 <- peak_counts[peak_counts\$condition == cond2, c('chr', 'peak_count')]
+                    
+                    names(counts1) <- c('chr', 'count1')
+                    names(counts2) <- c('chr', 'count2')
+                    
+                    logfc_df <- merge(counts1, counts2, by = 'chr', all = TRUE)
+                    logfc_df\$count1[is.na(logfc_df\$count1)] <- 0.5  # Pseudocount to avoid log(0)
+                    logfc_df\$count2[is.na(logfc_df\$count2)] <- 0.5
+                    logfc_df\$logFC <- log2(logfc_df\$count2 / logfc_df\$count1)
+                    logfc_df\$color <- ifelse(logfc_df\$logFC > 0, 'Up in ' %+% cond2, 'Up in ' %+% cond1)
+                    logfc_df\$chr <- factor(logfc_df\$chr, levels = cov_chrs)
+                    
+                    p_logfc <- ggplot2::ggplot(logfc_df, ggplot2::aes(x = chr, y = logFC, fill = color)) +
+                        ggplot2::geom_col(width = 0.7) +
+                        ggplot2::geom_hline(yintercept = 0, linetype = 'solid', color = 'black', linewidth = 0.4) +
+                        ggplot2::xlab('Chromosome') +
+                        ggplot2::ylab('log2 Fold Change (Peak Count)') +
+                        ggplot2::ggtitle(paste0('Peak Density logFC: ', cond2, ' vs ', cond1)) +
+                        ggplot2::theme_bw() +
+                        ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+                                       legend.position = 'right') +
+                        ggplot2::scale_fill_manual(values = c('Up in ' %+% cond1 = '#2166ac', 'Up in ' %+% cond2 = '#b2182b'))
+                    
+                    pdf('chipseeker_peak_density_logfc.pdf', width = 10, height = 6)
+                    print(p_logfc)
+                    dev.off()
+                    
+                    png('chipseeker_peak_density_logfc.png', width = 1200, height = 800, res = 130)
+                    print(p_logfc)
+                    dev.off()
+                } else if (length(conditions_list) > 2) {
+                    cat('Note: logFC plot requires exactly 2 conditions, found', length(conditions_list), '- skipping\\n')
+                }
+            }, error = function(e) {
+                cat('Note: Peak density logFC plot generation skipped -', conditionMessage(e), '\\n')
+            })
         }
     }
     
@@ -1225,6 +1318,18 @@ if (!file.exists("chipseeker_comparison_coverage_condition_average.pdf")) {
 }
 if (!file.exists("chipseeker_comparison_coverage_condition_average.png")) {
     make_placeholder_png("chipseeker_comparison_coverage_condition_average.png", "Condition-average comparison coverage unavailable")
+}
+if (!file.exists("chipseeker_peak_density_by_condition.pdf")) {
+    make_placeholder_pdf("chipseeker_peak_density_by_condition.pdf", "Peak density by condition unavailable")
+}
+if (!file.exists("chipseeker_peak_density_by_condition.png")) {
+    make_placeholder_png("chipseeker_peak_density_by_condition.png", "Peak density by condition unavailable")
+}
+if (!file.exists("chipseeker_peak_density_logfc.pdf")) {
+    make_placeholder_pdf("chipseeker_peak_density_logfc.pdf", "Peak density logFC unavailable")
+}
+if (!file.exists("chipseeker_peak_density_logfc.png")) {
+    make_placeholder_png("chipseeker_peak_density_logfc.png", "Peak density logFC unavailable")
 }
 
 cat("ChIPseeker comparison completed\\n")
