@@ -1143,7 +1143,7 @@ if (length(anno_files) > 0) {
                     logfc_df\$count1[is.na(logfc_df\$count1)] <- 0.5  # Pseudocount to avoid log(0)
                     logfc_df\$count2[is.na(logfc_df\$count2)] <- 0.5
                     logfc_df\$logFC <- log2(logfc_df\$count2 / logfc_df\$count1)
-                    logfc_df\$color <- ifelse(logfc_df\$logFC > 0, 'Up in ' %+% cond2, 'Up in ' %+% cond1)
+                    logfc_df\$color <- ifelse(logfc_df\$logFC > 0, paste0('Up in ', cond2), paste0('Up in ', cond1))
                     logfc_df\$chr <- factor(logfc_df\$chr, levels = cov_chrs)
                     
                     p_logfc <- ggplot2::ggplot(logfc_df, ggplot2::aes(x = chr, y = logFC, fill = color)) +
@@ -1155,7 +1155,7 @@ if (length(anno_files) > 0) {
                         ggplot2::theme_bw() +
                         ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
                                        legend.position = 'right') +
-                        ggplot2::scale_fill_manual(values = c('Up in ' %+% cond1 = '#2166ac', 'Up in ' %+% cond2 = '#b2182b'))
+                        ggplot2::scale_fill_manual(values = stats::setNames(c('#2166ac', '#b2182b'), c(paste0('Up in ', cond1), paste0('Up in ', cond2))))
                     
                     pdf('chipseeker_peak_density_logfc.pdf', width = 10, height = 6)
                     print(p_logfc)
