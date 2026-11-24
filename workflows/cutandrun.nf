@@ -162,6 +162,7 @@ include { SAMTOOLS_VIEW_SORT_STATS as FILTER_READS         } from "../subworkflo
 include { DEDUPLICATE_LINEAR                               } from "../subworkflows/local/deduplicate_linear"
 include { PEAK_SIGNAL_PROFILER                             } from "../subworkflows/local/peak_signal_profiler"
 include { SPLIT_METAGENE_WF                              } from "../subworkflows/local/split_metagene"
+include { DEEPTOOLS_HEATMAPS                             } from "../subworkflows/local/deeptools_heatmaps"
 include { SPECIES_COMPOSITION                            } from "../modules/local/python/species_composition"
 
 /*
@@ -179,13 +180,7 @@ include { SEACR_CALLPEAK as SEACR_CALLPEAK_IGG                         } from ".
 include { SEACR_CALLPEAK as SEACR_CALLPEAK_NOIGG                       } from "../modules/nf-core/seacr/callpeak/main"
 include { MACS2_CALLPEAK as MACS2_CALLPEAK_IGG                         } from "../modules/nf-core/macs2/callpeak/main"
 include { MACS2_CALLPEAK as MACS2_CALLPEAK_NOIGG                       } from "../modules/nf-core/macs2/callpeak/main"
-include { DEEPTOOLS_COMPUTEMATRIX as DEEPTOOLS_COMPUTEMATRIX_GENE      } from "../modules/nf-core/deeptools/computematrix/main"
-include { DEEPTOOLS_COMPUTEMATRIX as DEEPTOOLS_COMPUTEMATRIX_PEAKS     } from "../modules/nf-core/deeptools/computematrix/main"
-include { DEEPTOOLS_PLOTHEATMAP as DEEPTOOLS_PLOTHEATMAP_GENE          } from "../modules/nf-core/deeptools/plotheatmap/main"
-include { DEEPTOOLS_PLOTHEATMAP as DEEPTOOLS_PLOTHEATMAP_PEAKS         } from "../modules/nf-core/deeptools/plotheatmap/main"
-include { DEEPTOOLS_COMPUTEMATRIX as DEEPTOOLS_COMPUTEMATRIX_GENE_ALL  } from "../modules/nf-core/deeptools/computematrix/main"
 include { DEEPTOOLS_COMPUTEMATRIX as DEEPTOOLS_COMPUTEMATRIX_PEAKS_ALL } from "../modules/nf-core/deeptools/computematrix/main"
-include { DEEPTOOLS_PLOTHEATMAP as DEEPTOOLS_PLOTHEATMAP_GENE_ALL      } from "../modules/nf-core/deeptools/plotheatmap/main"
 include { DEEPTOOLS_PLOTHEATMAP as DEEPTOOLS_PLOTHEATMAP_PEAKS_ALL     } from "../modules/nf-core/deeptools/plotheatmap/main"
 include { DEEPTOOLS_BIGWIGCOMPARE                                      } from "../modules/nf-core/deeptools/bigwigcompare/main"
 include { DEEPTOOLS_MULTIBAMSUMMARY_BED                                } from "../modules/nf-core/deeptools/multibamsummary_bed/main"
@@ -257,7 +252,6 @@ workflow CUTANDRUN {
         .set { ch_cat_fastq }
     }
     //EXAMPLE CHANNEL STRUCT: [[id:h3k27me3_R1, group:h3k27me3, replicate:1, single_end:false, is_control:false], [READS]]
-    //ch_cat_fastq | view
 
     /*
      * SUBWORKFLOW: Read QC, trim adapters and perform post-trim read QC
@@ -272,7 +266,6 @@ workflow CUTANDRUN {
         ch_software_versions = ch_software_versions.mix(FASTQC_TRIMGALORE.out.versions)
     }
     //EXAMPLE CHANNEL STRUCT: [[id:h3k27me3_R1, group:h3k27me3, replicate:1, single_end:false, is_control:false], [READS]]
-    //FASTQC_TRIMGALORE.out.reads | view
 
     /*
     * SUBWORKFLOW: Alignment to target and spikein genome using botwtie2
@@ -320,7 +313,6 @@ workflow CUTANDRUN {
         }
     }
     //EXAMPLE CHANNEL STRUCT: [[id:h3k27me3_R1, group:h3k27me3, replicate:1, single_end:false, is_control:false], [BAM]]
-    //ch_samtools_bam | view
 
     // Preserve flagstats for FRiP before optional target deduplication
     ch_samtools_flagstat_for_frip = ch_samtools_flagstat
@@ -346,8 +338,6 @@ workflow CUTANDRUN {
         )
         ch_metadata_bt2_spikein = EXTRACT_BT2_SPIKEIN_META.out.metadata
     }
-    //ch_metadata_bt2_target | view
-    //ch_metadata_bt2_spikein | view
 
     /*
      *  SUBWORKFLOW: Filter reads based some standard measures
@@ -372,7 +362,6 @@ workflow CUTANDRUN {
         ch_software_versions = ch_software_versions.mix(FILTER_READS.out.versions)
     }
     //EXAMPLE CHANNEL STRUCT: [[id:h3k27me3_R1, group:h3k27me3, replicate:1, single_end:false, is_control:false], [BAM]]
-    //ch_samtools_bam | view
 
     /*
      * MODULE: Run preseq on BAM files before de-duplication
@@ -407,19 +396,9 @@ workflow CUTANDRUN {
         ch_software_versions      = ch_software_versions.mix(MARK_DUPLICATES_PICARD.out.versions)
     }
     //EXAMPLE CHANNEL STRUCT: [[id:h3k27me3_R1, group:h3k27me3, replicate:1, single_end:false, is_control:false], [BAM]]
-    //ch_samtools_bam | view
 
-    /*
-     * CHANNEL: idxstats for EVERY sample, captured before de-duplication.
-     *
-     * With dedup_target_reads = false (the default) MARK_DUPLICATES_PICARD runs
-     * on controls only, and its else-branch mixes the untouched targets back
-     * into bam/bai but NOT into stats/flagstat/idxstats. So from here on
-     * ch_samtools_idxstats carries the controls alone, and anything that
-     * aggregates across samples would silently report on a subset. Species
-     * composition needs every sample at the same processing stage, so snapshot
-     * it here instead.
-     */
+    // All-sample idxstats, snapshotted before DEDUPLICATE_PICARD narrows the
+    // channel to controls only. Why, in readme_of_changes.md.
     ch_samtools_idxstats_all = ch_samtools_idxstats
 
     /*
@@ -445,7 +424,6 @@ workflow CUTANDRUN {
         }
     }
     //EXAMPLE CHANNEL STRUCT: [[id:h3k27me3_R1, group:h3k27me3, replicate:1, single_end:false, is_control:false], [BAM]]
-    //ch_samtools_bai | view
 
     /*
     * SUBWORKFLOW: extract duplication stats from picard report
@@ -659,8 +637,6 @@ workflow CUTANDRUN {
         .set { ch_bedgraph_target }
         ch_bedgraph.filter { it -> it[0].is_control == true }
         .set { ch_bedgraph_control }
-        //ch_bedgraph_target | view
-        //ch_bedgraph_control | view
 
         // Preserve BAMs for promoter-GC diffbind BEFORE consuming them for peak calling
         // Fan out the BAM/BAI channels to avoid consumption
@@ -699,8 +675,6 @@ workflow CUTANDRUN {
             .map { sid, left_row, right_row -> [left_row[0], left_row[1], right_row[1]] }
             .set { ch_promoter_gc_bam_bai }
 
-        //ch_bam_target | view
-        //ch_bam_control | view
 
         if(params.use_control) {
             /*
@@ -726,7 +700,6 @@ workflow CUTANDRUN {
                 ch_seacr_peaks       = SEACR_CALLPEAK_IGG.out.bed
                 ch_software_versions = ch_software_versions.mix(SEACR_CALLPEAK_IGG.out.versions)
                 // EXAMPLE CHANNEL STRUCT: [[META], BED]
-                //SEACR_CALLPEAK_IGG.out.bed | view
             }
 
             if('macs2' in callers) {
@@ -741,7 +714,6 @@ workflow CUTANDRUN {
                 }
                 .set { ch_bam_paired }
                 // EXAMPLE CHANNEL STRUCT: [[META], TARGET_BAM, CONTROL_BAM]
-                //ch_bam_paired | view
 
                 MACS2_CALLPEAK_IGG (
                     ch_bam_paired,
@@ -751,7 +723,6 @@ workflow CUTANDRUN {
                 ch_peaks_summits     = MACS2_CALLPEAK_IGG.out.bed
                 ch_software_versions = ch_software_versions.mix(MACS2_CALLPEAK_IGG.out.versions)
                 // EXAMPLE CHANNEL STRUCT: [[META], BED]
-                //MACS2_CALLPEAK_IGG.out.peak | view
             }
         }
         else {
@@ -765,7 +736,6 @@ workflow CUTANDRUN {
                 ch_bedgraph_target.map{ row-> [ row[0], row[1], [] ] }
                 .set { ch_bedgraph_target_fctrl }
                 // EXAMPLE CHANNEL STRUCT: [[META], BED, FAKE_CTRL]
-                // ch_bedgraph_target_fctrl | view
 
                 SEACR_CALLPEAK_NOIGG (
                     ch_bedgraph_target_fctrl,
@@ -774,7 +744,6 @@ workflow CUTANDRUN {
                 ch_seacr_peaks       = SEACR_CALLPEAK_NOIGG.out.bed
                 ch_software_versions = ch_software_versions.mix(SEACR_CALLPEAK_NOIGG.out.versions)
                 // EXAMPLE CHANNEL STRUCT: [[META], BED]
-                //SEACR_NO_IGG.out.bed | view
             }
 
             if('macs2' in callers) {
@@ -784,7 +753,6 @@ workflow CUTANDRUN {
                 ch_bam_target_split.for_peakcalling.map{ row-> [ row[0], row[1], [] ] }
                 .set { ch_samtools_bam_target_fctrl }
                 // EXAMPLE CHANNEL STRUCT: [[META], BAM, FAKE_CTRL]
-                //ch_samtools_bam_target_fctrl | view
 
                 MACS2_CALLPEAK_NOIGG (
                     ch_samtools_bam_target_fctrl,
@@ -794,7 +762,6 @@ workflow CUTANDRUN {
                 ch_peaks_summits     = MACS2_CALLPEAK_NOIGG.out.bed
                 ch_software_versions = ch_software_versions.mix(MACS2_CALLPEAK_NOIGG.out.versions)
                 // EXAMPLE CHANNEL STRUCT: [[META], BED]
-                // MACS2_CALLPEAK_NOIGG.out.peak | view
             }
         }
 
@@ -806,7 +773,6 @@ workflow CUTANDRUN {
             ch_macs2_peaks       = PEAK_TO_BED.out.file
             ch_software_versions = ch_software_versions.mix(PEAK_TO_BED.out.versions)
             // EXAMPLE CHANNEL STRUCT: [[META], BED]
-            //PEAK_TO_BED.out.file | view
         }
 
         // Identify the primary peak data stream for downstream analysis
@@ -843,7 +809,6 @@ workflow CUTANDRUN {
             )
             ch_peaks_summits     = AWK_EXTRACT_SUMMITS.out.file
             ch_software_versions = ch_software_versions.mix(AWK_EXTRACT_SUMMITS.out.versions)
-            //AWK_EXTRACT_SUMMITS.out.file | view
         }
 
         /*
@@ -854,7 +819,6 @@ workflow CUTANDRUN {
         )
         ch_software_versions = ch_software_versions.mix(AWK_NAME_PEAK_BED.out.versions)
         // EXAMPLE CHANNEL STRUCT: [[META], BED]
-        //AWK_NAME_PEAK_BED.out.file | view
 
         /*
         * MODULE: Create merged peaks table showing peak presence across samples
@@ -1215,7 +1179,6 @@ workflow CUTANDRUN {
             }
             .set { ch_peaks_bed_all }
             // EXAMPLE CHANNEL STRUCT: [[id: all_samples], [BED1, BED2, BEDn...], count]
-            //ch_peaks_bed_all | view
 
             /*
             * SUBWORKFLOW: Construct group consensus peaks
@@ -1227,7 +1190,6 @@ workflow CUTANDRUN {
             ch_consensus_peaks_unfilt = CONSENSUS_PEAKS_ALL.out.merged_bed
             ch_software_versions      = ch_software_versions.mix(CONSENSUS_PEAKS_ALL.out.versions)
             // EXAMPLE CHANNEL STRUCT: [[META], BED]
-            //CONSENSUS_PEAKS_ALL.out.bed | view
         } else {
             /*
             * CHANNEL: Group samples based on group name
@@ -1238,7 +1200,6 @@ workflow CUTANDRUN {
             .map { row -> [ [id: row[0]], row[1].flatten() ] }
             .set { ch_peaks_bed_group }
             // EXAMPLE CHANNEL STRUCT: [[id: <GROUP>], [BED1, BED2, BEDn...], count]
-            //ch_peaks_bed_group | view
 
             /*
             * SUBWORKFLOW: Construct group consensus peaks
@@ -1251,7 +1212,6 @@ workflow CUTANDRUN {
             ch_consensus_peaks_unfilt = CONSENSUS_PEAKS.out.merged_bed
             ch_software_versions      = ch_software_versions.mix(CONSENSUS_PEAKS.out.versions)
             // EXAMPLE CHANNEL STRUCT: [[META], BED]
-            //CONSENSUS_PEAKS.out.bed | view
 
             /*
             * MODULE: Run Homer motif finding on consensus peaks per group
@@ -1443,102 +1403,13 @@ workflow CUTANDRUN {
         }
 
         if (params.run_deeptools_heatmaps && params.run_peak_calling) {
-            /*
-            * CHANNEL: Remove IgG from bigwig channel
-            */
-            ch_bigwig.filter { it[0].is_control == false }
-            .set { ch_bigwig_no_igg }
-            // ch_bigwig_no_igg | view
-
-            /*
-            * MODULE: Compute DeepTools matrix used in heatmap plotting for Genes
-            */
-            DEEPTOOLS_COMPUTEMATRIX_GENE (
-                ch_bigwig_no_igg,
-                PREPARE_GENOME.out.bed.collect()
+            DEEPTOOLS_HEATMAPS (
+                ch_bigwig,
+                ch_peaks_summits,
+                PREPARE_GENOME.out.bed,
+                params.dt_calc_all_matrix
             )
-            ch_software_versions = ch_software_versions.mix(DEEPTOOLS_COMPUTEMATRIX_GENE.out.versions)
-
-            /*
-            * MODULE: Calculate DeepTools heatmap
-            */
-            DEEPTOOLS_PLOTHEATMAP_GENE (
-                DEEPTOOLS_COMPUTEMATRIX_GENE.out.matrix
-            )
-            ch_software_versions = ch_software_versions.mix(DEEPTOOLS_PLOTHEATMAP_GENE.out.versions)
-
-            /*
-            * CHANNEL: Structure output for join on id
-            */
-            ch_peaks_summits
-            .map { row -> [row[0].id, row ].flatten()}
-            .set { ch_peaks_summits_id }
-            //ch_peaks_bed_id | view
-
-            /*
-            * CHANNEL: Join beds and bigwigs on id
-            */
-            ch_bigwig_no_igg
-            .map { row -> [row[0].id, row ].flatten()}
-            .join ( ch_peaks_summits_id )
-            .filter ( it -> it[-1].size() > 1)
-            .set { ch_dt_bigwig_summits }
-            //ch_dt_peaks | view
-
-            ch_dt_bigwig_summits
-            .map { row -> row[1,2] }
-            .set { ch_ordered_bigwig }
-            //ch_ordered_bigwig | view
-
-            ch_dt_bigwig_summits
-            .map { row -> row[-1] }
-            .set { ch_ordered_peaks_max }
-            //ch_ordered_peaks_max | view
-
-            /*
-            * MODULE: Compute DeepTools matrix used in heatmap plotting for Peaks
-            */
-
-            DEEPTOOLS_COMPUTEMATRIX_PEAKS (
-                ch_ordered_bigwig,
-                ch_ordered_peaks_max
-            )
-
-            ch_software_versions = ch_software_versions.mix(DEEPTOOLS_COMPUTEMATRIX_PEAKS.out.versions)
-            //EXAMPLE CHANNEL STRUCT: [[META], MATRIX]
-            //DEEPTOOLS_COMPUTEMATRIX_PEAKS.out.matrix | view
-
-            /*
-            * MODULE: Calculate DeepTools heatmap
-            */
-            DEEPTOOLS_PLOTHEATMAP_PEAKS (
-                DEEPTOOLS_COMPUTEMATRIX_PEAKS.out.matrix
-            )
-            ch_software_versions = ch_software_versions.mix(DEEPTOOLS_PLOTHEATMAP_PEAKS.out.versions)
-
-            if(params.dt_calc_all_matrix) {
-                /*
-                * MODULE: Run calc gene matrix for all samples
-                */
-                ch_bigwig_no_igg
-                .map { it[1] }
-                .toSortedList()
-                .filter { it && it.size() > 0 }
-                .map { [[id:'all_genes'], it] }
-                .set { ch_all_genes_bigwig_list }
-
-                DEEPTOOLS_COMPUTEMATRIX_GENE_ALL (
-                    ch_all_genes_bigwig_list,
-                    PREPARE_GENOME.out.bed.toSortedList()
-                )
-
-                /*
-                * MODULE: Calculate DeepTools heatmap for all samples
-                */
-                DEEPTOOLS_PLOTHEATMAP_GENE_ALL (
-                    DEEPTOOLS_COMPUTEMATRIX_GENE_ALL.out.matrix
-                )
-            }
+            ch_software_versions = ch_software_versions.mix(DEEPTOOLS_HEATMAPS.out.versions)
         }
 
         if(params.run_deeptools_qc) {
@@ -1561,7 +1432,6 @@ workflow CUTANDRUN {
         */
         ch_samtools_bai.filter { it -> it[0].is_control == false }
         .set { ch_bai_target }
-        //ch_bai_target | view
 
         if (params.run_peak_qc && params.run_peak_calling) {
             /*
@@ -1569,7 +1439,6 @@ workflow CUTANDRUN {
             */
             ch_samtools_flagstat_for_frip.filter { it -> it[0].is_control == false }
             .set { ch_flagstat_target }
-            //ch_flagstat_target | view
 
             /*
             * SUBWORKFLOW: Extract fragments from bam files for fragment-based FRiP score
@@ -1648,7 +1517,6 @@ workflow CUTANDRUN {
                      "skip_bigwigcompare is true, so the split metagene was skipped."
         }
 
-        //ch_peakqc_reprod_perc_mqc | view
 
         /*
         * CHANNEL: Combine bam and bai files on id
@@ -1659,7 +1527,6 @@ workflow CUTANDRUN {
         .map { row -> [row[1], row[2], row[4]] }
         .set { ch_bam_bai }
         // EXAMPLE CHANNEL STRUCT: [[META], BAM, BAI]
-        //ch_bam_bai | view
 
         /*
         * MODULE: Calculate fragment lengths
@@ -1668,7 +1535,6 @@ workflow CUTANDRUN {
             ch_bam_bai
         )
         ch_software_versions = ch_software_versions.mix(SAMTOOLS_CUSTOMVIEW.out.versions)
-        //SAMTOOLS_CUSTOMVIEW.out.tsv | view
 
         /*
         * CHANNEL: Prepare data for generate reports
@@ -1682,7 +1548,6 @@ workflow CUTANDRUN {
             list.each{ v -> output.add(v[1]) }
             output
         }
-        //ch_frag_len | view
 
         /*
         * MODULE: Calculate fragment length histogram for mqc
@@ -1694,7 +1559,6 @@ workflow CUTANDRUN {
         ch_frag_len_hist_mqc = FRAG_LEN_HIST.out.frag_len_mqc
         ch_software_versions = ch_software_versions.mix(FRAG_LEN_HIST.out.versions)
     }
-    //ch_frag_len_hist_mqc | view
 
 
     if (params.run_multiqc) {

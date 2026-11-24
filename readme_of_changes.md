@@ -950,6 +950,26 @@ results/04_reporting/species_composition/
   species_composition.png       # composition + non-host detail
 ```
 
+### Which samples it reports on
+
+Every sample, taken before de-duplication.
+
+This needs saying because getting it wrong is silent. With
+`--dedup_target_reads false` (the default) `MARK_DUPLICATES_PICARD` runs on the
+control samples only, and its else-branch mixes the untouched target samples
+back into the `bam` and `bai` channels but **not** into `stats`, `flagstat` or
+`idxstats` (`subworkflows/local/mark_duplicates_picard.nf`, lines 79-83). From
+`DEDUPLICATE_PICARD` onward, `ch_samtools_idxstats` therefore carries the
+controls alone. A module that aggregates across that channel produces a figure
+that looks complete and silently describes a subset - which is exactly what
+happened: a six-sample bargraph for a run with far more than six samples.
+
+`workflows/cutandrun.nf` snapshots `ch_samtools_idxstats_all` before the dedup
+step and feeds the module from that, so every sample is present and all of them
+are at the same processing stage. Comparing a post-dedup control against a
+pre-dedup target would make the percentages incomparable, which is why the
+snapshot is taken rather than the two channels mixed back together.
+
 ### What it is for
 
 The combined reference carries hRSV and four mycoplasma contigs purely as
