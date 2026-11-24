@@ -484,14 +484,28 @@ workflow CUTANDRUN {
         if (params.normalisation_mode_dual && params.normalisation_mode == "Spikein") {
             ch_metadata_bt2_target
                 .splitCsv(header:true, sep:",")
-                .map { row -> 
-                    def aligned = row.find{ it.key == "bt2_total_aligned" }?.value
+                .map { row ->
+                    // splitCsv on a [meta, csv] channel emits [meta, rowMap],
+                    // so .find has to run on row[1]. Run on the tuple it
+                    // matched nothing, every count became 0.0 and the mean
+                    // fell back to 1.0 below, making target_factor
+                    // 1/target_reads (~1e-8) and scaling bigWigs to nothing.
+                    def aligned = row[1]?.find{ it.key == "bt2_total_aligned" }?.value
                     aligned ? aligned.toDouble() : 0.0
                 }
                 .toList()
-                .map { list -> 
+                .map { list ->
                     def valid_counts = list.findAll { it > 0 }
-                    valid_counts.size() > 0 ? valid_counts.sum() / valid_counts.size() : 1.0
+                    if (!valid_counts) {
+                        // Never fall back to 1.0: a mean read count of 1 is not
+                        // a plausible value, and the wrong scale factor it
+                        // produces is invisible in the output.
+                        throw new IllegalStateException(
+                            "Dual normalisation: no bt2_total_aligned counts " +
+                            "could be read from the target metadata. Refusing " +
+                            "to continue with a fabricated mean.")
+                    }
+                    valid_counts.sum() / valid_counts.size()
                 }
                 .set { ch_mean_target_reads }
             
