@@ -544,6 +544,16 @@
                     "default": 1000,
                     "description": "bp downstream of the TES."
                 },
+                "split_metagene_length_match": {
+                    "type": "integer",
+                    "default": 0,
+                    "description": "Keep N intron-containing genes per intronless gene within each length bin; 0 disables matching."
+                },
+                "split_metagene_length_match_bin": {
+                    "type": "integer",
+                    "default": 500,
+                    "description": "Width in bp of the length bins used by split_metagene_length_match."
+                },
                 "split_metagene_bed_a": {
                     "type": "string",
                     "description": "Optional pre-built group A BED; bypasses gene-group building."

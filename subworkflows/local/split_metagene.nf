@@ -1,7 +1,7 @@
 /*
  * Subworkflow: SPLIT_METAGENE_WF
  * Authors: Katharina E. Hayer, co-created with Claude
- * Version: 1.1.0  |  Date: 2026-11-24
+ * Version: 1.2.0  |  Date: 2026-11-24
  *
  * Builds the gene groups once from the run's own GTF, then draws one split
  * metagene per target group using that group's IgG-subtracted replicate
@@ -34,7 +34,9 @@ workflow SPLIT_METAGENE_WF {
                 params.split_metagene_exclude_contigs,
                 params.split_metagene_neighbour_filter,
                 params.split_metagene_tss_up,
-                params.split_metagene_tss_down
+                params.split_metagene_tss_down,
+                params.split_metagene_length_match,
+                params.split_metagene_length_match_bin
             )
             ch_ic       = MAKE_GENE_GROUPS.out.intron_containing
             ch_il       = MAKE_GENE_GROUPS.out.intronless

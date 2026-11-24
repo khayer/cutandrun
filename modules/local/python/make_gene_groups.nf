@@ -1,8 +1,8 @@
 // ---------------------------------------------------------------------------
 // Module: MAKE_GENE_GROUPS
 // Authors: Katharina E. Hayer, co-created with Claude
-// Version: 1.0.0
-// Date:    2026-11-23
+// Version: 1.2.0
+// Date:    2026-11-24
 // Purpose: Split the run's own GTF into intron-containing and intronless gene
 //          BED6 files for the split metagene.
 //
@@ -28,6 +28,8 @@ process MAKE_GENE_GROUPS {
     val  neighbour_filter
     val  tss_up
     val  tss_down
+    val  length_match
+    val  length_match_bin
 
     output:
     path "genes.intron_containing.bed", emit: intron_containing
@@ -49,6 +51,8 @@ process MAKE_GENE_GROUPS {
         --neighbour-filter ${neighbour_filter} \\
         --tss-up ${tss_up} \\
         --tss-down ${tss_down} \\
+        --length-match ${length_match} \\
+        --length-match-bin ${length_match_bin} \\
         2> gene_groups.counts.txt
 
     cat gene_groups.counts.txt >&2
