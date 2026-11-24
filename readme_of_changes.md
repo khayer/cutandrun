@@ -1041,6 +1041,7 @@ nextflow run main.nf \
 | `--split_metagene_min_length` | `6000` | Minimum gene length so the TSS and TES windows cannot overlap |
 | `--split_metagene_biotype` | `protein_coding` | Gene biotype kept; `all` for no filter |
 | `--split_metagene_exclude_contigs` | `chrM,chrY` | Contigs dropped from the gene groups |
+| `--split_metagene_neighbour_filter` | `none` | `none`, `tss` or `any` - drop genes sharing sequence with a neighbour |
 | `--split_metagene_bin_size` | `50` | computeMatrix bin size (bp) |
 | `--split_metagene_tss_up` / `_tss_down` | `1000` / `5000` | TSS window |
 | `--split_metagene_tes_up` / `_tes_down` | `5000` / `1000` | TES window |
@@ -1072,6 +1073,38 @@ The matrices are published, so a figure can be re-plotted at a different
 
 The group split is not hard-wired to introns - hand it any two BEDs (DESeq2 up
 vs unchanged promoters, say) and the labels come from the file names.
+
+### Overlapping genes
+
+The groups are one row per GENE, so overlapping transcripts WITHIN a gene are
+collapsed to the gene span and no gene appears twice. Overlapping **genes** are
+a different matter. Measured on the shipped hg38 groups:
+
+| | count | share |
+|---|---|---|
+| gene bodies overlapping another gene | 2,991 | 18.0% |
+| TSS windows overlapping another TSS window | 1,769 | 10.7% |
+| overlapping pairs | 3,762 | 1,671 same strand, 2,091 opposite |
+
+Reads in a shared interval are counted once per gene. `computeMatrix` is
+strand-aware so each gene is anchored correctly, but a bidirectional promoter
+puts the same reads into two rows facing opposite ways, and a divergent
+neighbour's TSS peak lands inside the first gene's upstream window.
+`--min-length` only guarantees a gene's own TSS and TES windows do not collide;
+it says nothing about neighbours.
+
+`--split_metagene_neighbour_filter` addresses it:
+
+| value | effect | hg38 result |
+|---|---|---|
+| `none` (default) | every gene kept | 16,587 + 23 |
+| `tss` | drop BOTH genes of any pair whose TSS windows overlap | 13,162 + 20 |
+| `any` | drop BOTH genes of any pair whose spans overlap | 11,325 + 18 |
+
+Both members of a pair are dropped on purpose: keeping one would be an
+arbitrary choice between two equally contaminated genes, and the survivor would
+still carry its neighbour's reads. Note the intronless group shrinks too
+(23 -> 20 -> 18), so the caveat below gets worse, not better.
 
 ### Read this before interpreting the intronless curve
 

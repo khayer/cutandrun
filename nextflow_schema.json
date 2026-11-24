@@ -457,6 +457,13 @@
             "default": "",
             "fa_icon": "fas fa-atlas",
             "properties": {
+                "split_metagene_neighbour_filter": {
+                    "type": "string",
+                    "default": "none",
+                    "enum": ["none", "tss", "any"],
+                    "description": "Drop genes that share sequence with a neighbour: tss drops both genes of any pair whose TSS windows overlap, any drops both of any pair whose spans overlap.",
+                    "help_text": "On hg38 about 18 percent of gene bodies and 11 percent of TSS windows overlap another gene, so reads in the shared interval are counted once per gene. Default none keeps the historical behaviour."
+                },
                 "run_species_composition": {
                     "type": "boolean",
                     "default": true,

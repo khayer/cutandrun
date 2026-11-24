@@ -31,7 +31,10 @@ workflow SPLIT_METAGENE_WF {
                 ch_gtf,
                 params.split_metagene_min_length,
                 params.split_metagene_biotype,
-                params.split_metagene_exclude_contigs
+                params.split_metagene_exclude_contigs,
+                params.split_metagene_neighbour_filter,
+                params.split_metagene_tss_up,
+                params.split_metagene_tss_down
             )
             ch_ic       = MAKE_GENE_GROUPS.out.intron_containing
             ch_il       = MAKE_GENE_GROUPS.out.intronless

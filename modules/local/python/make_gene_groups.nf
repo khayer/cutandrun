@@ -25,6 +25,9 @@ process MAKE_GENE_GROUPS {
     val  min_length
     val  biotype
     val  exclude_contigs
+    val  neighbour_filter
+    val  tss_up
+    val  tss_down
 
     output:
     path "genes.intron_containing.bed", emit: intron_containing
@@ -43,6 +46,9 @@ process MAKE_GENE_GROUPS {
         --min-length ${min_length} \\
         --biotype ${biotype} \\
         --exclude-contigs '${exclude_contigs}' \\
+        --neighbour-filter ${neighbour_filter} \\
+        --tss-up ${tss_up} \\
+        --tss-down ${tss_down} \\
         2> gene_groups.counts.txt
 
     cat gene_groups.counts.txt >&2
