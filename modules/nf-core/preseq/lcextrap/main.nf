@@ -28,7 +28,12 @@ process PRESEQ_LCEXTRAP {
     def args_str = args.toString()
     def has_defect = args_str.contains('-D')
     def has_user_highacc = args_str.contains('-x') || args_str.contains('-n') || args_str.contains('-e')
-    def highacc_defaults = '-v -B -P -x 200 -n 1000 -e 100000000'
+    // -P is preseq's short form of -pe (src/preseq.cpp: add_opt("pe", 'P', ...)),
+    // so listing it here AND adding $paired_end below made every paired-end
+    // sample die with "ERROR: duplicate use of option: pe", in the
+    // high-accuracy attempt and in the -D fallback alike. Paired-end-ness
+    // comes from meta.single_end via $paired_end; it is not a default.
+    def highacc_defaults = '-v -B -x 200 -n 1000 -e 100000000'
 
     """
     if [ "${has_defect}" = "true" ]; then
