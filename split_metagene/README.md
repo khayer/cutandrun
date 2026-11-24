@@ -1,7 +1,7 @@
 # Split metagene figure (TSS / TES anchored) for CUT&RUN - host genome
 
 Authors : Katharina (Nina) Hayer, co-created with Claude Fable 5.1 (Anthropic)
-Version : 1.2.0  |  Date: 2026-10-06
+Version : 1.3.0  |  Date: 2026-11-24
 
 Reproduces the "intron-containing vs intronless" panel style: mean profile on
 top, row-grouped heatmap below, one panel anchored at the TSS (-1 kb .. +5 kb)
@@ -24,6 +24,40 @@ experimental data. Its group sizes mirror the real imbalance on purpose - 900
 intron-containing against 40 intronless - because a demo with two equal bands
 would misrepresent what the figure looks like on real input.
 
+## Group sizes and `--min-length`
+
+`--min-length` and the intronless group pull against each other. Intronless
+protein-coding genes are short as a class, so a high length floor removes most
+of them: on a GENCODE-style human annotation with `--min-length 6000` and
+`--neighbour-filter tss`, the intronless group came out at 22 genes against
+13,163 intron-containing. deepTools then prints
+
+```
+One of the groups defined in the bed file is too small.
+```
+
+which it does whenever the smaller group is <= 0.2% of all regions. Nothing is
+dropped and no exception is raised - but a 22-gene average is gene sampling,
+not a class difference, and the two curves should not be compared.
+
+`make_gene_groups.py` (>= 1.1.0) prints the per-group cost of the length filter
+and a sweep over candidate thresholds, so the trade can be read off directly:
+
+```
+dropped (< 6000 bp): <n> (<n> intron-containing, <n> intronless)
+min-length sweep (before --neighbour-filter):
+  >=   1000 bp:   <n> intron-containing,  <n> intronless
+  >=   2000 bp:   <n> intron-containing,  <n> intronless
+  >=   6000 bp:   <n> intron-containing,  <n> intronless  <- current
+```
+
+Lowering the floor means lowering the windows with it. The TSS window spans
+`-tss_up .. +tss_down` and the TES window `-tes_up .. +tes_down`, so the two
+only stop sharing sequence once a gene is at least `tss_down + tes_up` long -
+10 kb at the defaults, not 6 kb. Genes between the floor and that length are
+plotted in both panels over part of their body; that is a normal metagene
+compromise, but it is the thing being traded for a usable intronless n.
+
 ## Inputs you already have
 
 * Signal bigWig from the pipeline. For a host-only, IgG-corrected view use
@@ -35,8 +69,9 @@ would misrepresent what the figure looks like on real input.
 ## Run (on the HPC, in the env that has deepTools)
 
 ```bash
-# 1) gene groups (strand-aware BED6, protein-coding, >= 6 kb so the two windows
-#    never overlap). Drops chrM/chrY and, if you pass it, the Ad5 contig.
+# 1) gene groups (strand-aware BED6, protein-coding, >= 6 kb by default).
+#    Drops chrM/chrY and, if you pass it, the Ad5 contig.
+#    Read the --min-length sweep it prints before trusting the intronless curve.
 python3 make_gene_groups.py /path/to/gencode.vXX.annotation.gtf.gz \
     --out-prefix genes --keep-ad5 OP218818.1
 

@@ -1,7 +1,7 @@
 /*
  * Subworkflow: SPLIT_METAGENE_WF
  * Authors: Katharina E. Hayer, co-created with Claude
- * Version: 1.0.0  |  Date: 2026-11-23
+ * Version: 1.1.0  |  Date: 2026-11-24
  *
  * Builds the gene groups once from the run's own GTF, then draws one split
  * metagene per target group using that group's IgG-subtracted replicate
@@ -41,9 +41,19 @@ workflow SPLIT_METAGENE_WF {
             ch_versions = ch_versions.mix(MAKE_GENE_GROUPS.out.versions)
         }
 
+        // DEEPTOOLS_BIGWIGCOMPARE emits BOTH <id>.log2ratio.bigWig and
+        // <id>.subtract.bigWig on the same channel. Averaging a log2 ratio
+        // track together with a subtraction track as if they were replicates
+        // is meaningless, so keep only the type named by --split_metagene_signal.
+        def signal_suffix = ".${params.split_metagene_signal}.bigWig"
+
         // one row per target group, carrying every replicate bigWig it has
         ch_bigwig
             .filter { row -> row[0].is_control == false }
+            .map    { row -> [ row[0],
+                               (row[1] instanceof List ? row[1] : [row[1]])
+                                   .findAll { it.getName().endsWith(signal_suffix) } ] }
+            .filter { row -> row[1].size() > 0 }
             .map    { row -> [ row[0].group, row[0], row[1] ] }
             .groupTuple(by: 0)
             .map    { group, metas, bws ->

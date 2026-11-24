@@ -1,8 +1,8 @@
 // ---------------------------------------------------------------------------
 // Module: SPLIT_METAGENE
 // Authors: Katharina E. Hayer, co-created with Claude
-// Version: 1.0.0
-// Date:    2026-11-23
+// Version: 1.1.0
+// Date:    2026-11-24
 // Purpose: TSS- and TES-anchored computeMatrix over every replicate bigWig of
 //          one group and two gene groups, then the split metagene figure.
 //
@@ -44,7 +44,9 @@ process SPLIT_METAGENE {
     script:
     def bw = bigwigs instanceof List ? bigwigs : [bigwigs]
     def bw_list = bw.join(' ')
-    def labels = bw.collect { it.getName().replaceAll(/\\.(bigWig|bw)$/, '') }.join(' ')
+    // A Groovy slashy string does not treat \ as an escape, so /\\./ is a
+    // literal backslash followed by any character and strips nothing.
+    def labels = bw.collect { it.getName().replaceAll(/\.(bigWig|bw)$/, '') }.join(' ')
     """
     set -euo pipefail
 

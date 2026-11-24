@@ -410,6 +410,19 @@ workflow CUTANDRUN {
     //ch_samtools_bam | view
 
     /*
+     * CHANNEL: idxstats for EVERY sample, captured before de-duplication.
+     *
+     * With dedup_target_reads = false (the default) MARK_DUPLICATES_PICARD runs
+     * on controls only, and its else-branch mixes the untouched targets back
+     * into bam/bai but NOT into stats/flagstat/idxstats. So from here on
+     * ch_samtools_idxstats carries the controls alone, and anything that
+     * aggregates across samples would silently report on a subset. Species
+     * composition needs every sample at the same processing stage, so snapshot
+     * it here instead.
+     */
+    ch_samtools_idxstats_all = ch_samtools_idxstats
+
+    /*
      * SUBWORKFLOW: Remove duplicates - default is on IgG controls only
      */
     if (params.run_remove_dups) {
@@ -1609,7 +1622,7 @@ workflow CUTANDRUN {
          */
         if (params.run_species_composition) {
             SPECIES_COMPOSITION(
-                ch_samtools_idxstats.collect{ it[1] }.ifEmpty([]),
+                ch_samtools_idxstats_all.collect{ it[1] }.ifEmpty([]),
                 params.species_composition_groups,
                 params.species_composition_host,
                 params.species_composition_viral,

@@ -2,10 +2,17 @@
 # -----------------------------------------------------------------------------
 # make_gene_groups.py
 # Authors : Katharina (Nina) Hayer, co-created with Claude Fable 5.1 (Anthropic)
-# Version : 1.0.0
-# Date    : 2026-10-06
+# Version : 1.1.0
+# Date    : 2026-11-24
 # Purpose : From a GTF, write strand-aware BED6 files of protein-coding genes
 #           split into intron-containing vs intronless, for computeMatrix.
+#
+# v1.1.0: the length filter is applied AFTER the intronless call, so the
+#         dropped-for-length count can be reported per group, and a sweep over
+#         candidate --min-length values is printed. Intronless protein-coding
+#         genes are short as a class, so --min-length and the intronless group
+#         pull against each other; the sweep makes that trade visible instead
+#         of leaving it to be discovered from an n=22 curve.
 # -----------------------------------------------------------------------------
 import argparse
 import gzip
@@ -119,18 +126,23 @@ def main():
                 tx = a.get("transcript_id", "NA")
                 exons[gid][tx] += 1
 
-    n_short = 0
-    kept = []                       # (chrom, start, end, name, strand, intronless)
+    # Classify first, filter on length second, so the length cost is known per
+    # group. Classifying after the length filter hides which group it empties.
+    classified = []                 # (chrom, start, end, name, strand, intronless)
     for gid, (chrom, s, e, strand, name) in genes.items():
-        if e - s < args.min_length:
-            n_short += 1
-            continue
         txs = exons.get(gid, {})
         if not txs:
             continue
         # intronless = every transcript is single-exon (exon features, not CDS:
         # a contiguous CDS with a spliced 5'UTR is still a spliced gene)
-        kept.append((chrom, s, e, name, strand, all(c == 1 for c in txs.values())))
+        classified.append((chrom, s, e, name, strand,
+                           all(c == 1 for c in txs.values())))
+
+    kept = [g for g in classified if g[2] - g[1] >= args.min_length]
+    short = [g for g in classified if g[2] - g[1] < args.min_length]
+    n_short = len(short)
+    n_short_ic = sum(1 for g in short if not g[5])
+    n_short_il = sum(1 for g in short if g[5])
 
     n_neighbour = drop_neighbours(kept, args) if args.neighbour_filter != "none" else 0
     if args.neighbour_filter != "none":
@@ -148,12 +160,28 @@ def main():
 
     print(f"intron-containing: {n_ic}", file=sys.stderr)
     print(f"intronless       : {n_il}", file=sys.stderr)
-    print(f"dropped (< {args.min_length} bp): {n_short}", file=sys.stderr)
+    print(f"dropped (< {args.min_length} bp): {n_short} "
+          f"({n_short_ic} intron-containing, {n_short_il} intronless)",
+          file=sys.stderr)
     if args.neighbour_filter != "none":
         print(f"dropped (--neighbour-filter {args.neighbour_filter}): "
               f"{n_neighbour['total']} "
               f"({n_neighbour['ic']} intron-containing, "
               f"{n_neighbour['il']} intronless)", file=sys.stderr)
+
+    # --min-length sweep, before the neighbour filter. A TSS window of
+    # -tss_up/+tss_down and a TES window only separate when the gene is at
+    # least tss_up + tss_down long, which is where the 6000 bp default comes
+    # from; these counts say what that costs each group.
+    floor = args.tss_up + args.tss_down
+    sweep = sorted({1000, 2000, 3000, 5000, floor, args.min_length})
+    print("min-length sweep (before --neighbour-filter):", file=sys.stderr)
+    for cut in sweep:
+        ic = sum(1 for g in classified if g[2] - g[1] >= cut and not g[5])
+        il = sum(1 for g in classified if g[2] - g[1] >= cut and g[5])
+        mark = "  <- current" if cut == args.min_length else ""
+        print(f"  >= {cut:>6} bp: {ic:>6} intron-containing, "
+              f"{il:>5} intronless{mark}", file=sys.stderr)
 
 
 if __name__ == "__main__":

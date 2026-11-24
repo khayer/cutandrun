@@ -2,8 +2,8 @@
 # -----------------------------------------------------------------------------
 # plot_split_metagene.py
 # Authors : Katharina (Nina) Hayer, co-created with Claude Fable 5.1 (Anthropic)
-# Version : 1.2.0
-# Date    : 2026-10-06
+# Version : 1.3.0
+# Date    : 2026-11-24
 # Purpose : Draw a split metagene figure from two deepTools computeMatrix
 #           outputs (TSS-anchored and TES-anchored): mean profiles on top,
 #           row-grouped heatmaps below, one shared row order across panels.
@@ -206,7 +206,11 @@ def main():
     for ax in (axPT, axPE):
         ax.set_xlim(-upT if ax is axPT else -upE, dnT if ax is axPT else dnE)
         ax.tick_params(labelbottom=False, length=4, width=1.4)
-        ax.spines[["top", "right"]].set_visible(False)
+        # Spines indexing by list needs matplotlib >= 3.4; the deeptools
+        # 3.5.1 container ships an older one, where it raises
+        # TypeError: unhashable type: 'list'. Loop instead.
+        for side in ("top", "right"):
+            ax.spines[side].set_visible(False)
     axPE.tick_params(labelleft=False)
 
     # ---- heatmaps -------------------------------------------------------------
