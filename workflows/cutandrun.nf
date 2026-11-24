@@ -161,6 +161,8 @@ include { PEAK_QC                                          } from "../subworkflo
 include { SAMTOOLS_VIEW_SORT_STATS as FILTER_READS         } from "../subworkflows/local/samtools_view_sort_stats"
 include { DEDUPLICATE_LINEAR                               } from "../subworkflows/local/deduplicate_linear"
 include { PEAK_SIGNAL_PROFILER                             } from "../subworkflows/local/peak_signal_profiler"
+include { SPLIT_METAGENE_WF                              } from "../subworkflows/local/split_metagene"
+include { SPECIES_COMPOSITION                            } from "../modules/local/python/species_composition"
 
 /*
 ========================================================================================
@@ -1600,6 +1602,37 @@ workflow CUTANDRUN {
             // NOTE: intentionally do NOT mix PSP `versions` into ch_software_versions
             // to avoid compile-time channel evaluation issues; PSP `versions.yml`
             // will still be published alongside pipeline outputs.
+        }
+
+        /*
+         * MODULE: per-species read composition from idxstats
+         */
+        if (params.run_species_composition) {
+            SPECIES_COMPOSITION(
+                ch_samtools_idxstats.collect{ it[1] }.ifEmpty([]),
+                params.species_composition_groups,
+                params.species_composition_host,
+                params.species_composition_viral,
+                "Reads per species"
+            )
+            ch_software_versions = ch_software_versions.mix(SPECIES_COMPOSITION.out.versions)
+        }
+
+        /*
+         * SUBWORKFLOW: split metagene (TSS / TES anchored, two gene groups)
+         */
+        if (params.run_split_metagene && !params.skip_bigwigcompare) {
+            SPLIT_METAGENE_WF(
+                ch_bigwig_subtract,
+                PREPARE_GENOME.out.gtf.first(),
+                params.split_metagene_bed_a,
+                params.split_metagene_bed_b
+            )
+            ch_software_versions = ch_software_versions.mix(SPLIT_METAGENE_WF.out.versions)
+        }
+        else if (params.run_split_metagene) {
+            log.warn "run_split_metagene needs the IgG-subtracted bigWigs; " +
+                     "skip_bigwigcompare is true, so the split metagene was skipped."
         }
 
         //ch_peakqc_reprod_perc_mqc | view

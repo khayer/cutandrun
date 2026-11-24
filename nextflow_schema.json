@@ -457,6 +457,98 @@
             "default": "",
             "fa_icon": "fas fa-atlas",
             "properties": {
+                "run_species_composition": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Aggregate samtools idxstats into per-species counts, a MultiQC bargraph and a figure.",
+                    "help_text": "Decoy contigs in a combined reference should be near zero; the figure plots non-host counts on a log axis so a trace is visible."
+                },
+                "species_composition_groups": {
+                    "type": "string",
+                    "default": "human=^(chr|GL|KI);mycoplasma=^Myco_",
+                    "description": "Semicolon-separated label=regex rules collapsing contigs into species."
+                },
+                "species_composition_host": {
+                    "type": "string",
+                    "default": "human",
+                    "description": "Which species label is the host."
+                },
+                "species_composition_viral": {
+                    "type": "string",
+                    "default": "Ad5,HSV17_NR",
+                    "description": "Comma-separated species treated as viral in the figure."
+                },
+                "run_split_metagene": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Draw a split metagene (TSS and TES anchored) per target group.",
+                    "help_text": "Uses the IgG-subtracted bigWigs, so bigwigCompare must have run; skipped with a warning when skip_bigwigcompare is true.",
+                    "fa_icon": "fas fa-chart-area"
+                },
+                "split_metagene_signal": {
+                    "type": "string",
+                    "default": "subtract",
+                    "enum": ["subtract", "log2ratio"],
+                    "description": "Which track the split metagene plots."
+                },
+                "split_metagene_ci": {
+                    "type": "string",
+                    "default": "95",
+                    "enum": ["95", "sem", "none"],
+                    "description": "Band around the profile lines, computed across replicates."
+                },
+                "split_metagene_min_length": {
+                    "type": "integer",
+                    "default": 6000,
+                    "description": "Minimum gene length so the TSS and TES windows cannot overlap."
+                },
+                "split_metagene_biotype": {
+                    "type": "string",
+                    "default": "protein_coding",
+                    "description": "Gene biotype to keep; 'all' for no filter."
+                },
+                "split_metagene_exclude_contigs": {
+                    "type": "string",
+                    "default": "chrM,chrY",
+                    "description": "Comma-separated contigs dropped from the gene groups."
+                },
+                "split_metagene_bin_size": {
+                    "type": "integer",
+                    "default": 50,
+                    "description": "computeMatrix bin size in bp."
+                },
+                "split_metagene_tss_up": {
+                    "type": "integer",
+                    "default": 1000,
+                    "description": "bp upstream of the TSS."
+                },
+                "split_metagene_tss_down": {
+                    "type": "integer",
+                    "default": 5000,
+                    "description": "bp downstream of the TSS."
+                },
+                "split_metagene_tes_up": {
+                    "type": "integer",
+                    "default": 5000,
+                    "description": "bp upstream of the TES."
+                },
+                "split_metagene_tes_down": {
+                    "type": "integer",
+                    "default": 1000,
+                    "description": "bp downstream of the TES."
+                },
+                "split_metagene_bed_a": {
+                    "type": "string",
+                    "description": "Optional pre-built group A BED; bypasses gene-group building."
+                },
+                "split_metagene_bed_b": {
+                    "type": "string",
+                    "description": "Optional pre-built group B BED."
+                },
+                "psp_sif": {
+                    "type": "string",
+                    "description": "Path to the PeakSignalProfiler Singularity image used by --run_peak_signal_profiler."
+                },
                 "dt_qc_bam_binsize": {
                     "type": "integer",
                     "default": 500,

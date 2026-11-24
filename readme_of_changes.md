@@ -1,7 +1,7 @@
 # Custom Modifications to nf-core/cutandrun Pipeline
 
-**Author:** Katharina Hayer (khayer)  
-**Co-created with:** GitHub Copilot (Claude Sonnet 4.5)  
+**Author:** Katharina Hayer (khayer)
+**Co-created with:** GitHub Copilot (Claude Sonnet 4.5)
 
 This document tracks custom modifications made to the nf-core/cutandrun pipeline for the Weitzman Lab.
 
@@ -75,24 +75,48 @@ module load Java/17.0.6 && nextflow run main.nf \
   -resume
 
 
-  ## 2026_04_25 
+  ## 2026_04_25
   nextflow run main.nf --input samplesheet_33K.csv --outdir results_33K --normalisation_mode Spikein -profile singularity,slurm -work-dir work_33K --peakcaller macs2 --run_homer_peak_annotation true --run_chipseeker true --run_chipseeker_compare true --publish_frip true --bigwigcompare_binsize 5 --genome hg38 --run_pygenometracks_top10 --blacklist assets/blacklists/hg38-blacklist.bed --run_promoter_gc_diffbind true --promoter_gc_contrasts assets/promoter_gc_contrasts.example_33K.tsv -resume --pygt_peak_flank 5000 --pygt_window_bp 0 --pygt_rank_mode by_feature --pygt_feature_types promoter,TES,UTR,exon,intron,intergenic --pygt_feature_anchor_window 3000
 
 ## 2026_05_20
-  module load Java/17.0.6 && nextflow run main.nf --input samplesheet_33K.csv --outdir results_human_33K_final --normalisation_mode Spikein -profile singularity,slurm -work-dir work_human_33K_final --peakcaller macs2 --run_homer_peak_annotation true --run_chipseeker true --run_chipseeker_compare true --run_pygenometracks_top10 true --blacklist assets/blacklists/hg38-blacklist.bed --pygt_peak_flank 5000 --pygt_window_bp 0 --pygt_rank_mode by_feature --pygt_feature_types promoter,TES,UTR,exon,intron,intergenic --pygt_feature_anchor_window 5000 --with-report true --genome hg38  -resume --run_deseq2_peak_analysis --deseq2_contrasts assets/promoter_gc_contrasts.example_33K.tsv --with-report --promoter_gc_contrasts assets/promoter_gc_contrasts.example_33K.tsv
+  module load Java/17.0.6 && nextflow run main.nf --input samplesheet_33K.csv --outdir results_human_33K_final --normalisation_mode Spikein -profile singularity,slurm -work-dir work_human_33K_final --peakcaller macs2 --run_homer_peak_annotation true --run_chipseeker true --run_chipseeker_compare true --run_pygenometracks_top10 true --blacklist assets/blacklists/hg38-blacklist.bed --pygt_peak_flank 5000 --pygt_window_bp 0 --pygt_rank_mode by_feature --pygt_feature_types promoter,TES,UTR,exon,intron,intergenic --pygt_feature_anchor_window 5000 --with_report true --genome hg38  -resume --run_deseq2_peak_analysis --deseq2_contrasts assets/promoter_gc_contrasts.example_33K.tsv --with_report true --promoter_gc_contrasts assets/promoter_gc_contrasts.example_33K.tsv
 ```
 
 
-module load Java/17.0.6 && nextflow run main.nf --input samplesheet.csv --outdir results_human_final --normalisation_mode Spikein --normalisation_mode_dual true --normalisation_c 10000 -profile singularity,slurm -work-dir work_human_final --peakcaller macs2 --run_homer_peak_annotation true --run_chipseeker true --run_chipseeker_compare true --run_pygenometracks_top10 true --blacklist assets/blacklists/hg38-blacklist.bed --run_promoter_gc_diffbind true --pygt_peak_flank 5000 --pygt_window_bp 0 --pygt_rank_mode by_feature --pygt_feature_types promoter,TES,UTR,exon,intron,intergenic --pygt_feature_anchor_window 5000 --with-report --genome hg38 --promoter_gc_contrasts assets/promoter_gc_contrasts.example.tsv 
+module load Java/17.0.6 && nextflow run main.nf --input samplesheet.csv --outdir results_human_final --normalisation_mode Spikein --normalisation_mode_dual true --normalisation_c 10000 -profile singularity,slurm -work-dir work_human_final --peakcaller macs2 --run_homer_peak_annotation true --run_chipseeker true --run_chipseeker_compare true --run_pygenometracks_top10 true --blacklist assets/blacklists/hg38-blacklist.bed --run_promoter_gc_diffbind true --pygt_peak_flank 5000 --pygt_window_bp 0 --pygt_rank_mode by_feature --pygt_feature_types promoter,TES,UTR,exon,intron,intergenic --pygt_feature_anchor_window 5000 --with_report true --genome hg38 --promoter_gc_contrasts assets/promoter_gc_contrasts.example.tsv
 
 
-    ## 2026
-    module load Java/17.0.6 && nextflow run main.nf   --input samplesheet_33K.csv   --outdir results_ad5_33K_final   --normalisation_mode Spikein   -profile singularity,slurm   -work-dir work_ad5_33K_final   --peakcaller macs2   --run_homer_peak_annotation true   --run_chipseeker true   --run_chipseeker_compare true   --run_pygenometracks_top10 true     --pygt_peak_flank 10000   --pygt_window_bp 0   --pygt_rank_mode by_feature   --pygt_feature_types promoter,TES,UTR,exon,intron,intergenic   --pygt_feature_anchor_window 10000   --gtf Ad5_genome/Ad5_v9.1.Simple_combined.gtf --macs_gsize 100000   --run
-_deseq2_peak_analysis   --deseq2_contrasts assets/promoter_gc_contrasts.example_33K.tsv   --with-report   --promoter_gc_contrasts assets/promoter_gc_contrasts.ex
-ample_33K.tsv   --run_homer_motifs true --publish_frip true --rurun_promoter_gc_diffbind true --fasta Ad5_genome/Adenovirus-Ad5.fasta
-module load Java/17.0.6 && nextflow run main.nf   --input samplesheet_33K.csv   --outdir results_ad5_33K_final   --normalisation_mode Spikein   -profile singularity,slurm   -work-dir work_ad5_33K_final   --peakcaller macs2   --run_homer_peak_annotation true   --run_chipseeker true   --run_chipseeker_compare true   --run_pygenometracks_top10 true     --pygt_peak_flank 10000   --pygt_window_bp 0   --pygt_rank_mode by_feature   --pygt_feature_types promoter,TES,UTR,exon,intron,intergenic   --pygt_feature_anchor_window 10000   --gtf Ad5_genome/Ad5_v9.1.Simple_combined.gtf --macs_gsize 100000   --run
-_deseq2_peak_analysis   --deseq2_contrasts assets/promoter_gc_contrasts.example_33K.tsv   --with-report   --promoter_gc_contrasts assets/promoter_gc_contrasts.ex
-ample_33K.tsv   --run_homer_motifs true --publish_frip true --rurun_promoter_gc_diffbind true --fasta Ad5_genome/Adenovirus-Ad5.fasta
+## 2026
+
+> Reconstructed 2026-11-23: these lines were outside a code fence and had wrapped mid-token
+> (`--run` + `_deseq2_peak_analysis`), so the command could not be copy-pasted. A duplicate
+> of the same command was removed. Verify before relying on it.
+
+```bash
+module load Java/17.0.6 && nextflow run main.nf \
+  --input samplesheet_33K.csv \
+  --outdir results_ad5_33K_final \
+  --normalisation_mode Spikein \
+  -profile singularity,slurm \
+  -work-dir work_ad5_33K_final \
+  --peakcaller macs2 \
+  --run_homer_peak_annotation true \
+  --run_chipseeker true \
+  --run_chipseeker_compare true \
+  --run_pygenometracks_top10 true \
+  --pygt_peak_flank 10000 \
+  --pygt_window_bp 0 \
+  --pygt_rank_mode by_feature \
+  --pygt_feature_types promoter,TES,UTR,exon,intron,intergenic \
+  --pygt_feature_anchor_window 10000 \
+  --gtf Ad5_genome/Ad5_v9.1.Simple_combined.gtf --macs_gsize 100000 \
+  --run_deseq2_peak_analysis \
+  --deseq2_contrasts assets/promoter_gc_contrasts.example_33K.tsv \
+  --with_report true \
+  --promoter_gc_contrasts assets/promoter_gc_contrasts.example_33K.tsv \
+  --run_homer_motifs true --publish_frip true --run_promoter_gc_diffbind true --fasta Ad5_genome/Adenovirus-Ad5.fasta
+```
+
 ## Table of Contents
 - [Homer Motif Analysis](#homer-motif-analysis)
 - [Dual Normalization Feature](#dual-normalization-feature)
@@ -101,14 +125,22 @@ ample_33K.tsv   --run_homer_motifs true --publish_frip true --rurun_promoter_gc_
 - [Read Count Annotation](#read-count-annotation)
 - [Peak Feature Annotation Plot](#peak-feature-annotation-plot)
 - [ChIPseeker Enhanced Visualizations](#chipseeker-enhanced-visualizations)
+- [Genome Track Snapshots (pyGenomeTracks)](#genome-track-snapshots-pygenometracks)
 - [Promoter GC Differential Binding (Top-N Raw P-value Mode)](#promoter-gc-differential-binding-top-n-raw-p-value-mode)
 - [Additional Custom Flags](#additional-custom-flags)
+- [Comprehensive HTML Report Generation](#comprehensive-html-report-generation)
+- [Species Composition (per-species read counts)](#species-composition-per-species-read-counts)
+- [PeakSignalProfiler](#peaksignalprofiler)
+- [Split Metagene (TSS / TES, grouped genes)](#split-metagene-tss--tes-grouped-genes)
+- [Parameters not yet documented](#parameters-not-yet-documented)
+- [Version Information](#version-information)
+- [Validation Status](#validation-status)
 
 ---
 
 ## Homer Motif Analysis
 
-**Date Added:** February 6, 2026  
+**Date Added:** February 6, 2026
 **Purpose:** Perform de novo and known motif discovery in peak regions using Homer
 
 ### Background
@@ -193,11 +225,11 @@ The automatically generated summary reports provide:
 Peak Set: merged_peaks
 ====================================================================================================
 
-  Rank   Motif                                    Consensus             P-value          % Target  
+  Rank   Motif                                    Consensus             P-value          % Target
   ------ ---------------------------------------- -------------------- --------------- ----------
-  1      RAD51                                    GCTGGGCG             1e-89            45.3      
-  2      E2F1                                     TTTCGCGC             1e-42            28.7      
-  3      TP53                                     RRRCWWGYYY           1e-23            18.2      
+  1      RAD51                                    GCTGGGCG             1e-89            45.3
+  2      E2F1                                     TTTCGCGC             1e-42            28.7
+  3      TP53                                     RRRCWWGYYY           1e-23            18.2
 
 ====================================================================================================
 MOTIF COMPARISON ACROSS GROUPS
@@ -289,7 +321,15 @@ This suggests:
 
 ## Dual Normalization Feature
 
-**Date Added:** February 6, 2026  
+![Dual normalization, synthetic example](docs/figures/fig_dual_normalisation.png)
+
+*Synthetic example, not a result.* The left panel is the input: one sample
+carries roughly three times the target-genome reads of the others. The right
+panel is the consequence - spike-in alone leaves that sample scaled like the
+rest, while dual normalization divides by its target abundance and pulls it
+down. Regenerate with `docs/figures/make_readme_figures.py`.
+
+**Date Added:** February 6, 2026
 **Purpose:** Enable normalization by both spike-in genome (E. coli) and target genome (e.g., HSV) abundance
 
 ### Background
@@ -372,7 +412,7 @@ When enabled, scale factors in bigWig files and bedGraph files will reflect both
 
 ## BigWig Subtraction
 
-**Date Added:** Prior to February 6, 2026  
+**Date Added:** Prior to February 6, 2026
 **Purpose:** Generate background-subtracted bigWig files (ChIP - IgG control)
 
 ### Usage
@@ -403,7 +443,7 @@ For each target sample:
 
 ## Merged Peaks Table
 
-**Date Added:** Prior to February 6, 2026  
+**Date Added:** Prior to February 6, 2026
 **Purpose:** Create Homer mergePeaks-style presence/absence matrix for peaks across all samples
 
 ### Usage
@@ -436,7 +476,7 @@ Peak_2  chr1   2000     2300     300     1        1        1        3
 
 ## Read Count Annotation
 
-**Date Added:** Prior to February 6, 2026  
+**Date Added:** Prior to February 6, 2026
 **Purpose:** Annotate merged peaks with read counts from all BAM files using deeptools multiBamSummary
 
 ### Usage
@@ -477,7 +517,14 @@ chr1   2000    2300    567             523             601
 
 ## Peak Feature Annotation Plot
 
-**Date Added:** March 19, 2026  
+![Peak feature annotation, synthetic example](docs/figures/fig_peak_feature_annotation.png)
+
+*Synthetic example, not a result.* Each bar is one sample's peaks distributed
+over genomic features. The shape to look for is a promoter-dominated profile for
+a positive control such as H3K4me3 against a more intronic/intergenic profile
+for a sequence-specific factor.
+
+**Date Added:** March 19, 2026
 **Purpose:** Plot where each replicate's peaks are located across genomic features (Promoter, 5' UTR, 3' UTR, Exon, Intron, Intergenic, etc.) using HOMER `annotatePeaks.pl`
 
 ### Background
@@ -559,7 +606,14 @@ Raw per-replicate HOMER tables are in:
 
 ## ChIPseeker Enhanced Visualizations
 
-**Date Added:** March 23, 2026  
+![Distance to TSS, synthetic example](docs/figures/fig_chipseeker_tss_distance.png)
+
+*Synthetic example, not a result.* Distance from each peak to the nearest TSS.
+The dotted lines mark the promoter window set by `--chipseeker_tss_dist`
+(default 3000), which is the cut that decides what counts as a promoter peak
+everywhere downstream.
+
+**Date Added:** March 23, 2026
 **Purpose:** Generate publication-quality peak annotation plots using Bioconductor's ChIPseeker package, complementing HOMER output
 
 ### Background
@@ -636,9 +690,91 @@ singularity build chipseeker.sif docker://weishwu/chipseeker:latest
 
 ---
 
+## Genome Track Snapshots (pyGenomeTracks)
+
+Renders a track snapshot for each of the top N consensus peaks per group, so the
+peaks a run calls can be eyeballed without opening a browser. Wired in at
+`workflows/cutandrun.nf:1416` via `modules/local/python/pygenometracks_top10.nf`,
+which calls `bin/plot_top10_peaks_pygenometracks.py` and then pyGenomeTracks 3.9.
+
+![pyGenomeTracks top-N snapshot, synthetic example](docs/figures/fig_pygenometracks_top10.png)
+
+*Synthetic example, not a result.* The track stack is the one the module writes:
+the x-axis on top, a gene track from the GTF, the consensus-peak BED in black,
+then one bigWig signal track per sample. Colours are the module's own, and they
+carry meaning:
+
+| Colour | Meaning |
+|---|---|
+| `#1f78b4` blue | a replicate of this group |
+| `#33a02c` green | a replicate of another group, shown for comparison |
+| `#808080` grey | the control replicate, always the last track |
+
+### Usage
+
+```bash
+nextflow run main.nf \
+  --run_pygenometracks_top10 true \
+  --pygt_top_n 10 \
+  --pygt_peak_flank 2000 \
+  --pygt_rank_mode by_feature \
+  --pygt_feature_types promoter,TES,UTR,exon,intron,intergenic \
+  --pygt_feature_anchor_window 3000 \
+  --pygt_output_format png \
+  ... other parameters ...
+```
+
+### Parameters
+
+| Parameter | Default | Meaning |
+|---|---|---|
+| `--run_pygenometracks_top10` | `false` | Enables the branch |
+| `--pygt_top_n` | `10` | Snapshots per group |
+| `--pygt_peak_flank` | `2000` | bp added either side of the peak |
+| `--pygt_window_bp` | `0` | Fixed window width; `0` means use the peak plus flank |
+| `--pygt_rank_mode` | `by_feature` | How the top N are chosen |
+| `--pygt_feature_types` | `promoter,TES,UTR,exon,intron,intergenic` | Feature classes eligible under `by_feature` |
+| `--pygt_feature_anchor_window` | `3000` | bp window used to anchor a peak to a feature |
+| `--pygt_output_format` | `png` | `png`, `pdf`, or `both` |
+
+Requires ChIPseeker and HOMER annotations as inputs, so run it with
+`--run_chipseeker true --run_homer_peak_annotation true`.
+
+### Output
+
+```
+results/04_consensus_peaks/pygenometracks_top10/<group>/
+  top_regions.tsv      # rank, chrom, peak and window coordinates, nearest gene, distance
+  top_peaks.bed        # the regions drawn, as BED
+  tracks.ini           # the pyGenomeTracks config, regenerate or edit by hand
+  <stub>.png / .pdf    # one file per region
+```
+
+`tracks.ini` is published, so a figure can be re-rendered or restyled without
+re-running the pipeline:
+`pyGenomeTracks --tracks tracks.ini --region chr1:41200-49800 --outFileName out.png`.
+
+### IGV sessions
+
+Separately, `IGV_SESSION` (and `IGV_SESSION_DOWNSAMPLED` for the downsampled
+visualisation bigWigs) writes an IGV session so the same tracks can be opened
+interactively. Note that at `workflows/cutandrun.nf:1324` the line mixing
+`IGV_SESSION.out.versions` into the software-versions channel is commented out,
+so IGV's version does not reach the versions report.
+
+---
+
 ## Promoter GC Differential Binding (Top-N Raw P-value Mode)
 
-**Date Added:** April 2026  
+![Top-N raw p-value volcano, synthetic example](docs/figures/fig_promoter_gc_volcano_topn.png)
+
+*Synthetic example, not a result.* Drawn to the selection rules defined below:
+Top-N per direction ranked by raw p-value then |log2FC| then baseMean; the
+random unchanged set drawn without replacement at seed 42; and the top 5 labels
+per class. The example uses `--promoter_gc_top_n 200` so the classes stay
+legible - the default is 1000.
+
+**Date Added:** April 2026
 **Purpose:** Compare promoter GC content for differential binding contrasts even when adjusted p-values are conservative (small n), by providing a ranked raw p-value Top-N mode.
 
 ### What this branch does
@@ -778,10 +914,230 @@ Recommended interpretation boundaries:
 
 ---
 
+## Species Composition (per-species read counts)
+
+`--run_species_composition` (default **true**, the one addition that is on by
+default because it is nearly free and is a safety check). Aggregates
+`samtools idxstats` across samples into per-species counts, a MultiQC bargraph
+and a two-panel figure, published to
+`results/04_reporting/species_composition/`.
+
+**Why two panels.** A 100% stacked bar answers "host or virus", which is the
+normalisation question. It cannot answer "is anything contaminating this
+library", because 0.4% mycoplasma and 0.0% mycoplasma are the same bar at that
+scale. The second panel plots non-host counts on a log axis, where a trace
+shows. Colour follows the role, not identity: host is purple, viral contigs
+green, decoys grey, so a visible grey bar reads as wrong at a glance.
+
+### Parameters
+
+| Parameter | Default | Meaning |
+|---|---|---|
+| `--run_species_composition` | `true` | Enables the module |
+| `--species_composition_groups` | `human=^(chr\|GL\|KI);mycoplasma=^Myco_` | Semicolon-separated `label=regex` rules collapsing contigs into species |
+| `--species_composition_host` | `human` | Which label is the host |
+| `--species_composition_viral` | `Ad5,HSV17_NR` | Species drawn as viral |
+
+Contigs matching no rule keep their own name, so a new viral contig appears
+without any configuration.
+
+### Output
+
+```
+results/04_reporting/species_composition/
+  species_composition.tsv       # counts per sample per species, plus totals
+  species_composition_mqc.tsv   # MultiQC custom content, rendered as a bargraph
+  species_composition.png       # composition + non-host detail
+```
+
+### What it is for
+
+The combined reference carries hRSV and four mycoplasma contigs purely as
+decoys, and `HSV17_NR` is a decoy for any run without HSV. All of them should
+sit at zero. This module makes that a glance rather than an eight-command awk
+session, and it also surfaces the target-genome abundance spread that
+`--normalisation_mode_dual` exists to correct.
+
+---
+
+## PeakSignalProfiler
+
+Runs PeakSignalProfiler's `02_run_multisample.R` inside a Singularity image.
+Full usage, the preflight package list and the container requirements are in
+**[`workflows/peak_signal_profiler/README.md`](workflows/peak_signal_profiler/README.md)**.
+
+**It is already part of the main pipeline.** `workflows/cutandrun.nf:163`
+includes `PEAK_SIGNAL_PROFILER` from `subworkflows/local/peak_signal_profiler`
+and calls it under `if (params.run_peak_signal_profiler && params.run_peak_calling)`.
+`main.nf` does not name it because `main.nf` only includes `CUTANDRUN`; that is
+the normal nf-core layering, not a gap. `workflows/peak_signal_profiler/main.nf`
+is a **second, standalone entry point** for running PSP on its own samplesheet
+without the rest of the pipeline.
+
+### Parameters
+
+| Parameter | Default | Meaning |
+|---|---|---|
+| `--run_peak_signal_profiler` | `false` | Enables the branch inside a normal run |
+| `--run_peak_signal_profile` | `false` | Deprecated alias, remapped in `main.nf` with a log line |
+| `--psp_sif` | placeholder | Path to the PeakSignalProfiler Singularity image |
+
+Two things to know before relying on it:
+
+- **`--psp_sif` is not declared in `nextflow_schema.json`**, so schema
+  validation does not know about it and will not catch a typo in the flag.
+- **PSP's `versions.yml` is deliberately not mixed into the software-versions
+  channel** (`cutandrun.nf`, just after the call), to avoid a compile-time
+  channel evaluation problem. The file is still published, but PSP will not
+  appear in the pipeline's versions report.
+
+---
+
+## Split Metagene (TSS / TES, grouped genes)
+
+**Now a pipeline stage**, and still runnable by hand. Enable with
+`--run_split_metagene true`; it draws one figure per target group from that
+group's IgG-subtracted replicate bigWigs. Full detail of the standalone route,
+the plotter options and the reasoning behind the design is in
+**[`split_metagene/README.md`](split_metagene/README.md)** - this section covers
+only the pipeline integration.
+
+It needs the IgG-subtracted tracks, so it is skipped with a warning when
+`--skip_bigwigcompare true` is set.
+
+
+Mean profile on top, row-grouped heatmap below, one panel anchored at the TSS
+(-1 kb .. +5 kb) and one at the TES (-5 kb .. +1 kb), with a single shared row
+order so the two panels are comparable row-for-row.
+
+### Files
+
+| File | Role |
+|---|---|
+| `make_gene_groups.py` | Splits a GENCODE GTF into intron-containing and intronless BED6 |
+| `run_split_metagene.sh` | computeMatrix for both anchors, then the plotter |
+| `plot_split_metagene.py` | The figure; `--signal subtract\|log2ratio`, `--ci 95\|sem\|none`, `--sort-by`, `--vmax`, `--ymax` |
+| `genes.intron_containing.bed`, `genes.intronless.bed` | Pre-built hg38 groups |
+
+### Usage in the pipeline
+
+```bash
+nextflow run main.nf \
+  --run_split_metagene true \
+  --split_metagene_signal subtract \
+  --split_metagene_ci 95 \
+  ... other parameters ...
+```
+
+### Parameters
+
+| Parameter | Default | Meaning |
+|---|---|---|
+| `--run_split_metagene` | `false` | Enables the branch |
+| `--split_metagene_signal` | `subtract` | `subtract` (IgG-subtracted) or `log2ratio` |
+| `--split_metagene_ci` | `95` | Band across replicates: `95`, `sem` or `none` |
+| `--split_metagene_min_length` | `6000` | Minimum gene length so the TSS and TES windows cannot overlap |
+| `--split_metagene_biotype` | `protein_coding` | Gene biotype kept; `all` for no filter |
+| `--split_metagene_exclude_contigs` | `chrM,chrY` | Contigs dropped from the gene groups |
+| `--split_metagene_bin_size` | `50` | computeMatrix bin size (bp) |
+| `--split_metagene_tss_up` / `_tss_down` | `1000` / `5000` | TSS window |
+| `--split_metagene_tes_up` / `_tes_down` | `5000` / `1000` | TES window |
+| `--split_metagene_bed_a` / `_bed_b` | `null` | Optional pre-built group BEDs; bypasses gene-group building |
+
+### Output
+
+```
+results/05_split_metagene/
+  gene_groups/genes.intron_containing.bed
+  gene_groups/genes.intronless.bed
+  gene_groups/gene_groups.counts.txt
+  <group>.split_metagene.png / .pdf
+  <group>.TSS.mat.gz , <group>.TES.mat.gz
+```
+
+The matrices are published, so a figure can be re-plotted at a different
+`--vmax` or `--ymax` without re-running computeMatrix.
+
+### Files
+
+| File | Role |
+|---|---|
+| `modules/local/python/make_gene_groups.nf` | `MAKE_GENE_GROUPS` - GTF to the two BED6 files |
+| `modules/local/python/split_metagene.nf` | `SPLIT_METAGENE` - computeMatrix x2 then the plotter |
+| `subworkflows/local/split_metagene.nf` | `SPLIT_METAGENE_WF` - builds groups once, fans out per group |
+| `split_metagene/make_gene_groups.py`, `plot_split_metagene.py` | The scripts both routes call |
+| `split_metagene/run_split_metagene.sh` | The standalone runner |
+
+The group split is not hard-wired to introns - hand it any two BEDs (DESeq2 up
+vs unchanged promoters, say) and the labels come from the file names.
+
+### Read this before interpreting the intronless curve
+
+**The pre-built groups are 16,587 intron-containing genes against 23
+intronless ones.** That is not a bug; it follows from two filters in
+`make_gene_groups.py` that compound:
+
+1. `--min-length 6000`, needed so the TSS and TES windows cannot overlap. Human
+   single-exon genes are mostly shorter than that, so most of them are dropped.
+2. `intronless` requires **every** transcript of the gene to be single-exon, so
+   one multi-exon isoform disqualifies the gene.
+
+The count is of **`exon` features, not CDS**, which is the right choice: a gene
+whose coding region is contiguous but whose 5'UTR is spliced is still a spliced
+gene, and counting CDS exons would wrongly call it intronless. `MAKE_GENE_GROUPS`
+prints both group sizes and warns when fewer than 100 intronless genes survive.
+
+With n = 23, the intronless profile is an average over 23 genes and is
+dominated by which genes happen to be in the set. A visible difference between
+the two curves is not yet evidence of a difference between the classes.
+
+Note also that the band around each profile is a **replicate** interval (95% t
+across replicate mean profiles, or `--ci sem`); it does not carry the
+gene-sampling uncertainty, which is the larger term on the 23-gene side.
+
+If the comparison matters, options are: relax `--min-length` and use a narrower
+window; loosen the all-transcripts-single-exon rule to a dominant-isoform rule;
+or compare against a length-matched random subset of intron-containing genes
+rather than all 16,587, repeated to give a null band.
+
+---
+
+## Parameters not yet documented
+
+Declared in `nextflow.config` and wired into the pipeline, but not described
+anywhere above. Listed so the gap is visible; descriptions still to be written.
+
+| Parameter | Default | Where it is used |
+|---|---|---|
+| `--with_report` | `false` | `workflows/cutandrun.nf`, `conf/modules.config` - gates the HTML report below |
+| `--min_frip_overlap` | see config | FRiP calculation |
+| `--normalisation_binsize` | see config | bigWig generation |
+| `--dt_calc_all_matrix` | see config | deepTools all-sample matrix (prints a warning on large cohorts) |
+| `--skip_reporting` | see config | reporting branch |
+
+`--run_deseq2_peak_analysis` and `--deseq2_contrasts` appear only inside the
+copy-paste commands at the top of this file; neither has a section of its own,
+and neither does the peak-density analysis added later. Both are wired in and
+working.
+
+`--run_peak_signal_profile` (no trailing `r`) is accepted as a deliberate
+backwards-compatible alias and is remapped in `main.nf` with a log line; the
+documented spelling `--run_peak_signal_profiler` is the one to use.
+
+**Dead code:** `modules/local/python/merge_sample_metadata.nf` defines
+`MERGE_SAMPLE_METADATA`, which is not included or referenced anywhere in the
+repository. It is the only orphaned local process; every other one is wired in.
+
+---
+
 ## Version Information
 
-**Pipeline Base:** nf-core/cutandrun v3.2.2  
-**Nextflow Version:** >=23.04.0  
+**Figures in this document** are synthetic examples, not results. Regenerate
+them with `python3 docs/figures/make_readme_figures.py docs/figures`.
+
+
+**Pipeline Base:** nf-core/cutandrun v3.2.2
+**Nextflow Version:** >=23.04.0
 **Custom Modifications Tested With:**
 - Singularity containers
 - SLURM executor
@@ -804,9 +1160,9 @@ All custom modifications have been tested with:
 
 ## Contact
 
-**Lab:** Weitzman Lab  
+**Lab:** Weitzman Lab
 **Modified By:** GitHub Copilot (AI Assistant) - Claude Sonnet 4.5
-**User:** hayerk  
+**User:** hayerk
 **Institution:** CHOP
 
 For questions or issues with these modifications, please refer to the commit history or contact the lab directly.
@@ -879,23 +1235,23 @@ A Python-based HTML report generator creates a unified summary of all analysis r
 
 ### Usage
 
-Enable report generation by adding the `--with-report` flag to your pipeline command:
+Enable report generation by adding the `--with_report true` flag to your pipeline command:
 
 ```bash
 ./nextflow run main.nf \
   --input samplesheet.csv \
   --outdir results \
-  --with-report \
+  --with_report true \
   -profile singularity \
   -resume
 ```
 
 ### Parameters
 
-- `--with-report` (default: `false`)
+- `--with_report` (default: `false`)
   - When enabled, generates a comprehensive HTML report after all pipeline tasks complete.
   - Report is saved to `results/report/CUT_and_RUN_report.html`.
-  - Example: `--with-report true`
+  - Example: `--with_report true`
 
 ### Report Contents
 
@@ -1014,7 +1370,7 @@ results/report/
 
 **Tier 3 Enhancements**:
 - **GC Content Analysis** (4 PNGs): Sample and condition-level GC% metrics
-- **Coverage Comparison** (2 PNGs): Normalized read distribution validation  
+- **Coverage Comparison** (2 PNGs): Normalized read distribution validation
 - **Per-Replicate QC** (42 PNGs): Individual replicate quality assessment in collapsible accordion
 - **Alternative Comparisons** (5 PNGs): Multiple perspectives on peak annotations
 - **Smart Grouping**: Per-replicate plots automatically organized by condition and replicate ID
@@ -1022,7 +1378,7 @@ results/report/
 
 ### Advanced Features
 
-**Accordion Sections**: 
+**Accordion Sections**:
 - Per-replicate ChIPseeker plots collapsible by condition
 - Reduces visual clutter while keeping comprehensive data accessible
 - Single-click expansion to compare individual replicates
