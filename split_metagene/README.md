@@ -7,6 +7,23 @@ Reproduces the "intron-containing vs intronless" panel style: mean profile on
 top, row-grouped heatmap below, one panel anchored at the TSS (-1 kb .. +5 kb)
 and one at the TES (-5 kb .. +1 kb), with a single shared row order.
 
+![Split metagene, synthetic example](synthetic_demo.png)
+
+*Synthetic example, not a result.* Regenerate it with:
+
+```bash
+python3 make_synth_matrix.py --prefix synthetic_demo
+python3 plot_split_metagene.py --tss synthetic_demo.TSS.mat.gz \
+    --tes synthetic_demo.TES.mat.gz --signal subtract \
+    --title "Target_A (synthetic example)" --out synthetic_demo
+```
+
+`make_synth_matrix.py` writes real deepTools computeMatrix files filled with
+invented signal, so the plotter can be demonstrated and tested without any
+experimental data. Its group sizes mirror the real imbalance on purpose - 900
+intron-containing against 40 intronless - because a demo with two equal bands
+would misrepresent what the figure looks like on real input.
+
 ## Inputs you already have
 
 * Signal bigWig from the pipeline. For a host-only, IgG-corrected view use

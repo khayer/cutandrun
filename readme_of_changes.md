@@ -1006,6 +1006,8 @@ It needs the IgG-subtracted tracks, so it is skipped with a warning when
 `--skip_bigwigcompare true` is set.
 
 
+![Split metagene, synthetic example](split_metagene/synthetic_demo.png)
+
 Mean profile on top, row-grouped heatmap below, one panel anchored at the TSS
 (-1 kb .. +5 kb) and one at the TES (-5 kb .. +1 kb), with a single shared row
 order so the two panels are comparable row-for-row.
