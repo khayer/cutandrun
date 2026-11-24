@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # make_readme_figures.py
 # Authors: Katharina E. Hayer, co-created with Claude
-# Version: 1.4.0
+# Version: 1.5.0
 # Date:    2026-11-23
 # ---------------------------------------------------------------------------
 # Renders the example figures used in readme_of_changes.md.
@@ -56,6 +56,12 @@
 #         design and this repository is public. The labels are now generic and
 #         carry the same teaching load: two targets, a matched control per
 #         timepoint, and one positive-control histone mark.
+# v1.5.0  Replaced two matplotlib conveniences newer than the deeptools
+#         container ships (3.2/3.3 on Python 3.8):
+#           set_xticks(ticks, labels, ...) positionally   needs 3.5+
+#           legend(..., labelcolor=...)                   needs 3.3+
+#         Both now go through the setter API, stable since 2.x, so this runs on
+#         the cluster as well as a modern desktop. Output is pixel-identical.
 #
 # Usage:  python3 make_readme_figures.py [outdir]
 # ---------------------------------------------------------------------------
@@ -90,6 +96,19 @@ plt.rcParams.update({
     "axes.axisbelow": True, "axes.spines.top": False, "axes.spines.right": False,
     "legend.frameon": False, "figure.dpi": 150,
 })
+
+
+def ticklabels(ax, axis, ticks, labels, **kw):
+    """set_?ticks + set_?ticklabels, instead of the 3.5+ positional form."""
+    getattr(ax, f"set_{axis}ticks")(list(ticks))
+    getattr(ax, f"set_{axis}ticklabels")(list(labels), **kw)
+
+
+def colour_legend(leg, colour):
+    """Instead of legend(labelcolor=...), which needs matplotlib 3.3+."""
+    for text in leg.get_texts():
+        text.set_color(colour)
+    return leg
 
 
 def stamp(fig):
@@ -132,15 +151,16 @@ def fig_feature_annotation(outdir):
                         ha="center", va="center", fontsize=7.5,
                         color=INK if CAT[j] in DARK_TEXT_ON else "#ffffff")
         left += w
-    ax.set_yticks(y, samples, color=INK2)
+    ticklabels(ax, 'y', y, samples, color=INK2)
     ax.invert_yaxis()
     ax.set_xlim(0, 100)
     ax.set_xlabel("percent of peaks")
     ax.set_title("Peak feature annotation, per sample", color=HEADING, loc="left",
                  fontsize=11, pad=10)
     ax.grid(axis="y", visible=False)
-    ax.legend(ncol=6, loc="upper left", bbox_to_anchor=(0, -0.22),
-              handlelength=1.1, columnspacing=1.2, labelcolor=INK2, fontsize=8)
+    colour_legend(
+        ax.legend(ncol=6, loc="upper left", bbox_to_anchor=(0, -0.22),
+                  handlelength=1.1, columnspacing=1.2, fontsize=8), INK2)
     finish(fig, os.path.join(outdir, "fig_peak_feature_annotation.png"))
 
 
@@ -188,7 +208,7 @@ def fig_dual_normalisation(outdir):
     ax.axhline(target.mean() / 1e6, color=INK2, linewidth=1.0, linestyle=(0, (4, 3)))
     ax.text(len(samples) - 0.5, target.mean() / 1e6, " mean", ha="left", va="center",
             fontsize=8, color=INK2)
-    ax.set_xticks(x, samples, rotation=30, ha="right", color=INK2, fontsize=8)
+    ticklabels(ax, 'x', x, samples, rotation=30, ha="right", color=INK2, fontsize=8)
     ax.set_ylabel("target-genome reads (millions)")
     ax.set_title("Input: target abundance varies", color=HEADING, loc="left", fontsize=10.5, pad=8)
     ax.grid(axis="x", visible=False)
@@ -199,14 +219,15 @@ def fig_dual_normalisation(outdir):
            linewidth=1.4, label="spike-in only")
     ax.bar(x + w / 2, dual, width=w, color=GREEN, edgecolor=SURFACE,
            linewidth=1.4, label="dual")
-    ax.set_xticks(x, samples, rotation=30, ha="right", color=INK2, fontsize=8)
+    ticklabels(ax, 'x', x, samples, rotation=30, ha="right", color=INK2, fontsize=8)
     ax.set_ylabel("scale factor")
     ax.set_title("Effect: dual down-weights the high-load sample",
                  color=HEADING, loc="left", fontsize=10.5, pad=8)
     ax.grid(axis="x", visible=False)
     ax.set_ylim(0, max(single.max(), dual.max()) * 1.32)   # headroom for legend
-    ax.legend(loc="upper left", ncol=2, labelcolor=INK2, fontsize=8.5,
-              handlelength=1.1, columnspacing=1.4)
+    colour_legend(
+        ax.legend(loc="upper left", ncol=2, fontsize=8.5,
+                  handlelength=1.1, columnspacing=1.4), INK2)
 
     fig.text(0.5, -0.13,
              "spike-in only:  scale = C / spikein_reads        "
@@ -278,8 +299,9 @@ def fig_volcano_topn(outdir):
     ax.set_ylabel("-log10(raw p-value)")
     ax.set_title("Promoter GC differential binding, Top-N raw p-value mode",
                  color=HEADING, loc="left", fontsize=11, pad=10)
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.15), ncol=2,
-              labelcolor=INK2, fontsize=8, handlelength=1.1, scatterpoints=1)
+    colour_legend(
+        ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.15), ncol=2,
+                  fontsize=8, handlelength=1.1, scatterpoints=1), INK2)
     finish(fig, os.path.join(outdir, "fig_promoter_gc_volcano_topn.png"))
 
 
@@ -324,7 +346,7 @@ def fig_pygenometracks(outdir):
     axt.spines["top"].set_color(BASELINE)
     axt.xaxis.set_ticks_position("top")
     ticks = np.linspace(start, end, 5)
-    axt.set_xticks(ticks, [f"{t/1000:.1f} kb" for t in ticks], fontsize=7.5)
+    ticklabels(axt, 'x', ticks, [f"{t/1000:.1f} kb" for t in ticks], fontsize=7.5)
     axt.tick_params(axis="x", length=3, pad=2, labeltop=True, labelbottom=False)
     for lab, ha in ((axt.get_xticklabels()[0], "left"),
                     (axt.get_xticklabels()[-1], "right")):

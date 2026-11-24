@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # species_composition.py
 # Authors: Katharina E. Hayer, co-created with Claude
-# Version: 1.0.0
+# Version: 1.1.0
 # Date:    2026-11-23
 # ---------------------------------------------------------------------------
 # Aggregates samtools idxstats across samples into per-species read counts and
@@ -13,6 +13,13 @@
 # this library", because 0.4% mycoplasma and 0.0% mycoplasma look identical at
 # that scale. The second panel plots non-host counts on a log axis, where a
 # trace is visible. Both are needed; neither alone is enough.
+#
+# MATPLOTLIB COMPATIBILITY. This runs inside the deeptools container, which
+# ships matplotlib 3.2/3.3 on Python 3.8. Two conveniences of newer matplotlib
+# are therefore unavailable and must not creep back in:
+#   set_xticks(ticks, labels, ...)   labels positionally: 3.5+
+#   legend(..., labelcolor=...)                          3.3+
+# The helpers below use the setter API, which has been stable since 2.x.
 #
 # Colour follows the ROLE, not an arbitrary identity: host is the lab purple,
 # viral contigs take the green ramp, and decoys/contaminants are grey so a
@@ -68,6 +75,19 @@ def read_idxstats(path, groups):
                 continue
             counts[species_of(f[0], groups)] = counts.get(species_of(f[0], groups), 0) + int(f[2])
     return counts
+
+
+def ticklabels(ax, axis, ticks, labels, **kw):
+    """set_?ticks + set_?ticklabels, instead of the 3.5+ positional form."""
+    getattr(ax, f"set_{axis}ticks")(list(ticks))
+    getattr(ax, f"set_{axis}ticklabels")(list(labels), **kw)
+
+
+def colour_legend(leg, colour):
+    """Instead of legend(labelcolor=...), which needs matplotlib 3.3+."""
+    for text in leg.get_texts():
+        text.set_color(colour)
+    return leg
 
 
 def classify(label, host_label, viral_labels):
@@ -170,7 +190,7 @@ def main():
                 axl.text(l + v / 2, y[i], f"{v:.1f}", ha="center", va="center",
                          fontsize=7.5, color="#ffffff")
         left += pct
-    axl.set_yticks(y, samples, color=INK2, fontsize=8)
+    ticklabels(axl, 'y', y, samples, color=INK2, fontsize=8)
     axl.invert_yaxis(); axl.set_xlim(0, 100)
     axl.set_xlabel("percent of mapped reads")
     axl.set_title("Composition", color=HEADING, loc="left", fontsize=10.5, pad=8)
@@ -185,16 +205,18 @@ def main():
                  color=colour[sp], edgecolor=SURFACE, linewidth=0.5, label=sp)
     axr.set_xscale("log")
     axr.set_xlim(0.5, None)
-    axr.set_yticks(y, ["" for _ in samples])
+    ticklabels(axr, 'y', y, ["" for _ in samples])
     axr.invert_yaxis()
     axr.set_xlabel("non-host reads (log scale; 0 drawn at 0.5)")
     axr.set_title("Non-host detail", color=HEADING, loc="left", fontsize=10.5, pad=8)
     axr.grid(axis="y", visible=False)
 
     handles, labels = axl.get_legend_handles_labels()
-    fig.legend(handles, labels, loc="lower center", ncol=min(len(order), 6),
-               bbox_to_anchor=(0.5, -0.14), labelcolor=INK2, fontsize=8,
-               handlelength=1.1, columnspacing=1.4)
+    colour_legend(
+        fig.legend(handles, labels, loc="lower center", ncol=min(len(order), 6),
+                   bbox_to_anchor=(0.5, -0.14), fontsize=8,
+                   handlelength=1.1, columnspacing=1.4),
+        INK2)
     fig.suptitle(a.title, x=0.045, ha="left", fontsize=12, color=HEADING, y=1.0)
     fig.subplots_adjust(bottom=0.26)
     fig.savefig(f"{a.prefix}.png", bbox_inches="tight")
