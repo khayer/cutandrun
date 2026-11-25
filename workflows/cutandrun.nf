@@ -1523,7 +1523,7 @@ workflow CUTANDRUN {
             if (!params.viral_db_container) { error "run_viral_window_db needs --viral_db_container (an image with edgeR)" }
             VIRAL_WINDOW_DB_WF (
                 ch_samtools_bam.join(ch_samtools_bai, by: 0),
-                PREPARE_GENOME.out.fai,
+                PREPARE_GENOME.out.fasta_index,
                 params.viral_db_contigs
             )
             ch_software_versions = ch_software_versions.mix(VIRAL_WINDOW_DB_WF.out.versions)

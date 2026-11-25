@@ -51,11 +51,16 @@ workflow VIRAL_WINDOW_DB_WF {
 
         VIRAL_WINDOW_COUNTS (
             ch_contigs,
-            ch_fai.collect(),
-            ch_all_samples.map { it[0] }.collect(),
-            ch_all_samples.map { it[1] }.collect(),
-            ch_all_samples.map { it[2] }.first(),
-            ch_all_samples.map { it[3] }.first(),
+            // SAMTOOLS_FAIDX emits [meta, fai], so PREPARE_GENOME.out.fasta_index
+            // is a tuple, not a bare path. Unwrap it and accept either shape.
+            ch_fai.map { it instanceof List ? it[-1] : it }.first(),
+            // toSortedList already yields a VALUE channel holding one list,
+            // so these need neither .collect() (which would wrap the list in a
+            // second list) nor .first() (which warns that it is useless here).
+            ch_all_samples.map { it[0] },
+            ch_all_samples.map { it[1] },
+            ch_all_samples.map { it[2] },
+            ch_all_samples.map { it[3] },
             params.viral_db_window,
             params.viral_db_step,
             params.viral_db_min_mapq
