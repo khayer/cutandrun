@@ -164,6 +164,7 @@ include { PEAK_SIGNAL_PROFILER                             } from "../subworkflo
 include { SPLIT_METAGENE_WF                              } from "../subworkflows/local/split_metagene"
 include { DEEPTOOLS_HEATMAPS                             } from "../subworkflows/local/deeptools_heatmaps"
 include { SPECIES_COMPOSITION                            } from "../modules/local/python/species_composition"
+include { VIRAL_WINDOW_DB_WF                              } from "../subworkflows/local/viral_window_db"
 
 /*
 ========================================================================================
@@ -1512,6 +1513,20 @@ workflow CUTANDRUN {
                 "Reads per species"
             )
             ch_software_versions = ch_software_versions.mix(SPECIES_COMPOSITION.out.versions)
+        }
+
+        // Windowed differential coverage on viral contigs. Peak calls on a
+        // small, saturated genome do not survive their own negative controls;
+        // see claude/weitzman-jack/ad5_peak_calling_limit.md.
+        if (params.run_viral_window_db) {
+            if (!params.viral_db_contigs)   { error "run_viral_window_db needs --viral_db_contigs" }
+            if (!params.viral_db_container) { error "run_viral_window_db needs --viral_db_container (an image with edgeR)" }
+            VIRAL_WINDOW_DB_WF (
+                ch_samtools_bam.join(ch_samtools_bai, by: 0),
+                PREPARE_GENOME.out.fai,
+                params.viral_db_contigs
+            )
+            ch_software_versions = ch_software_versions.mix(VIRAL_WINDOW_DB_WF.out.versions)
         }
 
         /*

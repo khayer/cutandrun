@@ -554,6 +554,59 @@
                     "default": 500,
                     "description": "Width in bp of the length bins used by split_metagene_length_match."
                 },
+                "run_viral_window_db": {
+                    "type": "boolean",
+                    "description": "Run windowed differential coverage on viral contigs instead of trusting peak calls there."
+                },
+                "viral_db_contigs": {
+                    "type": "string",
+                    "description": "Comma-separated viral contig names to test, e.g. Ad5 or HSV17_NR."
+                },
+                "viral_db_window": {
+                    "type": "integer",
+                    "default": 150,
+                    "description": "Window width in bp."
+                },
+                "viral_db_step": {
+                    "type": "integer",
+                    "default": 50,
+                    "description": "Distance in bp between window starts."
+                },
+                "viral_db_min_mapq": {
+                    "type": "integer",
+                    "default": 20,
+                    "description": "Minimum MAPQ for a read to be counted."
+                },
+                "viral_db_min_count": {
+                    "type": "integer",
+                    "default": 10,
+                    "description": "A window must reach this count in at least as many samples as the smaller condition."
+                },
+                "viral_db_fdr": {
+                    "type": "number",
+                    "default": 0.05,
+                    "description": "Window-level FDR cutoff."
+                },
+                "viral_db_merge_gap": {
+                    "type": "integer",
+                    "default": 200,
+                    "description": "Adjacent significant windows within this distance are reported as one region."
+                },
+                "viral_db_norm": {
+                    "type": "string",
+                    "default": "tmm",
+                    "description": "Normalisation for the window counts: tmm, spikein or none."
+                },
+                "viral_db_container": {
+                    "type": "string",
+                    "default": "quay.io/biocontainers/bioconductor-edger:4.10.7--r45h262fe30_0",
+                    "description": "Container image carrying edgeR."
+                },
+                "viral_db_contrasts": {
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "Optional TSV of treatment_group and control_group pairs, same format as deseq2_contrasts. Without it each target is tested against the control its samplesheet names."
+                },
                 "split_metagene_bed_a": {
                     "type": "string",
                     "description": "Optional pre-built group A BED; bypasses gene-group building."
