@@ -9,8 +9,16 @@ process CREATE_MOTIF_COMPARISON_TABLES {
     tag "motif_comparison"
     label 'process_low'
 
-    // Use conda specification to support local/conda runs and conda-to-container resolution.
+    // conda covers local/conda runs. The container directive is required as
+    // well: without it, -profile singularity runs this task on the host, where
+    // pandas is absent (observed 2026-11-27 on work_jack_alfa_combined).
+    //
+    // This image supplies python but NOT pandas/matplotlib; the script block
+    // builds a venv for those, the same way summarize_peak_annotations.nf does.
     conda "conda-forge::python=3.9 conda-forge::pandas=1.5.3 conda-forge::matplotlib=3.8.4 conda-forge::cairosvg=2.7.1"
+    container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
+        'https://depot.galaxyproject.org/singularity/multiqc:1.33--pyhdfd78af_0' :
+        'biocontainers/multiqc:1.33--pyhdfd78af_0' }"
 
     input:
     // Accept as individual paths in a collection, each will be available as a variable
@@ -29,6 +37,15 @@ process CREATE_MOTIF_COMPARISON_TABLES {
     """
     # Create directory structure expected by the script
     task_workdir="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+
+    # The container supplies python only. pandas and matplotlib are imported at
+    # module level by bin/create_motif_comparison_tables.py, so build them here.
+    # Same pattern as summarize_peak_annotations.nf. cairosvg is left out on
+    # purpose: it needs system cairo, a failed pip would abort under bash -ue,
+    # and the script guards that import (the PDF output is optional).
+    python -m venv .plotenv
+    source .plotenv/bin/activate
+    python -m pip install --no-cache-dir pandas matplotlib
 
     mkdir -p homer_motifs/consensus_peaks
     mkdir -p homer_motifs/merged_peaks
