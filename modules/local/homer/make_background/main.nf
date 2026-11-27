@@ -1,7 +1,7 @@
 /*
  * Module: MAKE_HOMER_BACKGROUND
  * Authors: Katharina E. Hayer, co-created with Claude
- * Version: 1.0.0  |  Date: 2026-11-27
+ * Version: 1.1.0  |  Date: 2026-11-27
  *
  * Builds a region-matched background for findMotifsGenome.pl -bg.
  *
@@ -68,6 +68,21 @@ process MAKE_HOMER_BACKGROUND {
     bedtools makewindows -b pool.bed -w ${width} \\
         | awk -v w=${width} 'BEGIN{FS=OFS="\\t"} (\$3-\$2) >= w*0.8 {print \$1,\$2,\$3,"bg_"NR,0,"."}' \\
         > homer_background.bed
+
+    # HOMER bins target and background together for GC normalisation; a
+    # background much smaller than the target set leaves empty bins and
+    # findKnownMotifs.pl dies with "Illegal division by zero". Observed
+    # 2026-11-27: 334 background regions against 30,383 peaks. Fail here,
+    # where the message is readable, not 18 minutes into motif finding.
+    N_BG=\$(wc -l < homer_background.bed)
+    N_PK=\$(wc -l < allpeaks.bed)
+    MIN_BG=\$(( N_PK * 5 ))
+    if [ "\$N_BG" -lt "\$MIN_BG" ]; then
+        echo "ERROR: background too small for HOMER: \$N_BG regions against \$N_PK peaks (need >= \$MIN_BG)." >&2
+        echo "       Lower --homer_background_min_cov (currently ${min_cov}; shallow IgG" >&2
+        echo "       controls rarely reach 5x), or use --homer_background_mode genomic." >&2
+        exit 1
+    fi
 
     {
         echo "min coverage      : ${min_cov}"

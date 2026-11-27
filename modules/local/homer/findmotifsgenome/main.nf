@@ -21,8 +21,8 @@ process HOMER_FINDMOTIFSGENOME {
 
     output:
     tuple val(meta), path("${prefix}/"), emit: motifs
-    tuple val(meta), path("${prefix}/homerResults.html"), emit: html
-    tuple val(meta), path("${prefix}/knownResults.txt"), emit: known_results
+    tuple val(meta), path("${prefix}/homerResults.html"), emit: html         , optional: true
+    tuple val(meta), path("${prefix}/knownResults.txt"), emit: known_results, optional: true
     path "versions.yml", emit: versions
 
     when:
