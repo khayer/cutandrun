@@ -126,6 +126,7 @@ include { REPORT                     } from "../modules/local/report"
 include { MERGE_PEAKS_TABLE          } from "../modules/local/python/merge_peaks_table"
 include { MERGE_PEAKS_TABLE_CONTRAST } from "../modules/local/python/merge_peaks_table_contrast"
 include { DOWNSAMPLE_BAM             } from "../modules/local/samtools_downsample"
+include { MAKE_HOMER_BACKGROUND                           } from "../modules/local/homer/make_background/main"
 include { HOMER_FINDMOTIFSGENOME as HOMER_FINDMOTIFSGENOME_MERGED     } from "../modules/local/homer/findmotifsgenome/main"
 include { HOMER_FINDMOTIFSGENOME as HOMER_FINDMOTIFSGENOME_CONSENSUS  } from "../modules/local/homer/findmotifsgenome/main"
 include { HOMER_ANNOTATEPEAKS                                          } from "../modules/local/homer/annotatepeaks/main"
@@ -896,11 +897,30 @@ workflow CUTANDRUN {
         if(params.run_homer_motifs) {
             // Create a value channel for the fasta file
             ch_fasta_for_homer_merged = PREPARE_GENOME.out.fasta.map { it[1] }.first()
-            
+
+            // Background for -bg. An explicit file wins; otherwise build one
+            // matched to the assayed region class (homer_motif_background.md).
+            ch_homer_background = Channel.value(file("${projectDir}/assets/NO_FILE"))
+            if (params.homer_background_bed) {
+                ch_homer_background = Channel.fromPath(params.homer_background_bed, checkIfExists: true).collect()
+            }
+            else if (params.homer_background_mode == 'matched') {
+                MAKE_HOMER_BACKGROUND (
+                    ch_samtools_bam.filter { it[0].is_control }.map { it[1] }.collect(),
+                    ch_merged_peaks_bed.collect(),
+                    params.homer_background_min_cov,
+                    params.homer_background_width,
+                    params.homer_background_exclude
+                )
+                ch_software_versions = ch_software_versions.mix(MAKE_HOMER_BACKGROUND.out.versions)
+                ch_homer_background = MAKE_HOMER_BACKGROUND.out.bed.collect()
+            }
+
             HOMER_FINDMOTIFSGENOME_MERGED (
                 ch_merged_peaks_bed.map { bed -> [ [id: 'merged_peaks'], bed ] },
                 ch_fasta_for_homer_merged,
-                params.homer_motif_size
+                params.homer_motif_size,
+                ch_homer_background
             )
             ch_software_versions = ch_software_versions.mix(HOMER_FINDMOTIFSGENOME_MERGED.out.versions)
             
@@ -1238,7 +1258,8 @@ workflow CUTANDRUN {
                 HOMER_FINDMOTIFSGENOME_CONSENSUS (
                     ch_consensus_peaks_unfilt,
                     ch_fasta_for_homer,
-                    params.homer_motif_size
+                    params.homer_motif_size,
+                    ch_homer_background
                 )
                 ch_software_versions = ch_software_versions.mix(HOMER_FINDMOTIFSGENOME_CONSENSUS.out.versions)
                 

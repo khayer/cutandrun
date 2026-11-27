@@ -17,6 +17,7 @@ process HOMER_FINDMOTIFSGENOME {
     tuple val(meta), path(bed)
     path fasta
     val size
+    path background
 
     output:
     tuple val(meta), path("${prefix}/"), emit: motifs
@@ -29,6 +30,10 @@ process HOMER_FINDMOTIFSGENOME {
 
     script:
     def args = task.ext.args ?: ''
+    // A region-matched background has to be STAGED, so it cannot come through
+    // ext.args. NO_FILE means fall back to HOMER's automatic genomic
+    // background, which homer_motif_background.md documents as the confound.
+    def bg = background.name != 'NO_FILE' ? "-bg ${background}" : ''
     prefix = task.ext.prefix ?: "${meta.id}"
     """
     findMotifsGenome.pl \\
@@ -36,6 +41,7 @@ process HOMER_FINDMOTIFSGENOME {
         $fasta \\
         ${prefix}/ \\
         -size $size \\
+        $bg \\
         $args
 
     cat <<-END_VERSIONS > versions.yml

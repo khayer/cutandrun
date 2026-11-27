@@ -722,6 +722,32 @@
                     "description": "Run Homer motif analysis on merged and consensus peaks",
                     "help_text": "Performs de novo and known motif discovery using Homer's findMotifsGenome.pl. Analyzes both merged peaks (all samples) and consensus peaks (per group)."
                 },
+                "homer_background_mode": {
+                    "type": "string",
+                    "default": "matched",
+                    "enum": ["matched", "genomic"],
+                    "description": "matched builds a background from control coverage with every peak removed; genomic uses HOMER's automatic genomic background."
+                },
+                "homer_background_bed": {
+                    "type": "string",
+                    "format": "file-path",
+                    "description": "A background BED of your own, overriding homer_background_mode."
+                },
+                "homer_background_min_cov": {
+                    "type": "integer",
+                    "default": 5,
+                    "description": "Minimum control coverage for a region to count as assayable."
+                },
+                "homer_background_width": {
+                    "type": "integer",
+                    "default": 200,
+                    "description": "Width of the background windows."
+                },
+                "homer_background_exclude": {
+                    "type": "string",
+                    "default": "^(Ad5|HSV17_NR|hRSV_A2|Myco_|chrM|chrEBV)",
+                    "description": "Regex of contigs kept out of the background."
+                },
                 "homer_motif_size": {
                     "type": "integer",
                     "default": 200,

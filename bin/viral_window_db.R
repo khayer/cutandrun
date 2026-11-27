@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # viral_window_db.R
 # Authors : Katharina (Nina) Hayer, co-created with Claude Opus 5 (Anthropic)
-# Version : 1.4.0
+# Version : 1.6.0
 # Date    : 2026-11-25
 #
 # Purpose : Differential coverage on a small viral contig, the csaw way:
@@ -222,16 +222,57 @@ if (!is.null(contrasts_f)) {
     pairs <- data.frame(trt = trimws(ct[[1]]), ref = trimws(ct[[2]]),
                         stringsAsFactors = FALSE)
 } else {
-    tg <- unique(samples$group[!is_ctl])
-    pairs <- data.frame(
-        trt = tg,
-        ref = vapply(tg, function(g) {
-            cg <- unique(samples$control_group[samples$group == g])
-            cg <- cg[!is.na(cg) & nzchar(cg)]
-            if (length(cg) == 1) cg else NA_character_
-        }, character(1)),
-        stringsAsFactors = FALSE)
+    # meta.control_group is not uniform across this pipeline: for some samples it
+    # is a group name, for others "<group>_<replicate>" (cutandrun.nf:621 notes
+    # the latter), and for others it is empty. Resolve all three rather than
+    # trusting one shape, and say out loud what each target was matched to.
+    ctl_groups <- unique(samples$group[is_ctl])
+
+    # check_samplesheet.py appends the replicate to the control column, so a
+    # target group with three replicates carries THREE control_group values -
+    # mNG_NLS_24hpi_1, _2, _3 - one per matched control replicate. Map each
+    # value to a group FIRST and only then ask whether they agree. Asking
+    # whether the raw values agree calls a perfectly ordinary samplesheet
+    # ambiguous, which is what version 1.4.0 did.
+    to_group <- function(v) {
+        if (is.na(v) || !nzchar(v)) return(NA_character_)
+        if (v %in% samples$group) return(v)
+        stripped <- sub("_[0-9]+$", "", v)               # <group>_<replicate>
+        if (stripped %in% samples$group) return(stripped)
+        if (v %in% samples$sample) return(samples$group[match(v, samples$sample)])
+        NA_character_
+    }
+
+    resolve_control <- function(g) {
+        raw <- unique(samples$control_group[samples$group == g])
+        raw <- raw[!is.na(raw) & nzchar(raw)]
+        if (length(raw) == 0) {
+            if (length(ctl_groups) == 1) {
+                return(c(ctl_groups, "empty in metadata; only one control group exists"))
+            }
+            return(c(NA_character_, paste0("empty in metadata, and ", length(ctl_groups),
+                                           " control groups to choose from")))
+        }
+        mapped <- unique(vapply(raw, to_group, character(1)))
+        if (anyNA(mapped)) {
+            bad <- raw[is.na(vapply(raw, to_group, character(1)))]
+            return(c(NA_character_, paste0("unresolvable: ", paste(bad, collapse = "/"))))
+        }
+        if (length(mapped) > 1) {
+            return(c(NA_character_, paste0("points at several control groups: ",
+                                           paste(mapped, collapse = "/"))))
+        }
+        how <- if (identical(sort(raw), sort(mapped))) "named group" else
+               paste0("group of ", length(raw), " replicate-level value",
+                      if (length(raw) > 1) "s" else "")
+        c(mapped, how)
+    }
+    tg  <- unique(samples$group[!is_ctl])
+    res <- t(vapply(tg, resolve_control, character(2)))
+    pairs <- data.frame(trt = tg, ref = res[, 1], how = res[, 2],
+                        stringsAsFactors = FALSE)
 }
+if (!"how" %in% colnames(pairs)) pairs$how <- "from --contrasts"
 
 # Permutation null. With 3 replicates a side there is no way to split one
 # control group in two and still estimate dispersion, so the null is built by
@@ -273,7 +314,11 @@ for (k in seq_len(nrow(pairs))) {
     tg <- pairs$trt[k]
     cg <- pairs$ref[k]
     if (is.na(cg) || !nzchar(cg)) {
-        emit(tg, ": SKIPPED - no control group named for it")
+        emit(tg, ": SKIPPED - control group ", pairs$how[k])
+        emit("  control groups present: ",
+             paste(unique(samples$group[is_ctl]), collapse = ", "))
+        emit("  control_group values seen for this target: ",
+             paste(unique(samples$control_group[samples$group == tg]), collapse = "|"))
         next
     }
     idx_t <- which(samples$group == tg)
@@ -315,7 +360,7 @@ for (k in seq_len(nrow(pairs))) {
                 paste0(prefix, ".permutation_null.tsv"),
                 sep = "\t", quote = FALSE, row.names = FALSE)
 
-    emit(tg, " vs ", cg, ":")
+    emit(tg, " vs ", cg, "   [control resolved: ", pairs$how[k], "]")
     emit("  real          : ", real$n_sig_windows, " significant windows in ",
          real$n_regions, " regions (of ", real$n_tested_windows, " tested)")
     if (length(perm_counts) == 0) {
